@@ -23,14 +23,3 @@ class Body():
     front_area: float
     rear_area: float
     axle_distance: float
-
-
-@dataclass
-class Wheel():
-    """
-    This class defines the physical properties of the wheels.
-    """
-    radius: float
-    width: float
-    mass: float
-    air_pressure: float
