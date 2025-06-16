@@ -1,7 +1,37 @@
 """
-This module contains definitions of some constants for
-use in the project.
+This module contains definitions of
+constants for use in the project.
 """
 
-KWH_TO_JOULES = 3.6e6
-JOULES_TO_KWH = 1 / KWH_TO_JOULES
+# Energy conversion coefficients
+KWH_TO_JOULES: float = 3.6e6
+JOULES_TO_KWH: float = 1 / KWH_TO_JOULES
+
+# Fuel energy densities (J/kg)
+ENERGY_DENSITY_GASOLINE: float = 44.4e6
+ENERGY_DENSITY_DIESEL: float = 45.4e6
+ENERGY_DENSITY_HYDROGEN: float = 130e6
+ENERGY_DENSITY_ETHANOL: float = 26.8e6
+ENERGY_DENSITY_METHANOL: float = 22.6e6
+ENERGY_DENSITY_BIODIESEL: float = 37.8e6
+
+# Fuel mass densities (kg/m^3)
+DENSITY_GASOLINE: float = 742.9
+DENSITY_DIESEL: float = 830.0
+DENSITY_ETHANOL: float = 789.0
+DENSITY_METHANOL: float = 791.3
+DENSITY_BIODIESEL: float = 874.7
+
+BATTERY_EFFICIENCY_DEFAULT: float = 0.95
+HYDROGEN_FUEL_CELL_EFFICIENCY_DEFAULT: float = 0.60
+
+# Engine and motor default efficiencies
+ELECTRIC_MOTOR_DEFAULT_EFFICIENCY: float = 0.85
+GASOLINE_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
+DIESEL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
+HYDROGEN_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
+ETHANOL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
+METHANOL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
+BIODIESEL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
+
+ELECTRIC_GENERATOR_DEFAULT_EFFICIENCY: float = 0.85
