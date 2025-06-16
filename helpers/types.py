@@ -9,6 +9,15 @@ class PowerType(Enum):
     A comprehensive list of types of power useable in the vehicle.
     Usable both for input and output of each block.
     """
-    THERMAL = "THERMAL"
-    ELECTRIC = "ELECTRIC"
+    MOLECULAR  = "MOLECULAR"
+    ELECTRIC   = "ELECTRIC"
     MECHANICAL = "MECHANICAL"
+
+
+class StateOfMatter(Enum):
+    """
+    A list of states of matter.
+    """
+    SOLID   = "SOLID"
+    LIQUID  = "LIQUID"
+    GASEOUS = "GASEOUS"
