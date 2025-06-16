@@ -33,7 +33,7 @@ class Fuel():
         self.energy_density = max(self.energy_density, 0.0)
         if self.density:
             self.density = max(self.density, 0.0)
-        self.power_type = PowerType.MOLECULAR
+        self.power_type = PowerType.CHEMICAL
 
     @property
     def is_solid(self) -> bool:
