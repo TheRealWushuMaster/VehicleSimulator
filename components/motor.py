@@ -39,3 +39,19 @@ class InternalCombustionEngine(PowerConverter):
                          efficiency=efficiency,
                          fuel=fuel,
                          reverse_efficiency=None)
+
+
+@dataclass
+class ElectricGenerator(PowerConverter):
+    """Models a simple, non reversible electric generator."""
+    def __init__(self,
+                 name: str,
+                 power_rating: float,
+                 efficiency: float):
+        super().__init__(name=name,
+                         input_power=PowerType.MECHANICAL,
+                         output_power=PowerType.ELECTRIC,
+                         power_rating=power_rating,
+                         efficiency=efficiency,
+                         fuel=None,
+                         reverse_efficiency=None)
