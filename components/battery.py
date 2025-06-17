@@ -11,7 +11,7 @@ from simulation.constants import BATTERY_DEFAULT_SOH, BATTERY_EFFICIENCY_DEFAULT
 
 @dataclass
 class AlAirBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models an Aluminium Air battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -45,7 +45,7 @@ class PbAcidBattery(Battery):
 
 @dataclass
 class LiCoBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Lithium-ion Cobalt battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -62,7 +62,7 @@ class LiCoBattery(Battery):
 
 @dataclass
 class LiMnBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Lithium-ion Manganese battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -79,7 +79,7 @@ class LiMnBattery(Battery):
 
 @dataclass
 class LiPhBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Lithium-ion Phosphate battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -96,7 +96,7 @@ class LiPhBattery(Battery):
 
 @dataclass
 class LiPoBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Lithium-ion Polymer battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -113,7 +113,7 @@ class LiPoBattery(Battery):
 
 @dataclass
 class NiCdBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Nickel Cadmium battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -130,7 +130,7 @@ class NiCdBattery(Battery):
 
 @dataclass
 class NiMHBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Nickel Metal Hydride battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -147,7 +147,7 @@ class NiMHBattery(Battery):
 
 @dataclass
 class SolidStateBattery(Battery):
-    """Models a lead-acid battery."""
+    """Models a Solid State battery."""
     def __init__(self,
                  name: str,
                  nominal_energy: float,

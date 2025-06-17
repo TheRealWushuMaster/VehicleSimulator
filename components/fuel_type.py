@@ -80,7 +80,6 @@ class LiquidFuel(Fuel):
                  name: str,
                  energy_density: float,
                  density: float):
-        assert isinstance(density, float)
         super().__init__(name=name,
                          energy_density=energy_density,
                          density=density,

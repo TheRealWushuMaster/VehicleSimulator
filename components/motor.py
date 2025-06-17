@@ -4,54 +4,57 @@ This module contains definitions for motors and engines.
 
 from dataclasses import dataclass
 from components.fuel_type import Fuel
-from components.power_converter import PowerConverter
+from components.converter import Converter
 from helpers.types import PowerType
 
 @dataclass
-class ElectricMotor(PowerConverter):
-    """Models a simple electric motor."""
+class ElectricMotor(Converter):
+    """Models a simple, reversible electric motor."""
     def __init__(self,
                  name: str,
-                 power_rating: float,
+                 mass: float,
+                 max_power: float,
                  efficiency: float,
                  reverse_efficiency: float):
         super().__init__(name=name,
-                         input_power=PowerType.ELECTRIC,
-                         output_power=PowerType.MECHANICAL,
-                         power_rating=power_rating,
+                         mass=mass,
+                         input=PowerType.ELECTRIC,
+                         output=PowerType.MECHANICAL,
+                         max_power=max_power,
                          efficiency=efficiency,
-                         fuel=None,
                          reverse_efficiency=reverse_efficiency)
 
 
 @dataclass
-class InternalCombustionEngine(PowerConverter):
+class InternalCombustionEngine(Converter):
     """Models a simple internal combustion engine."""
     def __init__(self,
                  name: str,
-                 power_rating: float,
+                 mass: float,
+                 max_power: float,
                  efficiency: float,
                  fuel: Fuel):
         super().__init__(name=name,
-                         input_power=PowerType.CHEMICAL,
-                         output_power=PowerType.MECHANICAL,
-                         power_rating=power_rating,
+                         mass=mass,
+                         input=fuel,
+                         output=PowerType.MECHANICAL,
+                         max_power=max_power,
                          efficiency=efficiency,
-                         fuel=fuel,
                          reverse_efficiency=None)
 
 
 @dataclass
-class ElectricGenerator(PowerConverter):
+class ElectricGenerator(Converter):
     """Models a simple, non reversible electric generator."""
     def __init__(self,
                  name: str,
-                 power_rating: float,
+                 mass: float,
+                 max_power: float,
                  efficiency: float):
         super().__init__(name=name,
-                         input_power=PowerType.MECHANICAL,
-                         output_power=PowerType.ELECTRIC,
-                         power_rating=power_rating,
+                         mass=mass,
+                         input=PowerType.MECHANICAL,
+                         output=PowerType.ELECTRIC,
+                         max_power=max_power,
                          efficiency=efficiency,
-                         fuel=None,
                          reverse_efficiency=None)

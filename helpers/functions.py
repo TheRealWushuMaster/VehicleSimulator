@@ -11,7 +11,7 @@ def clamp(val: float, min_val: float, max_val: float) -> float:
     return max(min(val, max_val), min_val)
 
 def assert_type(*args: Any,
-                expected_type: type|tuple[type],
+                expected_type: type|tuple[type, ...],
                 allow_none: bool=False) -> None:
     """
     Asserts that all the arguments in *args are of the expected types.

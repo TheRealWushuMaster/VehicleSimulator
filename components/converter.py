@@ -9,41 +9,39 @@ from simulation.constants import EPSILON
 
 
 @dataclass
-class PowerConverter():
+class Converter():
     """
     Base class for modules that convert energy between types.
     Includes engines, motors, and fuel cells.
     
     Attributes:
         - name (str): a name for the power converter
-        - input_power (PowerType): the type of input power
-        - output_power (PowerType): the type of output power
-        - power_rating (float): the maximum power it can handle (W)
+        - input (PowerType or Fuel): the input to convert from
+        - output (PowerType or Fuel): the output to convert to
+        - max_power (float): the maximum power it can handle (W)
         - efficiency (float): accounts for power losses [0.0-1.0]
         - reverse_efficiency (float or None): allows to convert
                 power [0.0-1.0] in reverse if the value is not None
     """
     name: str
-    input_power: PowerType
-    output_power: PowerType
-    power_rating: float
+    mass: float
+    input: PowerType|Fuel
+    output: PowerType|Fuel
+    max_power: float
     efficiency: float
-    fuel: Optional[Fuel]
     reverse_efficiency: Optional[float]
 
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
-        assert_type(self.input_power, self.output_power,
-                    expected_type=PowerType)
-        assert_type(self.power_rating, self.efficiency,
+        assert_type(self.input, self.output,
+                    expected_type=(PowerType, Fuel))
+        assert_type(self.mass, self.max_power, self.efficiency,
                     expected_type=float)
-        assert_type(self.fuel,
-                    expected_type=Fuel,
-                    allow_none=True)
         assert_type(self.reverse_efficiency,
                     expected_type=float,
                     allow_none=True)
+        self.mass = max(self.mass, 0.0)
         self.efficiency = clamp(val=self.efficiency,
                                 min_val=EPSILON,
                                 max_val=1.0)
@@ -51,7 +49,7 @@ class PowerConverter():
             self.reverse_efficiency = clamp(val=self.reverse_efficiency,
                                             min_val=0.0,
                                             max_val=1.0)
-        self.power_rating = max(self.power_rating, 0.0)
+        self.max_power = max(self.max_power, 0.0)
 
     def _compute_conversion(self, input_power: float, delta_t: float,
                            reverse: bool) -> ConversionResult:
@@ -66,7 +64,7 @@ class PowerConverter():
             eff = self.efficiency
         output_power = clamp(val=input_power*eff,
                              min_val=0.0,
-                             max_val=self.power_rating)
+                             max_val=self.max_power)
         power_loss = input_power - output_power
         return ConversionResult(input_power=input_power,
                                 output_power=output_power,
