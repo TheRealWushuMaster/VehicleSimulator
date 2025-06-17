@@ -23,3 +23,16 @@ def assert_type(*args: Any,
             f"Variable {arg}: Expected {expected_type}" +
             (" or None" if allow_none else "") + 
             f", got {type(arg).__name__}")
+
+def assert_range(*args: Any,
+                 more_than: float=float("-inf"),
+                 less_than: float=float("inf")) -> None:
+    """
+    Asserts if the arguments in *args fall between the range of
+    [more_than, less_than].
+    If one of the values is missing, it assumes a simple less than or
+    more than comparison.
+    """
+    for arg in args:
+        assert isinstance(arg, float)
+        assert more_than <= arg <= less_than
