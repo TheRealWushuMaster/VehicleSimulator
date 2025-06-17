@@ -4,14 +4,12 @@ for the simulation.
 """
 
 from dataclasses import dataclass
-from typing import Optional
-from components.battery import Battery
 from components.body import Body
-from components.brake import DiskBrake, DrumBrake
+from components.brake import Brake
 from components.drive_train import DriveTrain
-from components.ecu import ElectricECU, HybridECU, PluginHybridECU
-from components.fuel_cell import HydrogenFuelCell
-from components.motor import ElectricMotor, InternalCombustionEngine
+from components.ecu import ECU
+from components.energy_source import EnergySource
+from components.power_converter import PowerConverter
 
 
 @dataclass
@@ -19,11 +17,9 @@ class Vehicle():
     """
     Combines all vehicle components into a comprehensive model.
     """
-    battery: Optional[Battery]
+    energy_sources: list[EnergySource]
+    power_converters: list[PowerConverter]
     body: Body
-    brake: DiskBrake|DrumBrake
+    brake: Brake
     drive_train: DriveTrain
-    ecu: ElectricECU|HybridECU|PluginHybridECU
-    fuel_cell: Optional[HydrogenFuelCell]
-    fuel_type: Optional[float]
-    motor: list[ElectricMotor|InternalCombustionEngine]
+    ecu: ECU

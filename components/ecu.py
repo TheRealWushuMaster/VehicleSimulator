@@ -4,17 +4,21 @@ This module contains definitions for different types of ECUs.
 
 from dataclasses import dataclass
 
-
 @dataclass
-class ElectricECU():
+class ECU():
     ...
 
 
 @dataclass
-class HybridECU():
+class ElectricECU(ECU):
     ...
 
 
 @dataclass
-class PluginHybridECU():
+class HybridECU(ECU):
+    ...
+
+
+@dataclass
+class PluginHybridECU(ECU):
     ...

@@ -4,12 +4,16 @@ This module contains definitions for mechanical braking systems.
 
 from dataclasses import dataclass
 
-
 @dataclass
-class DiskBrake():
+class Brake():
     ...
 
 
 @dataclass
-class DrumBrake():
+class DiskBrake(Brake):
+    ...
+
+
+@dataclass
+class DrumBrake(Brake):
     ...
