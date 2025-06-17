@@ -3,9 +3,10 @@
 from dataclasses import dataclass
 from typing import Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
-from helpers.functions import clamp
+from helpers.functions import clamp, assert_type
 from helpers.types import PowerType
-from simulation.constants import BATTERY_EFFICIENCY_DEFAULT, BATTERY_DEFAULT_SOH
+from simulation.constants import BATTERY_EFFICIENCY_DEFAULT, \
+    BATTERY_DEFAULT_SOH, LTS_TO_CUBIC_METERS, EPSILON
 
 
 @dataclass
@@ -25,16 +26,27 @@ class EnergySource():
     fuel_type: Optional[Fuel]
 
     def __post_init__(self):
-        self.nominal_energy = max(self.nominal_energy, 0.0)
-        self.mass = max(self.mass, 0.0)
+        assert_type(self.name,
+                    expected_type=str)
+        assert_type(self.nominal_energy, self.energy,
+                    self.system_mass, self.soh, self.efficiency,
+                    expected_type=float)
+        assert_type(self.power_input, self.power_output,
+                    expected_type=PowerType,
+                    allow_none=True)
+        assert_type(self.fuel_type,
+                    expected_type=Fuel,
+                    allow_none=True)
+        self.nominal_energy = max(self.nominal_energy, EPSILON)
+        self.system_mass = max(self.system_mass, EPSILON)
         self.energy = clamp(val=self.energy,
                             min_val=0.0,
                             max_val=self.max_energy)
         self.soh = clamp(val=self.soh,
-                         min_val=0.0,
+                         min_val=EPSILON,
                          max_val=1.0)
         self.efficiency = clamp(val=self.efficiency,
-                                min_val=0.0,
+                                min_val=EPSILON,
                                 max_val=1.0)
 
     @property
@@ -148,9 +160,11 @@ class LiquidFuelTank(EnergySource):
                  capacity_litres: float,
                  litres: float,
                  tank_mass: float):
+        assert fuel.density is not None
+        conversion = fuel.energy_density * fuel.density * LTS_TO_CUBIC_METERS
         super().__init__(name=name,
-                         nominal_energy=capacity_litres*fuel.energy_density,
-                         energy=litres*fuel.energy_density,
+                         nominal_energy=capacity_litres*conversion,
+                         energy=litres*conversion,
                          system_mass=tank_mass,
                          power_input=None,
                          power_output=None,

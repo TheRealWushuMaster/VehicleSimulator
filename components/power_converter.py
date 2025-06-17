@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 from typing import Optional
 from components.fuel_type import Fuel
-from helpers.functions import clamp
+from helpers.functions import clamp, assert_type
 from helpers.types import PowerType, ConversionResult
+from simulation.constants import EPSILON
 
 
 @dataclass
@@ -31,8 +32,20 @@ class PowerConverter():
     reverse_efficiency: Optional[float]
 
     def __post_init__(self):
+        assert_type(self.name,
+                    expected_type=str)
+        assert_type(self.input_power, self.output_power,
+                    expected_type=PowerType)
+        assert_type(self.power_rating, self.efficiency,
+                    expected_type=float)
+        assert_type(self.fuel,
+                    expected_type=Fuel,
+                    allow_none=True)
+        assert_type(self.reverse_efficiency,
+                    expected_type=float,
+                    allow_none=True)
         self.efficiency = clamp(val=self.efficiency,
-                                min_val=0.0,
+                                min_val=EPSILON,
                                 max_val=1.0)
         if self.reverse_efficiency:
             self.reverse_efficiency = clamp(val=self.reverse_efficiency,

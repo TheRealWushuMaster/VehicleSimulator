@@ -3,11 +3,18 @@ This module contains definitions of
 constants for use in the project.
 """
 
+# Miscellaneous
+EPSILON: float = 0.001
+
 # Energy conversion
 KWH_TO_JOULES: float = 3.6e6
-WH_TO_JOULES: float = KWH_TO_JOULES / 1000
+WH_TO_JOULES: float = KWH_TO_JOULES / 1_000
 JOULES_TO_KWH: float = 1 / KWH_TO_JOULES
 JOULES_TO_WH: float = 1 / WH_TO_JOULES
+
+# Volume conversion
+CUBIC_METERS_TO_LTS: float = 1_000
+LTS_TO_CUBIC_METERS: float = 1 / CUBIC_METERS_TO_LTS
 
 # Fuel energy densities (J/kg)
 ENERGY_DENSITY_GASOLINE: float = 44.4e6
@@ -37,7 +44,6 @@ HYDROGEN_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
 ETHANOL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
 METHANOL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
 BIODIESEL_ENGINE_DEFAULT_EFFICIENCY: float = 0.35
-
 ELECTRIC_GENERATOR_DEFAULT_EFFICIENCY: float = 0.85
 
 BATTERY_DEFAULT_SOH: float = 1.0
