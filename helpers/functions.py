@@ -36,3 +36,17 @@ def assert_range(*args: Any,
     for arg in args:
         assert isinstance(arg, float)
         assert more_than <= arg <= less_than
+
+def assert_type_and_range(*args: Any,
+                          more_than: float = float("-inf"),
+                          less_than: float = float("inf"),
+                          allow_none: bool=False) -> None:
+    """
+    Combines both assertions of type and range into a single check.
+    """
+    for arg in args:
+        is_expected_type = isinstance(arg, float)
+        is_none_allowed = allow_none and (arg is None)
+        assert is_expected_type or is_none_allowed
+        if not is_none_allowed:
+            assert more_than <= arg <= less_than
