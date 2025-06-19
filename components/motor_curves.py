@@ -3,7 +3,7 @@
 from math import exp, log, sqrt
 from typing import Callable
 from helpers.functions import assert_type, assert_range
-from helpers.types import MotorOperationPoint
+from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
 
 
 class MaxPowerVsRPMCurves():
@@ -45,15 +45,16 @@ class MaxPowerVsRPMCurves():
             max_rpm: MotorOperationPoint,
             peak_rpm: MotorOperationPoint) -> Callable[[float], float]:
         """
-        Generates a sample power vs RPM curve for an internal combustion engine.
-        It is simulated with a piecewise normal distribution.
+        Generates a sample maximum power vs RPM curve for an internal
+        combustion engine.
+        It is simulated with a piecewise Gaussian curve.
         """
         assert_type(min_rpm.rpm, min_rpm.power,
                     max_rpm.rpm, max_rpm.power,
                     peak_rpm.rpm, peak_rpm.power,
                     expected_type=float)
         assert_range(min_rpm.rpm, min_rpm.power,
-                     max_rpm.rpm, max_rpm.power,
+                     max_rpm.power,
                      more_than=0.0)
         assert_range(peak_rpm.rpm,
                      more_than=min_rpm.rpm,
@@ -63,18 +64,33 @@ class MaxPowerVsRPMCurves():
         alpha1 = (log(peak_rpm.power) - log(min_rpm.power)) / (min_rpm.rpm - peak_rpm.rpm)**2
         alpha2 = (log(peak_rpm.power) - log(max_rpm.power)) / (max_rpm.rpm - peak_rpm.rpm)**2
         def power_func(rpm: float) -> float:
-            if rpm < min_rpm.rpm or rpm > max_rpm.rpm:
+            if not min_rpm.rpm <= rpm <= max_rpm.rpm:
                 return 0.0
             alpha = alpha1 if rpm <= peak_rpm.rpm else alpha2
             return peak_rpm.power * exp(-alpha * (rpm - peak_rpm.rpm)**2)
         return power_func
 
     @staticmethod
-    def electric_motor() -> Callable[[float], float]:
+    def em(base_rpm: float,
+           max_rpm: float,
+           max_power: float) -> Callable[[float], float]:
         """
         Generates a sample power vs RPM curve for an electric motor.
+        Maximum power increases linearly up to base_rpm, then remains constant.
         """
-        raise NotImplementedError
+        assert_type(base_rpm, max_rpm, max_power,
+                    expected_type=float)
+        assert_range(base_rpm, max_power,
+                     more_than=0.0)
+        assert_range (max_rpm,
+                      more_than=base_rpm)
+        def power_func(rpm: float) -> float:
+            if not 0.0 <= rpm <= max_rpm:
+                return 0.0
+            if rpm <= base_rpm:
+                return max_power * rpm / base_rpm
+            return max_power
+        return power_func
 
 
 class PowerEfficiencyCurves():
@@ -141,4 +157,35 @@ class PowerEfficiencyCurves():
             rpm_distance = abs(rpm - rpm_max_eff) / rpm_range
             elliptical_distance = sqrt((power_distance*power_falloff_rate)**2 + (rpm_distance*rpm_falloff_rate)**2)
             return max(max_efficiency * max(0.0, 1.0 - elliptical_distance), min_efficiency)
+        return efficiency_func
+
+    @staticmethod
+    def gaussian(max_eff: MotorEfficiencyPoint,
+                 min_eff: float,
+                 falloff_rpm: float,
+                 falloff_power: float,
+                 max_power_vs_rpm: Callable[[float], float],
+                 min_rpm: float,
+                 max_rpm: float) -> Callable[[float, float], float]:
+        """
+        Generates a sample efficiency vs power & rpm for internal
+        combustion engines and electric motors.
+        It is simulated using a bivariate Gaussian curve.
+        The values of `falloff_rpm` and `falloff_power` should be much
+        smaller for electric motors than for ICEs.
+        """
+        assert_type(falloff_rpm, falloff_power, min_rpm, max_rpm,
+                    expected_type=float)
+        assert_range(falloff_rpm, falloff_power,
+                     more_than=0.0)
+        assert_range(min_eff,
+                     more_than=0.0,
+                     less_than=max_eff.efficiency)
+        def efficiency_func(power: float,
+                            rpm: float) -> float:
+            if not min_rpm <= rpm <= max_rpm:
+                return 0.0
+            if not 0.0 <= power <= max_power_vs_rpm(rpm):
+                return 0.0
+            return max(max_eff.efficiency * exp(-falloff_rpm*(rpm-max_eff.rpm)**2 - falloff_power*(power-max_eff.power)**2), min_eff)
         return efficiency_func

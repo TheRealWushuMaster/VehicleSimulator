@@ -1,7 +1,10 @@
 """This module contains a base class for all power sources for the vehicle."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
+from components.port import PortInput, PortOutput, PortBidirectional
+from components.state import EnergySourceState
 from helpers.functions import clamp, assert_type
 from helpers.types import PowerType
 from simulation.constants import BATTERY_EFFICIENCY_DEFAULT, \
@@ -26,12 +29,15 @@ class EnergySource():
     """
     name: str
     nominal_energy: float
+    input: Optional[PortInput|PortBidirectional]
+    output: PortOutput|PortBidirectional
+    state: EnergySourceState
     energy: float
     system_mass: float
-    energy_medium: PowerType|Fuel
     soh: float
     efficiency: float
-    rechargeable: bool
+    energy_medium: PowerType|Fuel = field(init=False)
+    rechargeable: bool = field(init=False)
 
     def __post_init__(self):
         assert_type(self.name,
@@ -43,6 +49,8 @@ class EnergySource():
                     expected_type=(PowerType, Fuel))
         assert_type(self.rechargeable,
                     expected_type=bool)
+        if self.input is not None:
+            assert self.input.exchange==self.output.exchange
         self.nominal_energy = max(self.nominal_energy, EPSILON)
         self.system_mass = max(self.system_mass, EPSILON)
         self.energy = clamp(val=self.energy,
@@ -54,13 +62,15 @@ class EnergySource():
         self.efficiency = clamp(val=self.efficiency,
                                 min_val=EPSILON,
                                 max_val=1.0)
+        self.energy_medium = self.output.exchange
+        self.rechargeable = self.input is not None
 
     @property
     def soc(self) -> float:
         """
         Returns the source's current state of charge (SOC).
         """
-        return self.energy / self.nominal_energy / self.soh
+        return self.state.energy / self.nominal_energy / self.soh
 
     @property
     def max_energy(self) -> float:
@@ -75,14 +85,14 @@ class EnergySource():
         """
         Check if the source has no usable energy left.
         """
-        return self.energy <= 0
+        return self.state.energy <= 0
 
     @property
     def is_full(self) -> bool:
         """
         Check if the source cannot receive any more energy.
         """
-        return self.energy==self.max_energy
+        return self.state.energy==self.max_energy
 
     @property
     def max_fuel_mass(self) -> float:
@@ -101,7 +111,7 @@ class EnergySource():
         based on current energy and fuel's energy density.
         """
         if isinstance(self.energy_medium, Fuel):
-            return self.energy / self.energy_medium.energy_density
+            return self.state.energy / self.energy_medium.energy_density
         return 0.0
 
     @property
@@ -118,7 +128,7 @@ class EnergySource():
         """
         if self.rechargeable:
             input_energy = abs(power) * delta_t * self.efficiency
-            self.energy = min(self.max_energy, self.energy + input_energy)
+            self.state.energy = min(self.max_energy, self.state.energy + input_energy)
             return input_energy
         return 0.0
 
@@ -128,8 +138,8 @@ class EnergySource():
         the output to the energy stored at the moment.
         Returns actual energy spent.
         """
-        output_energy = min(abs(power) * delta_t / self.efficiency, self.energy)
-        self.energy = max(0.0, self.energy - output_energy)
+        output_energy = min(abs(power) * delta_t / self.efficiency, self.state.energy)
+        self.energy = max(0.0, self.state.energy - output_energy)
         return output_energy
 
 
@@ -145,14 +155,16 @@ class Battery(EnergySource):
                  battery_mass: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
+        state = EnergySourceState(delivering=False,
+                                  receiving=False,
+                                  energy=energy,
+                                  power=0.0)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          energy=energy,
                          system_mass=battery_mass,
-                         energy_medium=PowerType.ELECTRIC,
                          soh=soh,
-                         efficiency=efficiency,
-                         rechargeable=True)
+                         efficiency=efficiency)
 
 
 @dataclass
