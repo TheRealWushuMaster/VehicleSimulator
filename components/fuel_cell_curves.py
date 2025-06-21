@@ -2,8 +2,6 @@
 
 from math import exp
 from collections.abc import Callable
-import numpy as np
-import matplotlib.pyplot as plt
 from components.state import ElectricalState
 from helpers.functions import assert_type_and_range, assert_range
 
