@@ -17,7 +17,7 @@ def assert_type(*args: Any,
     Asserts that all the arguments in *args are of the expected types.
     """
     for arg in args:
-        is_expected_type = isinstance(arg, expected_type)
+        is_expected_type = isinstance(arg, expected_type)  # type: ignore[arg-type]
         is_none_allowed = allow_none and (arg is None)
         assert is_expected_type or is_none_allowed, (
             f"Variable {arg}: Expected {expected_type}" +
@@ -52,12 +52,20 @@ def assert_type_and_range(*args: Any,
     Combines both assertions of type and range into a single check.
     """
     for arg in args:
-        assert_type(arg,
-                    expected_type=float,
-                    allow_none=allow_none)
+        assert_numeric(arg,
+                       allow_none=allow_none)
         if arg is not None:
             assert_range(arg,
                          more_than=more_than,
                          less_than=less_than,
                          include_more=include_more,
                          include_less=include_less)
+
+def assert_numeric(*args: Any,
+                   allow_none: bool=False) -> None:
+    """
+    Asserts if the arguments are numeric.
+    """
+    assert_type(args,
+                expected_type=(float, int),
+                allow_none=allow_none)

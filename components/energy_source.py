@@ -2,10 +2,11 @@
 
 from dataclasses import dataclass, field
 from typing import Optional
+from uuid import uuid4
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
-from components.port import PortInput, PortOutput, PortBidirectional
-from components.state import EnergySourceState
-from helpers.functions import clamp, assert_type
+from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
+from components.state import EnergyState
+from helpers.functions import clamp, assert_type, assert_type_and_range
 from helpers.types import PowerType
 from simulation.constants import BATTERY_EFFICIENCY_DEFAULT, \
     BATTERY_DEFAULT_SOH, LTS_TO_CUBIC_METERS, EPSILON
@@ -14,56 +15,62 @@ from simulation.constants import BATTERY_EFFICIENCY_DEFAULT, \
 @dataclass
 class EnergySource():
     """
-    Base class for any module that stores energy.
+    Base class for modules that only store and deliver energy.
     
     Attributes:
+        - id (str): identifier for the object
         - name (str): the name of the energy source
         - nominal_energy (float): the maximum energy to be stored (Joules)
-        - energy (float): the starting energy stored (Joules)
+        - input (Port type or None): sets input port and marks whether the
+                energy source can be recharged
+        - output (Port type): sets the type of output port
+        - state (EnergyState): includes the state values, including energy
         - system_mass (float): the mass of the system (kg) without including
                 the mass of any fuel used
-        - energy_medium (PowerType or Fuel): what the source stores
         - soh (float): models the degradation of the source [0.0-1.0]
         - efficiency (float): efficiency when delivering or receiving [0.0-1.0]
+        - energy_medium (PowerType or Fuel): what the source stores
         - rechargeable (bool): allows the source to be recharged
     """
+    id: str=field(init=False)
     name: str
     nominal_energy: float
     input: Optional[PortInput|PortBidirectional]
     output: PortOutput|PortBidirectional
-    state: EnergySourceState
-    energy: float
+    state: EnergyState
     system_mass: float
     soh: float
     efficiency: float
-    energy_medium: PowerType|Fuel = field(init=False)
-    rechargeable: bool = field(init=False)
+    energy_medium: PowerType|Fuel=field(init=False)
+    rechargeable: bool=field(init=False)
 
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
-        assert_type(self.nominal_energy, self.energy,
-                    self.system_mass, self.soh, self.efficiency,
-                    expected_type=float)
+        assert_type_and_range(self.nominal_energy, self.energy,
+                              self.system_mass, self.soh,
+                              more_than=0.0)
         assert_type(self.energy_medium,
                     expected_type=(PowerType, Fuel))
         assert_type(self.rechargeable,
                     expected_type=bool)
+        assert_type(self.input,
+                    expected_type=(PortInput, PortBidirectional),
+                    allow_none=True)
+        assert_type(self.output,
+                    expected_type=(PortOutput, PortBidirectional))
         if self.input is not None:
             assert self.input.exchange==self.output.exchange
         self.nominal_energy = max(self.nominal_energy, EPSILON)
-        self.system_mass = max(self.system_mass, EPSILON)
         self.energy = clamp(val=self.energy,
                             min_val=0.0,
                             max_val=self.max_energy)
         self.soh = clamp(val=self.soh,
                          min_val=EPSILON,
                          max_val=1.0)
-        self.efficiency = clamp(val=self.efficiency,
-                                min_val=EPSILON,
-                                max_val=1.0)
         self.energy_medium = self.output.exchange
         self.rechargeable = self.input is not None
+        self.id = f"EnergySource-{uuid4()}"
 
     @property
     def soc(self) -> float:
@@ -142,6 +149,16 @@ class EnergySource():
         self.energy = max(0.0, self.state.energy - output_energy)
         return output_energy
 
+    def return_port(self, which: PortType) -> Optional[Port]:
+        """
+        Returns the requested Port object.
+        """
+        assert_type(which,
+                    expected_type=PortType)
+        if which==PortType.INPUT_PORT:
+            return self.input
+        return self.output
+
 
 @dataclass
 class Battery(EnergySource):
@@ -153,15 +170,18 @@ class Battery(EnergySource):
                  nominal_energy: float,
                  energy: float,
                  battery_mass: float,
-                 soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
-        state = EnergySourceState(delivering=False,
-                                  receiving=False,
-                                  energy=energy,
-                                  power=0.0)
+                 soh: float = BATTERY_DEFAULT_SOH,
+                 efficiency: float = BATTERY_EFFICIENCY_DEFAULT):
+        state = EnergyState(power=0.0,
+                            efficiency=efficiency,
+                            delivering=False,
+                            receiving=False,
+                            energy=energy)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         energy=energy,
+                         input=PortInput(exchange=PowerType.ELECTRIC),
+                         output=PortOutput(exchange=PowerType.ELECTRIC),
+                         state=state,
                          system_mass=battery_mass,
                          soh=soh,
                          efficiency=efficiency)
@@ -179,14 +199,19 @@ class BatteryNonRechargeable(EnergySource):
                  battery_mass: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
+        state = EnergyState(power=0.0,
+                            efficiency=efficiency,
+                            delivering=False,
+                            receiving=False,
+                            energy=energy)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         energy=energy,
+                         input=None,
+                         output=PortOutput(exchange=PowerType.ELECTRIC),
+                         state=state,
                          system_mass=battery_mass,
-                         energy_medium=PowerType.ELECTRIC,
                          soh=soh,
-                         efficiency=efficiency,
-                         rechargeable=False)
+                         efficiency=efficiency)
 
 
 @dataclass
@@ -202,14 +227,19 @@ class LiquidFuelTank(EnergySource):
                  tank_mass: float):
         assert fuel.density is not None
         conversion = fuel.energy_density * fuel.density * LTS_TO_CUBIC_METERS
+        state = EnergyState(power=0.0,
+                            efficiency=1.0,
+                            delivering=False,
+                            receiving=False,
+                            energy=litres*conversion)
         super().__init__(name=name,
                          nominal_energy=capacity_litres*conversion,
-                         energy=litres*conversion,
+                         input=None,
+                         output=PortOutput(exchange=fuel),
+                         state=state,
                          system_mass=tank_mass,
-                         energy_medium=fuel,
                          soh=1.0,
-                         efficiency=1.0,
-                         rechargeable=False)
+                         efficiency=1.0)
 
 
 @dataclass
@@ -223,11 +253,16 @@ class GaseousFuelTank(EnergySource):
                  capacity_kg: float,
                  kg: float,
                  tank_mass: float):
+        state = EnergyState(power=0.0,
+                            efficiency=1.0,
+                            delivering=False,
+                            receiving=False,
+                            energy=kg*fuel.energy_density)
         super().__init__(name=name,
                          nominal_energy=capacity_kg*fuel.energy_density,
-                         energy=kg*fuel.energy_density,
+                         input=None,
+                         output=PortOutput(exchange=fuel),
+                         state=state,
                          system_mass=tank_mass,
-                         energy_medium=fuel,
                          soh=1.0,
-                         efficiency=1.0,
-                         rechargeable=False)
+                         efficiency=1.0)

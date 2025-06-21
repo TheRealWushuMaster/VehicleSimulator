@@ -13,6 +13,11 @@ class PortDirection(Enum):
     BIDIRECTIONAL = "BIDIRECTIONAL"
 
 
+class PortType(Enum):
+    INPUT_PORT  = "INPUT_PORT"
+    OUTPUT_PORT = "OUTPUT_PORT"
+
+
 @dataclass
 class Port():
     """
