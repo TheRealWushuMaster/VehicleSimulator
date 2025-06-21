@@ -66,6 +66,7 @@ def assert_numeric(*args: Any,
     """
     Asserts if the arguments are numeric.
     """
-    assert_type(args,
-                expected_type=(float, int),
-                allow_none=allow_none)
+    for arg in args:
+        assert_type(arg,
+                    expected_type=(float, int),
+                    allow_none=allow_none)
