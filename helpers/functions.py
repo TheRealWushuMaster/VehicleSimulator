@@ -26,28 +26,30 @@ def assert_type(*args: Any,
 
 def assert_range(*args: Any,
                  more_than: float=float("-inf"),
-                 less_than: float = float("inf"),
-                 include_more: bool = True,
-                 include_less: bool = True) -> None:
+                 less_than: float=float("inf"),
+                 include_more: bool=True,
+                 include_less: bool=True,
+                 allow_none: bool=False) -> None:
     """
     Asserts if the arguments in *args are of type float and fall
-    between the range of [more_than, less_than].
+    between the range of [`more_than`, `less_than`].
     The `include_more` and `include_less` control if the limits are
     included in the comparison.
     If one of the values is missing, it assumes a simple less than or
     more than comparison.
     """
     for arg in args:
-        assert isinstance(arg, float)
+        assert_numeric(arg,
+                       allow_none=allow_none)
         assert more_than <= arg if include_more else more_than < arg
         assert arg <= less_than if include_less else arg < less_than
 
 def assert_type_and_range(*args: Any,
-                          more_than: float = float("-inf"),
-                          less_than: float = float("inf"),
-                          allow_none: bool=False,
+                          more_than: float=float("-inf"),
+                          less_than: float=float("inf"),
                           include_more: bool=True,
-                          include_less: bool=True) -> None:
+                          include_less: bool=True,
+                          allow_none: bool=False) -> None:
     """
     Combines both assertions of type and range into a single check.
     """
@@ -64,7 +66,7 @@ def assert_type_and_range(*args: Any,
 def assert_numeric(*args: Any,
                    allow_none: bool=False) -> None:
     """
-    Asserts if the arguments are numeric.
+    Asserts if the arguments are numeric (of type `float` or `int`).
     """
     for arg in args:
         assert_type(arg,
