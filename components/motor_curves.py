@@ -1,9 +1,9 @@
 """This module generates sample power vs RPM and efficiency vs power & RPM curves."""
 
-from math import exp, log, sqrt
+from math import exp, sqrt
 from typing import Callable
 from components.state import MechanicalState
-from helpers.functions import assert_type, assert_range, assert_numeric
+from helpers.functions import assert_type, assert_range, assert_numeric, assert_type_and_range
 from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
 
 
@@ -52,20 +52,24 @@ class MechanicalMaxPowerVsRPMCurves():
         """
         Generates a sample maximum power vs RPM curve for an internal
         combustion engine.
-        It is simulated with a piecewise Gaussian curve.
+        It is simulated with two Gaussian curves.
         """
         assert_range(peak_rpm.rpm,
                      more_than=min_rpm.rpm,
                      less_than=max_rpm.rpm)
         assert_range(min_rpm.power, max_rpm.power,
                      less_than=peak_rpm.power)
-        alpha1 = (log(peak_rpm.power) - log(min_rpm.power)) / (min_rpm.rpm - peak_rpm.rpm)**2
-        alpha2 = (log(peak_rpm.power) - log(max_rpm.power)) / (max_rpm.rpm - peak_rpm.rpm)**2
+        alpha_1 = 1 / 2 / (peak_rpm.rpm - min_rpm.rpm)**2
+        k2 = (min_rpm.power - peak_rpm.power) / (exp(-0.5) - 1)
+        k1 = peak_rpm.power - k2
+        alpha_2 = 1 / 2 / (peak_rpm.rpm - max_rpm.rpm)**2
+        k4 = (max_rpm.power - peak_rpm.power) / (exp(-0.5) - 1)
+        k3 = peak_rpm.power - k4
         def power_func(state: MechanicalState) -> float:
             if not min_rpm.rpm <= state.rpm <= max_rpm.rpm:
                 return 0.0
-            alpha = alpha1 if state.rpm <= peak_rpm.rpm else alpha2
-            return peak_rpm.power * exp(-alpha * (state.rpm - peak_rpm.rpm)**2)
+            alpha, a, b = (alpha_1, k1, k2) if state.rpm <= peak_rpm.rpm else (alpha_2, k3, k4)
+            return a + b * exp(-alpha * (state.rpm - peak_rpm.rpm)**2)
         return power_func
 
     @staticmethod
@@ -76,12 +80,10 @@ class MechanicalMaxPowerVsRPMCurves():
         Generates a sample power vs RPM curve for an electric motor.
         Maximum power increases linearly up to base_rpm, then remains constant.
         """
-        assert_type(base_rpm, max_rpm, max_power,
-                    expected_type=float)
-        assert_range(base_rpm, max_power,
-                     more_than=0.0)
-        assert_range (max_rpm,
-                      more_than=base_rpm)
+        assert_type_and_range(base_rpm, max_power,
+                              more_than=0.0)
+        assert_type_and_range (max_rpm,
+                               more_than=base_rpm)
         def power_func(state: MechanicalState) -> float:
             if not 0.0 <= state.rpm <= max_rpm:
                 return 0.0
@@ -171,7 +173,7 @@ class MechanicalPowerEfficiencyCurves():
                  min_eff: float,
                  falloff_rpm: float,
                  falloff_power: float,
-                 max_power_vs_rpm: Callable[[float], float],
+                 max_power_vs_rpm: Callable[[MechanicalState], float],
                  min_rpm: float,
                  max_rpm: float) -> Callable[[MechanicalState], float]:
         """
@@ -193,7 +195,7 @@ class MechanicalPowerEfficiencyCurves():
         def efficiency_func(state: MechanicalState) -> float:
             if not min_rpm <= state.rpm <= max_rpm:
                 return 0.0
-            if not 0.0 <= state.power <= max_power_vs_rpm(state.rpm):
+            if not 0.0 <= state.power <= max_power_vs_rpm(state):
                 return 0.0
             return max(max_eff.efficiency * exp(-falloff_rpm*(state.rpm-max_eff.rpm)**2 - falloff_power*(state.power-max_eff.power)**2), min_eff)
         return efficiency_func
