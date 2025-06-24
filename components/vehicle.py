@@ -6,10 +6,11 @@ for the simulation.
 from dataclasses import dataclass
 from components.body import Body
 from components.brake import Brake
+from components.converter import Converter
 from components.drive_train import DriveTrain
 from components.ecu import ECU
 from components.energy_source import EnergySource
-from components.converter import Converter
+from components.link import Link
 
 
 @dataclass
@@ -22,4 +23,29 @@ class Vehicle():
     body: Body
     brake: Brake
     drive_train: DriveTrain
+    links: list[Link]
     ecu: ECU
+
+    def add_component(self, component: EnergySource|Converter) -> None:
+        """
+        Adds a new component to the vehicle.
+        """
+        if isinstance(component, EnergySource):
+            if component not in self.energy_sources:
+                self.energy_sources.append(component)
+        elif isinstance(component, Converter):
+            if component not in self.converters:
+                self.converters.append(component)
+        else:
+            raise TypeError("Component must be either EnergySource or Converter.")
+
+    def add_link(self, link: Link) -> None:
+        """
+        Adds a link to the vehicle.
+        Both components to be linked must be present.
+        """
+        assert isinstance(link, Link)
+        if not link in self.links:
+            all_ids = [component.id for component in self.energy_sources + self.converters]
+            if link.component1_id in all_ids and link.component2_id in all_ids:
+                self.links.append(link)
