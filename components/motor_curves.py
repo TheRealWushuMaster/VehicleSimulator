@@ -33,8 +33,7 @@ class MechanicalMaxPowerVsRPMCurves():
     def linear(min_rpm: MotorOperationPoint,
                max_rpm: MotorOperationPoint) -> Callable[[MechanicalState], float]:
         """Generates a linear maximum power curve from min_rpm to max_rpm."""
-        assert_type(min_rpm.rpm, max_rpm.rpm, min_rpm.power, max_rpm.power,
-                    expected_type=float)
+        assert_numeric(min_rpm.rpm, max_rpm.rpm, min_rpm.power, max_rpm.power)
         assert_range(min_rpm.rpm, min_rpm.power, max_rpm.power,
                      more_than=0.0)
         assert_range(max_rpm.rpm,
@@ -193,9 +192,8 @@ class MechanicalPowerEfficiencyCurves():
                      more_than=0.0,
                      less_than=max_eff.efficiency)
         def efficiency_func(state: MechanicalState) -> float:
-            if not min_rpm <= state.rpm <= max_rpm:
-                return 0.0
-            if not 0.0 <= state.power <= max_power_vs_rpm(state):
+            if not min_rpm <= state.rpm <= max_rpm or \
+               not 0.0 <= state.power <= max_power_vs_rpm(state):
                 return 0.0
             return max(max_eff.efficiency * exp(-falloff_rpm*(state.rpm-max_eff.rpm)**2 - falloff_power*(state.power-max_eff.power)**2), min_eff)
         return efficiency_func
