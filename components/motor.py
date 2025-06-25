@@ -2,9 +2,13 @@
 This module contains definitions for motors and engines.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Optional
 from components.fuel_type import Fuel
 from components.converter import Converter
+from components.port import PortInput, PortOutput, PortBidirectional
+from components.state import MechanicalState, zero_mechanical_state
 from helpers.types import PowerType
 
 @dataclass
@@ -14,14 +18,22 @@ class ElectricMotor(Converter):
                  name: str,
                  mass: float,
                  max_power: float,
-                 efficiency: float,
-                 reverse_efficiency: float):
+                 eff_func: Callable[[MechanicalState], float],
+                 reverse_efficiency: float,
+                 state: Optional[MechanicalState],
+                 power_func: Callable[[MechanicalState], float]):
+        if state is None:
+            state = zero_mechanical_state()
+        input_port = PortBidirectional(exchange=PowerType.ELECTRIC)
+        output_port = PortBidirectional(exchange=PowerType.MECHANICAL)
         super().__init__(name=name,
                          mass=mass,
-                         input=PowerType.ELECTRIC,
-                         output=PowerType.MECHANICAL,
+                         input=input_port,
+                         output=output_port,
+                         state=state,
                          max_power=max_power,
-                         efficiency=efficiency,
+                         power_func=power_func, # type: ignore[arg-type]
+                         efficiency_func=eff_func, # type: ignore[arg-type]
                          reverse_efficiency=reverse_efficiency)
 
 
@@ -32,14 +44,22 @@ class InternalCombustionEngine(Converter):
                  name: str,
                  mass: float,
                  max_power: float,
-                 efficiency: float,
+                 eff_func: Callable[[MechanicalState], float],
+                 state: Optional[MechanicalState],
+                 power_func: Callable[[MechanicalState], float],
                  fuel: Fuel):
+        if state is None:
+            state = zero_mechanical_state()
+        input_port = PortInput(exchange=fuel)
+        output_port = PortOutput(exchange=PowerType.MECHANICAL)
         super().__init__(name=name,
                          mass=mass,
-                         input=fuel,
-                         output=PowerType.MECHANICAL,
+                         input=input_port,
+                         output=output_port,
+                         state=state,
                          max_power=max_power,
-                         efficiency=efficiency,
+                         power_func=power_func, # type: ignore[arg-type]
+                         efficiency_func=eff_func, # type: ignore[arg-type]
                          reverse_efficiency=None)
 
 
@@ -50,11 +70,20 @@ class ElectricGenerator(Converter):
                  name: str,
                  mass: float,
                  max_power: float,
-                 efficiency: float):
+                 eff_func: Callable[[MechanicalState], float],
+                 reverse_efficiency: float,
+                 state: Optional[MechanicalState],
+                 power_func: Callable[[MechanicalState], float]):
+        if state is None:
+            state = zero_mechanical_state()
+        input_port = PortInput(exchange=PowerType.MECHANICAL)
+        output_port = PortOutput(exchange=PowerType.ELECTRIC)
         super().__init__(name=name,
                          mass=mass,
-                         input=PowerType.MECHANICAL,
-                         output=PowerType.ELECTRIC,
+                         input=input_port,
+                         output=output_port,
+                         state=state,
                          max_power=max_power,
-                         efficiency=efficiency,
-                         reverse_efficiency=None)
+                         power_func=power_func, # type: ignore[arg-type]
+                         efficiency_func=eff_func, # type: ignore[arg-type]
+                         reverse_efficiency=reverse_efficiency)

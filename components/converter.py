@@ -35,6 +35,7 @@ class Converter():
     output: PortOutput|PortBidirectional
     state: MechanicalState|ElectricalState
     max_power: float
+    power_func: Callable[[MechanicalState|ElectricalState], float]
     efficiency_func: Callable[[MechanicalState|ElectricalState], float]
     reverse_efficiency: Optional[float]
 

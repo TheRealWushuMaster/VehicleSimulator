@@ -86,3 +86,41 @@ class EnergyState(State):
         super().__post_init__()
         assert_type_and_range(self.energy,
                               more_than=0.0)
+
+
+def zero_mechanical_state(on: bool=True) -> MechanicalState:
+    """
+    Returns an initial mechanical state with values set at zero.
+    """
+    assert_type(on,
+                expected_type=bool)
+    return MechanicalState(power=0.0,
+                           efficiency=0.0,
+                           delivering=False,
+                           receiving=False,
+                           rpm=0.0,
+                           on=on)
+
+def zero_electrical_state(on: bool=True) -> ElectricalState:
+    """
+    Returns an initial electrical state with values set at zero.
+    """
+    assert_type(on,
+                expected_type=bool)
+    return ElectricalState(power=0.0,
+                           efficiency=0.0,
+                           delivering=False,
+                           receiving=False,
+                           on=on)
+
+def zero_energy_state(energy: float=0.0) -> EnergyState:
+    """
+    Returns an initial energy state with values set at zero.
+    """
+    assert_type_and_range(energy,
+                          more_than=0.0)
+    return EnergyState(energy=0.0,
+                       power=0.0,
+                       efficiency=0.0,
+                       delivering=False,
+                       receiving=False)
