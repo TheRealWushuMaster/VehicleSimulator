@@ -33,7 +33,8 @@ class RequestMessage(Message):
     These messages are broadcasted and may be responded
     by one or more components.
     """
-    amount: float
+    requested: float
+    delivered: float=field(init=False)
 
     def __init__(self,
                  sender_id: str,
@@ -43,8 +44,16 @@ class RequestMessage(Message):
                          from_port=from_port)
         assert_type_and_range(amount,
                               more_than=0.0)
-        self.amount = amount
+        self.requested = amount
+        self.delivered = 0.0
         self.resource = from_port.exchange
+
+    @property
+    def fulfilled(self) -> bool:
+        """
+        Returns if the request has been fulfilled by a component.
+        """
+        return self.requested == self.delivered
 
 
 @dataclass
@@ -70,3 +79,55 @@ class DeliveryMessage(RequestMessage):
                     expected_type=str)
         self.request_message_id = request_message_id
         self.receiver_id = receiver_id
+
+
+@dataclass
+class RequestStack():
+    """
+    Stack for requests to be resolved.
+    """
+    requests: list[RequestMessage]=field(init=False)
+    count: int=field(init=False)
+
+    def __post_init__(self):
+        self.requests = []
+        self.count = 0
+
+    @property
+    def last_request(self) -> RequestMessage:
+        """
+        Returns the last request in the stack,
+        which needs to be resolved first.
+        """
+        return self.requests[-1]
+
+    def fulfill_last_request(self) -> bool:
+        """
+        Checks if the last request has been fulfilled fully.
+        """
+        last_request = self.last_request
+        if last_request.requested == last_request.delivered:
+            del self.requests[-1]
+            return True
+        return False
+
+    def add_request(self, request: RequestMessage):
+        """
+        Add a new request to the stack.
+        """
+        assert_type(request,
+                    expected_type=RequestMessage)
+        if not request in self.requests:
+            self.requests.append(request)
+            self.count += 1
+
+    def supply_request(self, supply: float):
+        """
+        Supplies resources to the current (last) request.
+        The request is removed if supplied entirely.
+        """
+        assert_type_and_range(supply,
+                              more_than=0.0)
+        last_request = self.last_request
+        self.last_request.delivered = min(last_request.delivered + supply, last_request.requested)
+        self.fulfill_last_request()
