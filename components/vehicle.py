@@ -3,7 +3,7 @@ This module contains definitions for creating a complete vehicle
 for the simulation.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from components.body import Body
 from components.brake import Brake
 from components.converter import Converter
@@ -11,6 +11,8 @@ from components.drive_train import DriveTrain
 from components.ecu import ECU
 from components.energy_source import EnergySource
 from components.link import Link
+from components.message import RequestStack
+from components.port import PortInput, PortBidirectional
 
 
 @dataclass
@@ -25,6 +27,10 @@ class Vehicle():
     drive_train: DriveTrain
     links: list[Link]
     ecu: ECU
+    request_stack: RequestStack=field(init=False)
+
+    def __post_init__(self):
+        self.request_stack = RequestStack()
 
     def add_component(self, component: EnergySource|Converter) -> None:
         """
@@ -49,3 +55,7 @@ class Vehicle():
             all_ids = [component.id for component in self.energy_sources + self.converters]
             if link.component1_id in all_ids and link.component2_id in all_ids:
                 self.links.append(link)
+
+    def find_suppliers(self, port: PortInput|PortBidirectional
+                       ) -> list[EnergySource|Converter]:
+        raise NotImplementedError
