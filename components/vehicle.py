@@ -11,7 +11,7 @@ from components.drive_train import DriveTrain
 from components.ecu import ECU
 from components.energy_source import EnergySource
 from components.link import Link
-from components.message import RequestStack
+from components.message import MessageStack
 from components.port import PortInput, PortBidirectional
 
 
@@ -27,10 +27,10 @@ class Vehicle():
     drive_train: DriveTrain
     links: list[Link]
     ecu: ECU
-    request_stack: RequestStack=field(init=False)
+    request_stack: MessageStack=field(init=False)
 
     def __post_init__(self):
-        self.request_stack = RequestStack()
+        self.request_stack = MessageStack()
 
     def add_component(self, component: EnergySource|Converter) -> None:
         """
@@ -58,4 +58,9 @@ class Vehicle():
 
     def find_suppliers(self, port: PortInput|PortBidirectional
                        ) -> list[EnergySource|Converter]:
+        """
+        Returns the list of components that can supply resources
+        to a component's input port, obtained via analysis of the
+        established links between the components.
+        """
         raise NotImplementedError

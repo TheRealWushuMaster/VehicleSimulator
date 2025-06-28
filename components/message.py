@@ -14,7 +14,7 @@ from helpers.types import PowerType
 @dataclass
 class Message():
     """
-    Base class for all messages
+    Base class for all message types.
     """
     sender_id: str
     from_port: Port
@@ -39,9 +39,11 @@ class DeliveryMessage(Message):
     delivery: float
 
     def __post_init__(self):
-        super().__post_init__()
         assert_type_and_range(self.delivery,
                               more_than=0.0)
+        assert_type(self.from_port,
+                    expected_type=(PortOutput, PortBidirectional))
+        super().__post_init__()
 
 @dataclass
 class RequestMessage(Message):
@@ -54,8 +56,6 @@ class RequestMessage(Message):
     deliveries: list[DeliveryMessage]=field(init=False)
 
     def __post_init__(self):
-        assert_type(self.sender_id,
-                    expected_type=str)
         assert_type(self.from_port,
                     expected_type=(PortInput, PortBidirectional))
         assert_type_and_range(self.requested,
@@ -80,6 +80,22 @@ class RequestMessage(Message):
         """
         return self.requested == self.delivered
 
+    def add_delivery(self, delivery: DeliveryMessage) -> bool:
+        """
+        Adds a delivery to the request, if possible.
+        Adjusts the delivered amount if it exceeds
+        the request.
+        """
+        if not self.from_port.exchange == delivery.from_port.exchange:
+            return False
+        if delivery.from_port.direction == PortInput:
+            return False
+        if self.delivered + delivery.delivery > self.requested:
+            delivery.delivery = self.requested - self.delivered
+        if delivery.delivery > 0.0:
+            self.deliveries.append(delivery)
+        return True
+
 
 @dataclass
 class MessageStack():
@@ -96,12 +112,15 @@ class MessageStack():
         return len(self.requests)
 
     @property
-    def last_request(self) -> RequestMessage:
+    def pending_request(self) -> RequestMessage|None:
         """
-        Returns the last request in the stack,
-        which needs to be resolved first.
+        Returns the last, unfulfilled request in
+        the stack, which needs to be resolved first.
         """
-        return self.requests[-1]
+        for request in reversed(self.requests):
+            if not request.fulfilled:
+                return request
+        return None
 
     def add_request(self, request: RequestMessage):
         """
