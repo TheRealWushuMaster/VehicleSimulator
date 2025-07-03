@@ -4,6 +4,7 @@ for the simulation.
 """
 
 from dataclasses import dataclass, field
+from typing import Optional
 from components.body import Body
 from components.brake import Brake
 from components.converter import Converter
@@ -12,7 +13,7 @@ from components.ecu import ECU
 from components.energy_source import EnergySource
 from components.link import Link
 from components.message import MessageStack
-from components.port import PortInput, PortBidirectional
+from components.port import PortType
 
 
 @dataclass
@@ -56,11 +57,40 @@ class Vehicle():
             if link.component1_id in all_ids and link.component2_id in all_ids:
                 self.links.append(link)
 
-    def find_suppliers(self, port: PortInput|PortBidirectional
-                       ) -> list[EnergySource|Converter]:
+    @property
+    def return_all_components(self):
+        """
+        Returns a list of all components registered.
+        """
+        return self.energy_sources + self.converters
+
+    def find_component_with_id(self, component_id: str
+                               ) -> Optional[EnergySource|Converter]:
+        """
+        Returns the component with corresponding id.
+        """
+        all_components = self.return_all_components
+        if component_id in all_components:
+            return next(component.id for component in all_components)
+        return None
+
+    def find_suppliers(self, requester: EnergySource|Converter,
+                       which_port: PortType
+                       ) -> Optional[list[EnergySource|Converter|None]]:
         """
         Returns the list of components that can supply resources
         to a component's input port, obtained via analysis of the
         established links between the components.
         """
-        raise NotImplementedError
+        connected_links = [link for link in self.links
+                          if (requester.id, which_port) in
+                          [(link.component1_id, link.component1_port),
+                           (link.component2_id, link.component2_port)]]
+        if not connected_links:
+            return None
+        supplier_ids = [link.component1_id if link.component1_id!=requester.id else link.component2_id
+                        for link in connected_links]
+        if not supplier_ids:
+            return None
+        return [self.find_component_with_id(component_id)
+                for component_id in supplier_ids]
