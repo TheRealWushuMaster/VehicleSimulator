@@ -76,7 +76,7 @@ class Vehicle():
 
     def find_suppliers(self, requester: EnergySource|Converter,
                        which_port: PortType
-                       ) -> Optional[list[EnergySource|Converter|None]]:
+                       ) -> Optional[list[EnergySource|Converter]]:
         """
         Returns the list of components that can supply resources
         to a component's input port, obtained via analysis of the
@@ -92,5 +92,6 @@ class Vehicle():
                         for link in connected_links]
         if not supplier_ids:
             return None
-        return [self.find_component_with_id(component_id)
-                for component_id in supplier_ids]
+        return [component
+                for component_id in supplier_ids
+                if (component := self.find_component_with_id(component_id)) is not None]
