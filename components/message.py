@@ -4,6 +4,7 @@ to exchange resources while simulating.
 """
 
 from dataclasses import dataclass, field
+from typing import Optional
 from uuid import uuid4
 from components.port import Port, PortInput, PortOutput, PortBidirectional
 from components.fuel_type import Fuel
@@ -45,6 +46,7 @@ class DeliveryMessage(Message):
                     expected_type=(PortOutput, PortBidirectional))
         super().__post_init__()
 
+
 @dataclass
 class RequestMessage(Message):
     """
@@ -64,13 +66,11 @@ class RequestMessage(Message):
         self.deliveries = []
 
     @property
-    def delivered(self):
+    def delivered(self) -> float:
         """
         Returns the amount of requested resource already delivered.
         """
-        amount_delivered = 0
-        for delivery in self.deliveries:
-            amount_delivered += delivery.delivery
+        amount_delivered = sum(delivery.delivery for delivery in self.deliveries)
         return min(amount_delivered, self.requested)
 
     @property
@@ -94,6 +94,8 @@ class RequestMessage(Message):
             delivery.delivery = self.requested - self.delivered
         if delivery.delivery > 0.0:
             self.deliveries.append(delivery)
+        else:
+            return False
         return True
 
 
@@ -105,14 +107,28 @@ class MessageStack():
     requests: list[RequestMessage]=field(default_factory=list)
 
     @property
-    def count(self):
+    def count(self) -> int:
         """
         Returns the numer of requests in the stack.
         """
         return len(self.requests)
 
     @property
-    def pending_request(self) -> RequestMessage|None:
+    def pending_count(self) -> int:
+        """
+        Returns the number of pending requests.
+        """
+        return sum(1 for pending in self.requests if not pending.fulfilled)
+
+    @property
+    def fulfilled_count(self) -> int:
+        """
+        Returns the number of fulfilled requests.
+        """
+        return sum(1 for pending in self.requests if pending.fulfilled)
+
+    @property
+    def pending_request(self) -> Optional[RequestMessage]:
         """
         Returns the last, unfulfilled request in
         the stack, which needs to be resolved first.
@@ -122,7 +138,7 @@ class MessageStack():
                 return request
         return None
 
-    def add_request(self, request: RequestMessage):
+    def add_request(self, request: RequestMessage) -> bool:
         """
         Add a new request to the stack.
         """
@@ -130,3 +146,5 @@ class MessageStack():
                     expected_type=RequestMessage)
         if not request in self.requests:
             self.requests.append(request)
+            return True
+        return False
