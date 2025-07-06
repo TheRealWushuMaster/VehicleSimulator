@@ -47,13 +47,11 @@ class EnergySource():
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
-        assert_type_and_range(self.nominal_energy, self.energy,
+        assert_type(self.state,
+                    expected_type=EnergyState)
+        assert_type_and_range(self.nominal_energy,
                               self.system_mass, self.soh,
                               more_than=0.0)
-        assert_type(self.energy_medium,
-                    expected_type=(PowerType, Fuel))
-        assert_type(self.rechargeable,
-                    expected_type=bool)
         assert_type(self.input,
                     expected_type=(PortInput, PortBidirectional),
                     allow_none=True)
@@ -62,7 +60,7 @@ class EnergySource():
         if self.input is not None:
             assert self.input.exchange==self.output.exchange
         self.nominal_energy = max(self.nominal_energy, EPSILON)
-        self.energy = clamp(val=self.energy,
+        self.energy = clamp(val=self.state.energy,
                             min_val=0.0,
                             max_val=self.max_energy)
         self.soh = clamp(val=self.soh,
