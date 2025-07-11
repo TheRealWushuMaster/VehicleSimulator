@@ -71,7 +71,6 @@ class ElectricGenerator(Converter):
                  mass: float,
                  max_power: float,
                  eff_func: Callable[[MechanicalState], float],
-                 reverse_efficiency: float,
                  state: Optional[MechanicalState],
                  power_func: Callable[[MechanicalState], float]):
         if state is None:
@@ -86,4 +85,4 @@ class ElectricGenerator(Converter):
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]
                          efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=reverse_efficiency)
+                         reverse_efficiency=None)

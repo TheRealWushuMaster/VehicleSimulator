@@ -4,11 +4,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Optional
 from uuid import uuid4
-from components.fuel_type import Fuel
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
 from components.state import MechanicalState, ElectricalState
 from helpers.functions import clamp, assert_type, assert_numeric
-from helpers.types import PowerType, ConversionResult
+from helpers.types import ConversionResult
 
 
 @dataclass
@@ -42,13 +41,15 @@ class Converter():
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
-        assert_type(self.input, self.output,
-                    expected_type=(PowerType, Fuel))
+        assert_type(self.input,
+                    expected_type=(PortInput, PortBidirectional))
+        assert_type(self.output,
+                    expected_type=(PortOutput, PortBidirectional))
         assert_numeric(self.mass, self.max_power)
         assert_type(self.reverse_efficiency,
                     expected_type=float,
                     allow_none=True)
-        assert_type(self.efficiency,
+        assert_type(self.efficiency_func,
                     expected_type=Callable)  # type: ignore[arg-type]
         self.mass = max(self.mass, 0.0)
         if self.reverse_efficiency:

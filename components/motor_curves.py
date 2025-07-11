@@ -101,7 +101,7 @@ class MechanicalPowerEfficiencyCurves():
     def constant(efficiency: float,
                  max_rpm: float,
                  min_rpm: float,
-                 max_power_vs_rpm: Callable[[float], float]
+                 max_power_vs_rpm: Callable[[MechanicalState], float]
                  ) -> Callable[[MechanicalState], float]:
         """
         Generates a constant maximum efficiency from min_rpm to max_rpm.
@@ -119,7 +119,7 @@ class MechanicalPowerEfficiencyCurves():
         def efficiency_func(state: MechanicalState) -> float:
             if not min_rpm <= state.rpm <= max_rpm:
                 return 0.0
-            if not 0.0 <= state.power <= max_power_vs_rpm(state.rpm):
+            if not 0.0 <= state.power <= max_power_vs_rpm(state):
                 return 0.0
             return efficiency
         return efficiency_func
