@@ -2,7 +2,7 @@
 properties of the body of the vehicle."""
 
 from dataclasses import dataclass
-from helpers.functions import assert_type
+from helpers.functions import assert_range
 
 @dataclass
 class Body():
@@ -28,9 +28,9 @@ class Body():
     axle_distance: float
 
     def __post_init__(self):
-        assert_type(self.mass, self.occupants_mass, self.height, self.length,
-                    self.front_area, self.rear_area, self.axle_distance,
-                    expected_type=float)
+        assert_range(self.mass, self.occupants_mass, self.height, self.length,
+                     self.front_area, self.rear_area, self.axle_distance,
+                     more_than=0.0)
 
     @property
     def total_body_mass(self):

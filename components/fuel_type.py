@@ -4,7 +4,7 @@ This module contains definitions for different types of fuel.
 
 from dataclasses import dataclass
 from typing import Optional
-from helpers.functions import assert_type
+from helpers.functions import assert_type, assert_range
 from helpers.types import PowerType, StateOfMatter
 from simulation.constants import ENERGY_DENSITY_BIODIESEL, ENERGY_DENSITY_DIESEL, \
     ENERGY_DENSITY_ETHANOL, ENERGY_DENSITY_GASOLINE, ENERGY_DENSITY_HYDROGEN, \
@@ -80,6 +80,8 @@ class LiquidFuel(Fuel):
                  name: str,
                  energy_density: float,
                  density: float):
+        assert_range(density,
+                     more_than=0.0)
         super().__init__(name=name,
                          energy_density=energy_density,
                          density=density,

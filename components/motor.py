@@ -30,6 +30,7 @@ class ElectricMotor(Converter):
                          mass=mass,
                          input=input_port,
                          output=output_port,
+                         control_signal=0.0,
                          state=state,
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]
@@ -56,6 +57,7 @@ class InternalCombustionEngine(Converter):
                          mass=mass,
                          input=input_port,
                          output=output_port,
+                         control_signal=0.0,
                          state=state,
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]
@@ -81,6 +83,7 @@ class ElectricGenerator(Converter):
                          mass=mass,
                          input=input_port,
                          output=output_port,
+                         control_signal=None,
                          state=state,
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]

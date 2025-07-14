@@ -20,8 +20,8 @@ def test_motor_curves():
                                                        max_rpm=max_rpm_point,
                                                        peak_rpm=peak_rpm_point)
     max_eff_point = MotorEfficiencyPoint(power=1_950.0,
-                                        rpm=2_000.0,
-                                        efficiency=0.35)
+                                         rpm=2_000.0,
+                                         efficiency=0.35)
     ice_eff_func = MechanicalPowerEfficiencyCurves.gaussian(max_eff=max_eff_point,
                                                             min_eff=min_effi,
                                                             falloff_rpm=0.0000001,

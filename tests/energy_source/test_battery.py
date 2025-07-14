@@ -3,7 +3,7 @@
 from typing import TypedDict
 from components.battery import AlAirBattery, LiCoBattery, LiPoBattery, LiMnBattery, \
     LiPhBattery, NiCdBattery, NiMHBattery, PbAcidBattery, SolidStateBattery
-from components.energy_source import Battery, BatteryNonRechargeable
+from components.energy_source import BatteryRechargeable, BatteryNonRechargeable
 
 
 class TestBatteryParams(TypedDict):
@@ -22,33 +22,32 @@ battery_dict: TestBatteryParams = {"name": "Test battery",
                                    "soh": 1.0,
                                    "efficiency": 0.96}
 
-def create_battery(battery_type: type[Battery | BatteryNonRechargeable] = Battery
-                   ) -> Battery | BatteryNonRechargeable:
-    if battery_type in (Battery, BatteryNonRechargeable):
+def create_battery(battery_type: type[BatteryRechargeable|BatteryNonRechargeable]=BatteryRechargeable
+                   ) -> BatteryRechargeable|BatteryNonRechargeable:
+    if battery_type in (BatteryRechargeable, BatteryNonRechargeable):
         battery = battery_type(name=battery_dict["name"],
                                nominal_energy=battery_dict["nominal_energy"],
                                energy=battery_dict["energy"],
                                battery_mass=battery_dict["battery_mass"],
                                soh=battery_dict["soh"],
                                efficiency=battery_dict["efficiency"])
-        assert isinstance(battery, (Battery, BatteryNonRechargeable))
-    elif issubclass(battery_type, Battery):
-        battery = battery_type(battery_dict["name"],
-                               battery_dict["nominal_energy"],
-                               battery_dict["energy"],
-                               battery_dict["soh"],
-                               battery_dict["efficiency"])
+        assert isinstance(battery, (BatteryRechargeable, BatteryNonRechargeable))
+    elif issubclass(battery_type, BatteryRechargeable):
+        battery = battery_type(name=battery_dict["name"],
+                               nominal_energy=battery_dict["nominal_energy"],
+                               energy=battery_dict["energy"],
+                               soh=battery_dict["soh"],
+                               efficiency=battery_dict["efficiency"])
     else:
         raise TypeError(
-            "The argument `battery_type` must be of type `Battery` or `BatteryNonRechargeable`.")
+            "The argument `battery_type` must be of type `BatteryRechargeable` or `BatteryNonRechargeable`.")
     return battery
 
 # ===============================
 
-
-def test_create_generic_battery() -> Battery:
-    battery = create_battery(battery_type=Battery)
-    assert isinstance(battery, Battery)
+def test_create_generic_rechargeable_battery() -> BatteryRechargeable:
+    battery = create_battery(battery_type=BatteryRechargeable)
+    assert isinstance(battery, BatteryRechargeable)
     return battery
 
 def test_create_generic_non_rechargeable_battery() -> BatteryNonRechargeable:

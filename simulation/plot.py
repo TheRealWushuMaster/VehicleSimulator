@@ -14,7 +14,6 @@ def plot_power_curve_and_efficiency(min_rpm: float,
                                     ) -> None:
     rpm_vals = np.linspace(min_rpm, max_rpm, num_points)
     power_vals = np.array([power_func(MechanicalState(power=0.0,
-                                                      efficiency=1.0,
                                                       delivering=False,
                                                       receiving=False,
                                                       rpm=rpm,
@@ -26,7 +25,6 @@ def plot_power_curve_and_efficiency(min_rpm: float,
         for j, r in enumerate(rpm_vals):
             if p <= power_vals[j]:
                 state = MechanicalState(power=p,
-                                        efficiency=1.0,
                                         delivering=False,
                                         receiving=False,
                                         rpm=r,

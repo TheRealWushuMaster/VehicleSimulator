@@ -1,7 +1,7 @@
 """This module contains definitions for different types of batteries."""
 
 from dataclasses import dataclass
-from components.energy_source import Battery
+from components.energy_source import BatteryRechargeable
 from simulation.constants import BATTERY_DEFAULT_SOH, BATTERY_EFFICIENCY_DEFAULT, \
     BATTERY_Al_AIR_ENERGY_DENSITY, BATTERY_Pb_ACID_ENERGY_DENSITY, \
     BATTERY_LiCo_ENERGY_DENSITY, BATTERY_LiMn_ENERGY_DENSITY, BATTERY_LiPh_ENERGY_DENSITY, \
@@ -10,7 +10,7 @@ from simulation.constants import BATTERY_DEFAULT_SOH, BATTERY_EFFICIENCY_DEFAULT
 
 
 @dataclass
-class AlAirBattery(Battery):
+class AlAirBattery(BatteryRechargeable):
     """Models an Aluminium Air battery."""
     def __init__(self,
                  name: str,
@@ -27,7 +27,7 @@ class AlAirBattery(Battery):
 
 
 @dataclass
-class PbAcidBattery(Battery):
+class PbAcidBattery(BatteryRechargeable):
     """Models a lead-acid battery."""
     def __init__(self,
                  name: str,
@@ -44,7 +44,7 @@ class PbAcidBattery(Battery):
 
 
 @dataclass
-class LiCoBattery(Battery):
+class LiCoBattery(BatteryRechargeable):
     """Models a Lithium-ion Cobalt battery."""
     def __init__(self,
                  name: str,
@@ -61,7 +61,7 @@ class LiCoBattery(Battery):
 
 
 @dataclass
-class LiMnBattery(Battery):
+class LiMnBattery(BatteryRechargeable):
     """Models a Lithium-ion Manganese battery."""
     def __init__(self,
                  name: str,
@@ -78,7 +78,7 @@ class LiMnBattery(Battery):
 
 
 @dataclass
-class LiPhBattery(Battery):
+class LiPhBattery(BatteryRechargeable):
     """Models a Lithium-ion Phosphate battery."""
     def __init__(self,
                  name: str,
@@ -95,7 +95,7 @@ class LiPhBattery(Battery):
 
 
 @dataclass
-class LiPoBattery(Battery):
+class LiPoBattery(BatteryRechargeable):
     """Models a Lithium-ion Polymer battery."""
     def __init__(self,
                  name: str,
@@ -112,7 +112,7 @@ class LiPoBattery(Battery):
 
 
 @dataclass
-class NiCdBattery(Battery):
+class NiCdBattery(BatteryRechargeable):
     """Models a Nickel Cadmium battery."""
     def __init__(self,
                  name: str,
@@ -129,7 +129,7 @@ class NiCdBattery(Battery):
 
 
 @dataclass
-class NiMHBattery(Battery):
+class NiMHBattery(BatteryRechargeable):
     """Models a Nickel Metal Hydride battery."""
     def __init__(self,
                  name: str,
@@ -146,7 +146,7 @@ class NiMHBattery(Battery):
 
 
 @dataclass
-class SolidStateBattery(Battery):
+class SolidStateBattery(BatteryRechargeable):
     """Models a Solid State battery."""
     def __init__(self,
                  name: str,

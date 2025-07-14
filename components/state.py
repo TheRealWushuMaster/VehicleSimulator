@@ -2,8 +2,95 @@
 
 from dataclasses import dataclass
 from typing import Any
-from helpers.functions import assert_type, assert_type_and_range
+from components.fuel_type import Fuel
+from helpers.functions import assert_type, assert_type_and_range, assert_range
 from simulation.constants import RPM_TO_ANG_VEL
+
+
+@dataclass
+class IOState():
+    """
+    Base class for input and output states.
+    """
+    pass
+
+
+@dataclass
+class InternalState():
+    """
+    Represents the internal state of a component.
+    """
+    pass
+
+
+@dataclass
+class RotatingIOState(IOState):
+    """
+    Represents the state of a rotating component (motor, engine, etc).
+    """
+    power: float
+    rpm: float
+
+    def __post_init__(self):
+        assert_range(self.power, self.rpm,
+                     more_than=0.0)
+
+    @property
+    def torque(self) -> float:
+        """
+        Dynamically calculate torque.
+        """
+        return self.power / self.ang_vel if self.rpm > 0.0 else 0.0
+
+    @property
+    def ang_vel(self) -> float:
+        """
+        Dynamically calculate angular velocity.
+        """
+        return self.rpm * RPM_TO_ANG_VEL
+
+
+@dataclass
+class ElectricalIOState(IOState):
+    """
+    Represents the state of an electrical condition (voltage and current).
+    """
+    power: float
+
+    def __post_init__(self):
+        assert_range(self.power,
+                     more_than=0.0)
+
+
+@dataclass
+class FuelIOState(IOState):
+    """
+    Represents the state of fuel transfer.
+    """
+    fuel: Fuel
+    fuel_amount: float
+
+    @property
+    def energy(self):
+        """
+        Dinamically calculates the energy transfered.
+        """
+        return self.fuel_amount * self.fuel.energy_density
+
+    @property
+    def fuel_state(self):
+        """
+        Returns the state of the transfered fuel.
+        """
+        return self.fuel.state
+
+
+@dataclass
+class PhysicalState(InternalState):
+    """
+    Represents basic physical properties of the component.
+    """
+    temperature: float
 
 
 @dataclass
@@ -12,7 +99,6 @@ class State():
     Base class for the internal states during simulation.
     """
     power: float
-    efficiency: float
     delivering: bool
     receiving: bool
 
@@ -21,9 +107,6 @@ class State():
                     expected_type=bool)
         assert_type_and_range(self.power,
                               more_than=0.0)
-        assert_type_and_range(self.efficiency,
-                              more_than=0.0,
-                              less_than=1.0)
 
     def as_dict(self) -> dict[str, Any]:
         """
@@ -76,7 +159,7 @@ class ElectricalState(State):
 
 
 @dataclass
-class EnergyState(State):
+class EnergyInternalState(State):
     """
     The internal state of a battery or fuel tank.
     """
@@ -88,14 +171,27 @@ class EnergyState(State):
                               more_than=0.0)
 
 
+@dataclass
+class FuelState(EnergyInternalState):
+    """
+    The state of a fuel tank.
+    """
+    fuel: Fuel
+    fuel_amount: float
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type_and_range(self.fuel_amount,
+                              more_than=0.0)
+
+
 def zero_mechanical_state(on: bool=True) -> MechanicalState:
     """
-    Returns an initial mechanical state with values set at zero.
+    Returns a mechanical state with values set to zero.
     """
     assert_type(on,
                 expected_type=bool)
     return MechanicalState(power=0.0,
-                           efficiency=0.0,
                            delivering=False,
                            receiving=False,
                            rpm=0.0,
@@ -103,24 +199,35 @@ def zero_mechanical_state(on: bool=True) -> MechanicalState:
 
 def zero_electrical_state(on: bool=True) -> ElectricalState:
     """
-    Returns an initial electrical state with values set at zero.
+    Returns an electrical state with values set to zero.
     """
     assert_type(on,
                 expected_type=bool)
     return ElectricalState(power=0.0,
-                           efficiency=0.0,
                            delivering=False,
                            receiving=False,
                            on=on)
 
-def zero_energy_state(energy: float=0.0) -> EnergyState:
+def zero_energy_internal_state(energy: float=0.0) -> EnergyInternalState:
     """
-    Returns an initial energy state with values set at zero.
+    Returns a fuel state with values set to zero.
     """
-    assert_type_and_range(energy,
-                          more_than=0.0)
-    return EnergyState(energy=0.0,
-                       power=0.0,
-                       efficiency=0.0,
-                       delivering=False,
-                       receiving=False)
+    assert_range(energy,
+                 more_than=0.0)
+    return EnergyInternalState(energy=energy,
+                               power=0.0,
+                               delivering=False,
+                               receiving=False)
+
+def zero_fuel_state(fuel: Fuel) -> FuelState:
+    """
+    Returns a fuel state with values set to zero.
+    """
+    assert_type(fuel,
+                expected_type=Fuel)
+    return FuelState(energy=0.0,
+                     power=0.0,
+                     fuel=fuel,
+                     fuel_amount=0.0,
+                     delivering=False,
+                     receiving=False)

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from uuid import uuid4
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
-from components.state import MechanicalState, ElectricalState
+from components.state import MechanicalState, ElectricalState, FuelState
 from helpers.functions import clamp, assert_type, assert_numeric
 from helpers.types import ConversionResult
 
@@ -32,7 +32,10 @@ class Converter():
     mass: float
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
-    state: MechanicalState|ElectricalState
+    input_state: ElectricalState|MechanicalState|FuelState
+    output_state: ElectricalState|MechanicalState
+    control_signal: Optional[float]
+    #internal_state: MechanicalState|ElectricalState
     max_power: float
     power_func: Callable[[MechanicalState|ElectricalState], float]
     efficiency_func: Callable[[MechanicalState|ElectricalState], float]
@@ -58,6 +61,8 @@ class Converter():
                                             max_val=1.0)
         self.max_power = max(self.max_power, 0.0)
         self.id = f"Converter-{uuid4()}"
+        assert_numeric(self.control_signal,
+                       allow_none=True)
 
     @property
     def efficiency(self) -> float:

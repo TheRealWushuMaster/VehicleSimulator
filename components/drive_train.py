@@ -31,7 +31,6 @@ class Differential(Converter):
     def __init__(self,
                  name: str,
                  mass: float,
-                 efficiency: float,
                  reverse_efficiency: float,
                  max_power: float=float("inf")):
         super().__init__(name=name,
@@ -39,7 +38,6 @@ class Differential(Converter):
                          input=PowerType.MECHANICAL,
                          output=PowerType.MECHANICAL,
                          max_power=max_power,
-                         efficiency=efficiency,
                          reverse_efficiency=reverse_efficiency)
 
 
