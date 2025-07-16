@@ -6,13 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Optional
 from components.fuel_type import Fuel
-from components.converter import Converter
+from components.converter import MechanicalConverter
 from components.port import PortInput, PortOutput, PortBidirectional
 from components.state import MechanicalState, zero_mechanical_state
+from helpers.functions import assert_type_and_range
 from helpers.types import PowerType
 
 @dataclass
-class ElectricMotor(Converter):
+class ElectricMotor(MechanicalConverter):
     """Models a simple, reversible electric motor."""
     def __init__(self,
                  name: str,
@@ -21,7 +22,8 @@ class ElectricMotor(Converter):
                  eff_func: Callable[[MechanicalState], float],
                  reverse_efficiency: float,
                  state: Optional[MechanicalState],
-                 power_func: Callable[[MechanicalState], float]):
+                 power_func: Callable[[MechanicalState], float],
+                 inertia: float):
         if state is None:
             state = zero_mechanical_state()
         input_port = PortBidirectional(exchange=PowerType.ELECTRIC)
@@ -35,11 +37,12 @@ class ElectricMotor(Converter):
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]
                          efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=reverse_efficiency)
+                         reverse_efficiency=reverse_efficiency,
+                         inertia=inertia)
 
 
 @dataclass
-class InternalCombustionEngine(Converter):
+class InternalCombustionEngine(MechanicalConverter):
     """Models a simple internal combustion engine."""
     def __init__(self,
                  name: str,
@@ -48,7 +51,8 @@ class InternalCombustionEngine(Converter):
                  eff_func: Callable[[MechanicalState], float],
                  state: Optional[MechanicalState],
                  power_func: Callable[[MechanicalState], float],
-                 fuel: Fuel):
+                 fuel: Fuel,
+                 inertia: float):
         if state is None:
             state = zero_mechanical_state()
         input_port = PortInput(exchange=fuel)
@@ -62,11 +66,12 @@ class InternalCombustionEngine(Converter):
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]
                          efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=None)
+                         reverse_efficiency=None,
+                         inertia=inertia)
 
 
 @dataclass
-class ElectricGenerator(Converter):
+class ElectricGenerator(MechanicalConverter):
     """Models a simple, non reversible electric generator."""
     def __init__(self,
                  name: str,
@@ -74,7 +79,8 @@ class ElectricGenerator(Converter):
                  max_power: float,
                  eff_func: Callable[[MechanicalState], float],
                  state: Optional[MechanicalState],
-                 power_func: Callable[[MechanicalState], float]):
+                 power_func: Callable[[MechanicalState], float],
+                 inertia: float):
         if state is None:
             state = zero_mechanical_state()
         input_port = PortInput(exchange=PowerType.MECHANICAL)
@@ -88,4 +94,5 @@ class ElectricGenerator(Converter):
                          max_power=max_power,
                          power_func=power_func, # type: ignore[arg-type]
                          efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=None)
+                         reverse_efficiency=None,
+                         inertia=inertia)

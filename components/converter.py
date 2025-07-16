@@ -4,9 +4,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Optional
 from uuid import uuid4
-from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
-from components.state import MechanicalState, ElectricalState, FuelState
-from helpers.functions import clamp, assert_type, assert_numeric
+from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType, PortDirection
+from components.state import State
+from helpers.functions import clamp, assert_type, assert_numeric, assert_type_and_range
 from helpers.types import ConversionResult
 
 
@@ -17,14 +17,19 @@ class Converter():
     Includes engines, motors, and fuel cells.
     
     Attributes:
-        - id (str): identifier for the object
-        - name (str): a name for the power converter
-        - mass (float): the mass of the converter
-        - input (Port type): input port to convert from
-        - output (Port type): output port converting to
-        - max_power (float): the maximum power it can handle (W)
-        - efficiency (float): accounts for power losses [0.0-1.0]
-        - reverse_efficiency (float or None): allows to convert
+        - `id` (str): identifier for the object
+        - `name` (str): a name for the power converter
+        - `mass` (float): the mass of the converter
+        - `input` (Port type): input port to convert from
+        - `output` (Port type): output port converting to
+        - `state` (State): the converter's full state
+        - `control_signal` (float): the value of control signal
+        - `max_power` (float): the maximum power it can handle (W)
+        - `power_func` (State -> float): the function determining
+                the maximum power at the converter's state
+        - `efficiency_func` (State -> float): accounts for power
+                losses [0.0-1.0]
+        - `reverse_efficiency` (float or None): allows to convert
                 power [0.0-1.0] in reverse if the value is not None
     """
     id: str=field(init=False)
@@ -32,13 +37,12 @@ class Converter():
     mass: float
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
-    input_state: ElectricalState|MechanicalState|FuelState
-    output_state: ElectricalState|MechanicalState
+    state: State=field(init=False)
     control_signal: Optional[float]
-    #internal_state: MechanicalState|ElectricalState
     max_power: float
-    power_func: Callable[[MechanicalState|ElectricalState], float]
-    efficiency_func: Callable[[MechanicalState|ElectricalState], float]
+    power_func: Callable[[State], float]
+    efficiency_func: Callable[[State], float]
+    dynamic_response: Callable[[State, float, float], State] # Depends on the state, control signal, and delta time
     reverse_efficiency: Optional[float]
 
     def __post_init__(self):
@@ -48,18 +52,18 @@ class Converter():
                     expected_type=(PortInput, PortBidirectional))
         assert_type(self.output,
                     expected_type=(PortOutput, PortBidirectional))
-        assert_numeric(self.mass, self.max_power)
-        assert_type(self.reverse_efficiency,
-                    expected_type=float,
-                    allow_none=True)
+        assert PortDirection.BIDIRECTIONAL not in (self.input.direction, self.output.direction) and \
+            self.input.direction!=self.output.direction or \
+            self.input.direction==PortDirection.BIDIRECTIONAL==self.output.direction
+        assert_type_and_range(self.mass, self.max_power,
+                              more_than=0.0)
+        assert_type_and_range(self.reverse_efficiency,
+                              more_than=0.0,
+                              less_than=1.0,
+                              allow_none=True)
         assert_type(self.efficiency_func,
                     expected_type=Callable)  # type: ignore[arg-type]
         self.mass = max(self.mass, 0.0)
-        if self.reverse_efficiency:
-            self.reverse_efficiency = clamp(val=self.reverse_efficiency,
-                                            min_val=0.0,
-                                            max_val=1.0)
-        self.max_power = max(self.max_power, 0.0)
         self.id = f"Converter-{uuid4()}"
         assert_numeric(self.control_signal,
                        allow_none=True)
@@ -69,41 +73,54 @@ class Converter():
         """Returns the efficiency value at the current state."""
         return self.efficiency_func(self.state)
 
-    def _compute_conversion(self, input_magnitude: float, delta_t: float,
-                           reverse: bool) -> ConversionResult:
+    def _compute_conversion(self, delta_t: float,
+                            state: Optional[State]=None,
+                            reverse: bool=False) -> Optional[ConversionResult]:
         """Calculates a power conversion result."""
-        input_power = abs(input_magnitude)
-        if reverse:
-            if self.reverse_efficiency:
-                eff = self.reverse_efficiency
+        if reverse and (self.reverse_efficiency in (0.0, None)):
+            return None
+        if state is None:
+            state = self.state
+        if not reverse:
+            input_power = abs(input_magnitude)
+            if reverse:
+                eff = self.reverse_efficiency if self.reverse_efficiency is not None else 0.0
             else:
-                eff = 0.0
-        else:
-            eff = self.efficiency
-        output_power = clamp(val=input_magnitude*eff,
-                             min_val=0.0,
-                             max_val=self.max_power)
-        power_loss = input_power - output_power
-        return ConversionResult(input_power=input_power,
-                                output_power=output_power,
-                                power_loss=power_loss,
-                                energy_input=input_power*delta_t,
-                                energy_output=output_power*delta_t,
-                                energy_loss=power_loss*delta_t)
+                eff = self.efficiency
+            output_power = clamp(val=input_magnitude*eff,
+                                min_val=0.0,
+                                max_val=self.max_power)
+            power_loss = input_power - output_power
+            return ConversionResult(input_power=input_power,
+                                    output_power=output_power,
+                                    power_loss=power_loss,
+                                    energy_input=input_power*delta_t,
+                                    energy_output=output_power*delta_t,
+                                    energy_loss=power_loss*delta_t)
+        return None
 
-    def convert(self, input_magnitude: float,
-                delta_t: float) -> ConversionResult:
+    def convert(self, state: Optional[State],
+                delta_t: float,
+                update_state: bool=True) -> Optional[ConversionResult]:
         """Calculates the conversion."""
-        return self._compute_conversion(input_magnitude=input_magnitude,
-                                        delta_t=delta_t,
+        conv = self._compute_conversion(delta_t=delta_t,
+                                        state=state,
                                         reverse=False)
+        if not update_state:
+            return conv
+        if conv is not None:
+            self.update_state(state=conv)
+        return None
 
-    def recover(self, input_magnitude: float,
-                delta_t: float) -> ConversionResult:
+    def recover(self, state: Optional[State],
+                delta_t: float) -> Optional[ConversionResult]:
         """Calculates the reverse delivery, if applicable."""
-        return self._compute_conversion(input_magnitude=input_magnitude,
-                                        delta_t=delta_t,
+        return self._compute_conversion(delta_t=delta_t,
+                                        state=state,
                                         reverse=True)
+
+    def update_state(self, state: Optional[State]) -> None:
+        raise NotImplementedError
 
     def return_port(self, which: PortType) -> Port:
         """
@@ -114,3 +131,17 @@ class Converter():
         if which==PortType.INPUT_PORT:
             return self.input
         return self.output
+
+
+@dataclass
+class MechanicalConverter(Converter):
+    """
+    Models a mechanical converter, which involves movement.
+    Adds a moment of inertia to the `Converter` base class.
+    """
+    inertia: float
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type_and_range(self.inertia,
+                              more_than=0.0)

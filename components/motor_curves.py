@@ -1,10 +1,34 @@
 """This module generates sample power vs RPM and efficiency vs power & RPM curves."""
 
+from dataclasses import dataclass
 from math import exp, sqrt
 from typing import Callable
-from components.state import MechanicalState
+from components.state import State, RotatingIOState, ElectricIOState, FuelIOState
 from helpers.functions import assert_type, assert_range, assert_numeric, assert_type_and_range
 from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
+
+
+@dataclass
+class DCElectricMotorParams():
+    r: float    # Armature resistance, in Ohms
+    l: float    # Armature inductance, in H
+    km: float   # Armature constant, in N.m/A
+    kb: float   # Back EMF constant, in V.s/rad
+    j: float    # Rotor inertia, in kg.m²
+    kf: float    # Viscous friction coefficient, in N.m.s/rad
+    max_power: Callable[[State], float] # Maximum power at a defined state
+
+
+@dataclass
+class CombustionEngineParams():
+    j: float    # Rotor inertia, in kg.m²
+    kf: float    # Viscous friction coefficient, in N.m.s/rad
+    tau_delay: float    # Combustion delay, in sec
+    idle_rpm: float     # Idle rpms
+    max_power: Callable[[State], float] # Maximum power at a defined state
+
+
+#===========================================
 
 
 class MechanicalMaxPowerVsRPMCurves():
@@ -197,3 +221,47 @@ class MechanicalPowerEfficiencyCurves():
                 return 0.0
             return max(max_eff.efficiency * exp(-falloff_rpm*(state.rpm-max_eff.rpm)**2 - falloff_power*(state.power-max_eff.power)**2), min_eff)
         return efficiency_func
+
+
+class MechanicalDynamicResponse():
+    """
+    Generates a dynamic response model for motors and engines
+    for use when updating states in the simulation.
+    """
+    @staticmethod
+    def ice(ice_params: CombustionEngineParams) -> Callable[[State, float, float], State]:
+        """
+        Returns a dynamic model for a combustion engine.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def dc_em(em_params: DCElectricMotorParams) -> Callable[[State, float, float], State]:
+        """
+        Returns a dynamic model for an electric motor.
+        """
+        assert_type(em_params.l, em_params.j, em_params.kb,
+                    em_params.kf, em_params.km, em_params.r,
+                    expected_type=float)
+        assert
+        assert_type(em_params.max_power,
+                    expected_type=Callable) # type: ignore[arg-type]
+        i: float
+        v: float
+        w: float
+        #i_dot = (-(em_params.r * i + em_params.kb * w) + v) / em_params.l
+        #w_dot = (em_params.km * i - em_params.kf * w) / em_params.j
+        def dc_em_dynamic_response(state: State,
+                                   control: float,
+                                   delta_t: float,
+                                   downstream_inertia: float,
+                                   reverse: bool=False) -> State:
+            assert isinstance(state.input, ElectricIOState)
+            assert isinstance(state.output, RotatingIOState)
+            if not reverse:
+                w_dot = (em_params.km * i - em_params.kf * state.output.ang_vel) / (em_params.j + downstream_inertia)
+                new_w = state.output.ang_vel + w_dot * delta_t
+            else:
+                pass
+            return None
+        return dc_em_dynamic_response

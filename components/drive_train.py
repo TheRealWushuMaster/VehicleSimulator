@@ -5,7 +5,7 @@ all modules that transmit power to and from the ground.
 
 from dataclasses import dataclass
 from typing import Optional
-from components.converter import Converter
+from components.converter import MechanicalConverter
 from helpers.functions import assert_type
 from helpers.types import PowerType
 
@@ -24,31 +24,47 @@ class Wheel():
         assert_type(self.radius, self.width, self.mass, self.air_pressure,
                     expected_type=float)
 
+    @property
+    def inertia(self) -> float:
+        """
+        Returns the moment of inertia.
+        It assumes a "thick ring" type of wheel, with most of its
+        mass concentrated near the rim.
+        """
+        return 0.75 * self.mass * self.radius**2
+
 
 @dataclass
-class Differential(Converter):
+class Differential(MechanicalConverter):
     """Models an axle differential."""
     def __init__(self,
                  name: str,
                  mass: float,
                  reverse_efficiency: float,
+                 inertia: float,
                  max_power: float=float("inf")):
         super().__init__(name=name,
                          mass=mass,
                          input=PowerType.MECHANICAL,
                          output=PowerType.MECHANICAL,
+                         control=0.0,
                          max_power=max_power,
-                         reverse_efficiency=reverse_efficiency)
+                         power_func=None,
+                         efficiency_func=None,
+                         dynamic_response=None,
+                         reverse_efficiency=reverse_efficiency,
+                         inertia=inertia)
 
 
 @dataclass
-class GearBox(Converter):
+class GearBox(MechanicalConverter):
     """Models a gear box."""
     def __init__(self,
                  name: str,
                  mass: float,
                  efficiency: float,
                  reverse_efficiency: float,
+                 inertia: float,
                  max_power: float=float("inf")):
         super().__init__(name=name,
                          mass=mass,
@@ -56,17 +72,19 @@ class GearBox(Converter):
                          output=PowerType.MECHANICAL,
                          max_power=max_power,
                          efficiency=efficiency,
-                         reverse_efficiency=reverse_efficiency)
+                         reverse_efficiency=reverse_efficiency,
+                         inertia=inertia)
 
 
 @dataclass
-class PlanetaryGear(Converter):
+class PlanetaryGear(MechanicalConverter):
     """Models a planetary gear train."""
     def __init__(self,
                  name: str,
                  mass: float,
                  efficiency: float,
                  reverse_efficiency: float,
+                 inertia: float,
                  max_power: float=float("inf")):
         super().__init__(name=name,
                          mass=mass,
@@ -74,7 +92,8 @@ class PlanetaryGear(Converter):
                          output=PowerType.MECHANICAL,
                          max_power=max_power,
                          efficiency=efficiency,
-                         reverse_efficiency=reverse_efficiency)
+                         reverse_efficiency=reverse_efficiency,
+                         inertia=inertia)
 
 
 @dataclass

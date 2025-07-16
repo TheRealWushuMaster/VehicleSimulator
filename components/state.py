@@ -1,26 +1,98 @@
 """This module defines the internal states of the components."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 from components.fuel_type import Fuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range
 from simulation.constants import RPM_TO_ANG_VEL
 
 
 @dataclass
-class IOState():
+class BaseState():
     """
-    Base class for input and output states.
+    Base class for all state classes.
     """
-    pass
+    def as_dict(self) -> dict[str, Any]:
+        """
+        Serializes the state into a dictionary.
+        """
+        return self.__dict__
 
 
 @dataclass
-class InternalState():
+class IOState(BaseState):
     """
-    Represents the internal state of a component.
+    Base class for input and output states.
     """
-    pass
+    delivering: bool
+    receiving: bool
+
+    def __post_init__(self):
+        assert_type(self.delivering, self.receiving,
+                    expected_type=bool)
+
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["delivering"] = self.delivering
+        base["receiving"] = self.receiving
+        return base
+
+
+@dataclass
+class InternalState(BaseState):
+    """
+    Represents basic internal properties of the component.
+    """
+    temperature: float
+    on: bool
+
+    def __post_init__(self):
+        assert_type_and_range(self.temperature,
+                              more_than=0.0,
+                              include_more=False)
+        assert_type(self.on,
+                    expected_type=bool)
+
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["temperature"] = self.temperature
+        return base
+
+
+@dataclass
+class EnergyStorageState(BaseState):
+    """
+    Represents the energy storage state of a component.
+    """
+    energy: float
+    fuel: Optional[Fuel]
+
+    def __post_init__(self):
+        assert_type_and_range(self.energy,
+                              more_than=0.0)
+        assert_type(self.fuel,
+                    expected_type=Fuel,
+                    allow_none=True)
+
+    @property
+    def fuel_amount(self) -> float:
+        """
+        Returns the amount of fuel left, if applicable.
+        """
+        if self.fuel is not None:
+            return self.energy * self.fuel.energy_density
+        return 0.0
+
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["energy"] = self.energy
+        if self.fuel is not None:
+            base["fuel"] = self.fuel
+            base["fuel_amount"] = self.fuel_amount
+        return base
+
+
+#=============================
 
 
 @dataclass
@@ -30,10 +102,12 @@ class RotatingIOState(IOState):
     """
     power: float
     rpm: float
+    inertia: float
 
     def __post_init__(self):
         assert_range(self.power, self.rpm,
                      more_than=0.0)
+        super().__post_init__()
 
     @property
     def torque(self) -> float:
@@ -49,9 +123,15 @@ class RotatingIOState(IOState):
         """
         return self.rpm * RPM_TO_ANG_VEL
 
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["torque"] = self.torque
+        base["ang_vel"] = self.ang_vel
+        return base
+
 
 @dataclass
-class ElectricalIOState(IOState):
+class ElectricIOState(IOState):
     """
     Represents the state of an electrical condition (voltage and current).
     """
@@ -60,6 +140,12 @@ class ElectricalIOState(IOState):
     def __post_init__(self):
         assert_range(self.power,
                      more_than=0.0)
+        super().__post_init__()
+
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["power"] = self.power
+        return base
 
 
 @dataclass
@@ -68,166 +154,84 @@ class FuelIOState(IOState):
     Represents the state of fuel transfer.
     """
     fuel: Fuel
-    fuel_amount: float
+    energy: float
+
+    def __post_init__(self):
+        assert_type(self.fuel,
+                    expected_type=Fuel)
+        assert_type_and_range(self.energy,
+                              more_than=0.0)
+        super().__post_init__()
 
     @property
-    def energy(self):
+    def fuel_amount(self) -> float:
         """
-        Dinamically calculates the energy transfered.
+        Dynamically calculates the amount of fuel transfered.
         """
-        return self.fuel_amount * self.fuel.energy_density
+        return self.energy / self.fuel.energy_density
 
-    @property
-    def fuel_state(self):
-        """
-        Returns the state of the transfered fuel.
-        """
-        return self.fuel.state
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["fuel_amount"] = self.fuel_amount
+        return base
 
 
-@dataclass
-class PhysicalState(InternalState):
-    """
-    Represents basic physical properties of the component.
-    """
-    temperature: float
+#=============================
 
 
 @dataclass
 class State():
     """
-    Base class for the internal states during simulation.
+    Class containing all component's states.
     """
-    power: float
-    delivering: bool
-    receiving: bool
+    input: Optional[IOState]
+    output: IOState
+    internal: InternalState
+    energy_storage: Optional[EnergyStorageState]
 
     def __post_init__(self):
-        assert_type(self.delivering, self.receiving,
-                    expected_type=bool)
-        assert_type_and_range(self.power,
-                              more_than=0.0)
+        assert_type(self.input,
+                    expected_type=IOState,
+                    allow_none=True)
+        assert_type(self.output,
+                    expected_type=IOState)
+        assert_type(self.internal,
+                    expected_type=InternalState)
+        assert_type(self.energy_storage,
+                    expected_type=EnergyStorageState,
+                    allow_none=True)
 
-    def as_dict(self) -> dict[str, Any]:
-        """
-        Serializes the state into a dictionary.
-        """
-        return self.__dict__
 
-
-@dataclass
-class MechanicalState(State):
+def zero_rotating_io_state() -> RotatingIOState:
     """
-    State that represents components with mechanical moving parts.
-    Includes motors, engines, transmissions, and others.
+    Returns a mechanical rotating state with values set to zero.
     """
-    rpm: float
-    on: bool
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert_type_and_range(self.power, self.rpm,
-                              more_than=0.0)
-        assert_type(self.on,
-                    expected_type=bool)
-
-    @property
-    def torque(self) -> float:
-        """
-        Dynamically calculate torque.
-        """
-        return self.power / self.rpm / RPM_TO_ANG_VEL if self.rpm > 0.0 else 0.0
-
-    def as_dict(self) -> dict[str, Any]:
-        base = super().as_dict()
-        base["torque"] = self.torque
-        return base
-
-
-@dataclass
-class ElectricalState(State):
-    """
-    State that represents components of pure electrical behavior.
-    Includes Fuel Cells.
-    """
-    on: bool
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert_type(self.on,
-                    expected_type=bool)
-
-
-@dataclass
-class EnergyInternalState(State):
-    """
-    The internal state of a battery or fuel tank.
-    """
-    energy: float
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert_type_and_range(self.energy,
-                              more_than=0.0)
-
-
-@dataclass
-class FuelState(EnergyInternalState):
-    """
-    The state of a fuel tank.
-    """
-    fuel: Fuel
-    fuel_amount: float
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert_type_and_range(self.fuel_amount,
-                              more_than=0.0)
-
-
-def zero_mechanical_state(on: bool=True) -> MechanicalState:
-    """
-    Returns a mechanical state with values set to zero.
-    """
-    assert_type(on,
-                expected_type=bool)
-    return MechanicalState(power=0.0,
-                           delivering=False,
+    return RotatingIOState(delivering=False,
                            receiving=False,
-                           rpm=0.0,
-                           on=on)
+                           power=0.0,
+                           rpm=0.0)
 
-def zero_electrical_state(on: bool=True) -> ElectricalState:
+def zero_electric_io_state() -> ElectricIOState:
     """
-    Returns an electrical state with values set to zero.
+    Returns an electric state with values set to zero.
     """
-    assert_type(on,
-                expected_type=bool)
-    return ElectricalState(power=0.0,
-                           delivering=False,
+    return ElectricIOState(delivering=False,
                            receiving=False,
-                           on=on)
+                           power=0.0)
 
-def zero_energy_internal_state(energy: float=0.0) -> EnergyInternalState:
+def zero_fuel_io_state(fuel: Fuel) -> FuelIOState:
     """
     Returns a fuel state with values set to zero.
     """
-    assert_range(energy,
-                 more_than=0.0)
-    return EnergyInternalState(energy=energy,
-                               power=0.0,
-                               delivering=False,
-                               receiving=False)
+    return FuelIOState(delivering=False,
+                       receiving=False,
+                       fuel=fuel,
+                       energy=0.0)
 
-def zero_fuel_state(fuel: Fuel) -> FuelState:
+def zero_internal_state(temperature: float=300.0,
+                        on: bool=True) -> InternalState:
     """
-    Returns a fuel state with values set to zero.
+    Returns an internal state with values set to zero.
     """
-    assert_type(fuel,
-                expected_type=Fuel)
-    return FuelState(energy=0.0,
-                     power=0.0,
-                     fuel=fuel,
-                     fuel_amount=0.0,
-                     delivering=False,
-                     receiving=False)
+    return InternalState(temperature=temperature,
+                         on=on)
