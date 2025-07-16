@@ -218,7 +218,8 @@ def zero_electric_io_state() -> ElectricIOState:
     """
     return ElectricIOState(delivering=False,
                            receiving=False,
-                           power=0.0)
+                           power=0.0,
+                           current= 0.0)
 
 def zero_fuel_io_state(fuel: Fuel) -> FuelIOState:
     """
