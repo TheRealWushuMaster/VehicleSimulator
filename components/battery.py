@@ -16,6 +16,8 @@ class AlAirBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -23,7 +25,9 @@ class AlAirBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_Al_AIR_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -33,6 +37,8 @@ class PbAcidBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -40,7 +46,9 @@ class PbAcidBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_Pb_ACID_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -50,6 +58,8 @@ class LiCoBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -57,7 +67,9 @@ class LiCoBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiCo_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -67,6 +79,8 @@ class LiMnBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -74,7 +88,9 @@ class LiMnBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiMn_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -84,6 +100,8 @@ class LiPhBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -91,7 +109,9 @@ class LiPhBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiPh_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -101,6 +121,8 @@ class LiPoBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -108,7 +130,9 @@ class LiPoBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiPo_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -118,6 +142,8 @@ class NiCdBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -125,7 +151,9 @@ class NiCdBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_NiCd_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -135,6 +163,8 @@ class NiMHBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -142,7 +172,9 @@ class NiMHBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_NiMH_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -152,6 +184,8 @@ class SolidStateBattery(BatteryRechargeable):
                  name: str,
                  nominal_energy: float,
                  energy: float,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -159,4 +193,6 @@ class SolidStateBattery(BatteryRechargeable):
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_SOLID_STATE_ENERGY_DENSITY,
                          soh=soh,
-                         efficiency=efficiency)
+                         efficiency=efficiency,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)

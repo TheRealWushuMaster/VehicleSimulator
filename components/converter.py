@@ -6,8 +6,7 @@ from typing import Optional
 from uuid import uuid4
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType, PortDirection
 from components.state import State
-from helpers.functions import clamp, assert_type, assert_numeric, assert_type_and_range
-from helpers.types import ConversionResult
+from helpers.functions import assert_type, assert_numeric, assert_type_and_range
 
 
 @dataclass
@@ -38,11 +37,12 @@ class Converter():
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
     state: State=field(init=False)
-    control_signal: Optional[float]
+    control_signal: float
     max_power: float
     power_func: Callable[[State], float]
     efficiency_func: Callable[[State], float]
     dynamic_response: Callable[[State, float, float], State] # Depends on the state, control signal, and delta time
+    reverse_dynamic_response: Optional[Callable[[State, float, float], State]]
     reverse_efficiency: Optional[float]
 
     def __post_init__(self):
@@ -65,44 +65,41 @@ class Converter():
                     expected_type=Callable)  # type: ignore[arg-type]
         self.mass = max(self.mass, 0.0)
         self.id = f"Converter-{uuid4()}"
-        assert_numeric(self.control_signal,
-                       allow_none=True)
+        assert_numeric(self.control_signal)
 
     @property
     def efficiency(self) -> float:
         """Returns the efficiency value at the current state."""
         return self.efficiency_func(self.state)
 
+    @property
+    def reversible(self) -> bool:
+        """
+        Returns if the converter is reversible.
+        """
+        return self.reverse_dynamic_response is not None
+
     def _compute_conversion(self, delta_t: float,
                             state: Optional[State]=None,
-                            reverse: bool=False) -> Optional[ConversionResult]:
-        """Calculates a power conversion result."""
-        if reverse and (self.reverse_efficiency in (0.0, None)):
+                            reverse: bool=False) -> Optional[State]:
+        """
+        Returns the result of a conversion or recovery.
+        """
+        if reverse and not self.reversible:
             return None
         if state is None:
             state = self.state
         if not reverse:
-            input_power = abs(input_magnitude)
-            if reverse:
-                eff = self.reverse_efficiency if self.reverse_efficiency is not None else 0.0
-            else:
-                eff = self.efficiency
-            output_power = clamp(val=input_magnitude*eff,
-                                min_val=0.0,
-                                max_val=self.max_power)
-            power_loss = input_power - output_power
-            return ConversionResult(input_power=input_power,
-                                    output_power=output_power,
-                                    power_loss=power_loss,
-                                    energy_input=input_power*delta_t,
-                                    energy_output=output_power*delta_t,
-                                    energy_loss=power_loss*delta_t)
-        return None
+            return self.dynamic_response(state, self.control_signal, delta_t)
+        assert self.reverse_dynamic_response is not None
+        return self.reverse_dynamic_response(state, self.control_signal, delta_t)
 
     def convert(self, state: Optional[State],
                 delta_t: float,
-                update_state: bool=True) -> Optional[ConversionResult]:
-        """Calculates the conversion."""
+                update_state: bool=True) -> Optional[State]:
+        """
+        Calculates the conversion.
+        """
         conv = self._compute_conversion(delta_t=delta_t,
                                         state=state,
                                         reverse=False)
@@ -113,7 +110,7 @@ class Converter():
         return None
 
     def recover(self, state: Optional[State],
-                delta_t: float) -> Optional[ConversionResult]:
+                delta_t: float) -> Optional[State]:
         """Calculates the reverse delivery, if applicable."""
         return self._compute_conversion(delta_t=delta_t,
                                         state=state,

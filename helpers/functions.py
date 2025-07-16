@@ -3,12 +3,15 @@ Helper functions for use in the project.
 """
 
 from typing import Any
+from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM
 
 def clamp(val: float, min_val: float, max_val: float) -> float:
     """
     Limits the input value `val` between `min_val` and `max_val`.
     """
     return max(min(val, max_val), min_val)
+
+# VERIFICATIONS
 
 def assert_type(*args: Any,
                 expected_type: type|tuple[type, ...],
@@ -51,6 +54,8 @@ def assert_type_and_range(*args: Any,
                           include_less: bool=True,
                           allow_none: bool=False) -> None:
     """
+    Verifies the input arguments are numeric (float or int) and
+    checks that they span the selected range of values.
     Combines both assertions of type and range into a single check.
     """
     for arg in args:
@@ -72,3 +77,37 @@ def assert_numeric(*args: Any,
         assert_type(arg,
                     expected_type=(float, int),
                     allow_none=allow_none)
+
+# CONVERSIONS
+
+def rpm_to_ang_vel(rpm: float) -> float:
+    """
+    Returns the angular velocity for a given rpm value.
+    """
+    assert_numeric(rpm)
+    return rpm * RPM_TO_ANG_VEL
+
+def ang_vel_to_rpm(ang_vel: float) -> float:
+    """
+    Returns the rpm value for a given angular velocity.
+    """
+    assert_numeric(ang_vel)
+    return ang_vel * ANG_VEL_TO_RPM
+
+def power_to_torque(power: float, rpm: float) -> float:
+    """
+    Converts power to torque.
+    """
+    assert_type_and_range(power, rpm,
+                          more_than=0.0,
+                          include_more=True)
+    return power / rpm_to_ang_vel(rpm=rpm) if rpm > 0.0 else 0.0
+
+def torque_to_power(torque: float, rpm: float) -> float:
+    """
+    Converts torque to power.
+    """
+    assert_type_and_range(torque, rpm,
+                          more_than=0.0,
+                          include_more=True)
+    return torque * rpm_to_ang_vel(rpm=rpm) if rpm > 0.0 else 0.0

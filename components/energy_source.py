@@ -46,18 +46,17 @@ class EnergySource():
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
-        assert_type(self.state,
-                    expected_type=State)
         assert_type_and_range(self.nominal_energy,
                               self.system_mass,
                               more_than=0.0)
         assert_type_and_range(self.efficiency, self.soh,
                               more_than=0.0,
                               less_than=1.0)
-        assert_type(self.rechargeable,
-                    expected_type=bool)
         if self.input is not None:
+            self.rechargeable = True
             assert self.input.exchange==self.output.exchange
+        else:
+            self.rechargeable = False
         st_list = []
         for obj in (self.input, self.output):
             if obj is not None:
@@ -69,7 +68,8 @@ class EnergySource():
                 elif obj.exchange==PowerType.ELECTRIC:
                     st = ElectricIOState(delivering=False,
                                          receiving=False,
-                                         power=0.0)
+                                         power=0.0,
+                                         current=0.0)
                 elif obj.exchange==PowerType.MECHANICAL:
                     st = RotatingIOState(delivering=False,
                                          receiving=False,
@@ -197,14 +197,19 @@ class EnergySource():
 @dataclass
 class Battery(EnergySource):
     """
-    Models a generic, rechargeable battery type.
+    Models a generic battery.
     """
+    nominal_voltage: float
+    max_power: float
+
     def __init__(self,
                  name: str,
                  nominal_energy: float,
                  energy: float,
                  battery_mass: float,
                  rechargeable: bool,
+                 nominal_voltage: float,
+                 max_power: float,
                  soh: float=BATTERY_DEFAULT_SOH,
                  efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
         super().__init__(name=name,
@@ -216,12 +221,16 @@ class Battery(EnergySource):
                          efficiency=efficiency)
         assert self.state.energy_storage is not None
         self.state.energy_storage.energy = min(nominal_energy, energy)
+        assert_type_and_range(nominal_voltage, max_power,
+                              more_than=0.0)
+        self.nominal_voltage = nominal_voltage
+        self.max_power = max_power
 
 
 @dataclass
 class BatteryRechargeable(Battery):
     """
-    Models a generic, rechargeable battery type.
+    Models a generic, rechargeable battery.
     """
     def __init__(self,
                  name: str,
@@ -229,14 +238,18 @@ class BatteryRechargeable(Battery):
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: float):
+                 efficiency: float,
+                 nominal_voltage: float,
+                 max_power: float):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          energy=energy,
                          battery_mass=battery_mass,
                          soh=soh,
                          efficiency=efficiency,
-                         rechargeable=True)
+                         rechargeable=True,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass
@@ -250,14 +263,18 @@ class BatteryNonRechargeable(Battery):
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: float):
+                 efficiency: float,
+                 nominal_voltage: float,
+                 max_power: float):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          energy=energy,
                          battery_mass=battery_mass,
                          soh=soh,
                          efficiency=efficiency,
-                         rechargeable=False)
+                         rechargeable=False,
+                         nominal_voltage=nominal_voltage,
+                         max_power=max_power)
 
 
 @dataclass

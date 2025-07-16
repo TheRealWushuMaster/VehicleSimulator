@@ -4,7 +4,7 @@ from typing import Literal, TypedDict
 from components.motor import ElectricMotor, ElectricGenerator
 from components.motor_curves import MechanicalMaxPowerVsRPMCurves, \
     MechanicalPowerEfficiencyCurves
-from components.state import MechanicalState, zero_mechanical_state
+from components.state import RotatingIOState, zero_rotating_io_state
 
 
 class TestEMParams(TypedDict):
@@ -13,7 +13,8 @@ class TestEMParams(TypedDict):
     min_rpm: float
     max_rpm: float
     efficiency: float
-    state: MechanicalState
+    state: RotatingIOState
+    inertia: float
 
 
 em_defaults: TestEMParams = {"mass": 50.0,
@@ -21,14 +22,16 @@ em_defaults: TestEMParams = {"mass": 50.0,
                              "min_rpm": 800.0,
                              "max_rpm": 5_000.0,
                              "efficiency": 0.91,
-                             "state": zero_mechanical_state()}
+                             "state": zero_rotating_io_state(),
+                             "inertia": 5.0}
 
 # ============================
 
 def create_electric_machine(machine_type: Literal["eg", "em"],
                             mass: float=em_defaults["mass"],
                             max_power: float=em_defaults["max_power"],
-                            state: MechanicalState=em_defaults["state"]
+                            state: RotatingIOState=em_defaults["state"],
+                            inertia: float=em_defaults["inertia"]
                             ) -> ElectricGenerator|ElectricMotor:
     assert machine_type in ("eg", "em")
     power_func = MechanicalMaxPowerVsRPMCurves.constant(max_power=max_power,
@@ -44,14 +47,16 @@ def create_electric_machine(machine_type: Literal["eg", "em"],
                                  max_power=max_power,
                                  eff_func=eff_func,
                                  state=state,
-                                 power_func=power_func)
+                                 power_func=power_func,
+                                 inertia=inertia)
     return ElectricMotor(name="Test Electric Motor",
                          mass=mass,
                          max_power=max_power,
                          eff_func=eff_func,
                          reverse_efficiency=1.0,
                          state=state,
-                         power_func=power_func)
+                         power_func=power_func,
+                         inertia=inertia)
 
 # ============================
 

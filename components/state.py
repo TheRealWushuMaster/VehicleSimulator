@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from typing import Any, Optional
 from components.fuel_type import Fuel
-from helpers.functions import assert_type, assert_type_and_range, assert_range
-from simulation.constants import RPM_TO_ANG_VEL
+from helpers.functions import assert_type, assert_type_and_range, assert_range, \
+    rpm_to_ang_vel, power_to_torque
 
 
 @dataclass
@@ -102,7 +102,6 @@ class RotatingIOState(IOState):
     """
     power: float
     rpm: float
-    inertia: float
 
     def __post_init__(self):
         assert_range(self.power, self.rpm,
@@ -114,14 +113,15 @@ class RotatingIOState(IOState):
         """
         Dynamically calculate torque.
         """
-        return self.power / self.ang_vel if self.rpm > 0.0 else 0.0
+        return power_to_torque(power=self.power,
+                               rpm=self.rpm)
 
     @property
     def ang_vel(self) -> float:
         """
         Dynamically calculate angular velocity.
         """
-        return self.rpm * RPM_TO_ANG_VEL
+        return rpm_to_ang_vel(rpm=self.rpm)
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
@@ -136,6 +136,7 @@ class ElectricIOState(IOState):
     Represents the state of an electrical condition (voltage and current).
     """
     power: float
+    current: float
 
     def __post_init__(self):
         assert_range(self.power,

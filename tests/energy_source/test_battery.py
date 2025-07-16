@@ -13,6 +13,8 @@ class TestBatteryParams(TypedDict):
     battery_mass: float
     soh: float
     efficiency: float
+    nominal_voltage: float
+    max_power: float
 
 
 battery_dict: TestBatteryParams = {"name": "Test battery",
@@ -20,7 +22,9 @@ battery_dict: TestBatteryParams = {"name": "Test battery",
                                    "energy": 500.0,
                                    "battery_mass": 50.0,
                                    "soh": 1.0,
-                                   "efficiency": 0.96}
+                                   "efficiency": 0.96,
+                                   "nominal_voltage": 200.0,
+                                   "max_power": 20_000.0}
 
 def create_battery(battery_type: type[BatteryRechargeable|BatteryNonRechargeable]=BatteryRechargeable
                    ) -> BatteryRechargeable|BatteryNonRechargeable:
@@ -30,14 +34,18 @@ def create_battery(battery_type: type[BatteryRechargeable|BatteryNonRechargeable
                                energy=battery_dict["energy"],
                                battery_mass=battery_dict["battery_mass"],
                                soh=battery_dict["soh"],
-                               efficiency=battery_dict["efficiency"])
+                               efficiency=battery_dict["efficiency"],
+                               nominal_voltage=battery_dict["nominal_voltage"],
+                               max_power=battery_dict["max_power"])
         assert isinstance(battery, (BatteryRechargeable, BatteryNonRechargeable))
     elif issubclass(battery_type, BatteryRechargeable):
         battery = battery_type(name=battery_dict["name"],
                                nominal_energy=battery_dict["nominal_energy"],
                                energy=battery_dict["energy"],
                                soh=battery_dict["soh"],
-                               efficiency=battery_dict["efficiency"])
+                               efficiency=battery_dict["efficiency"],
+                               nominal_voltage=battery_dict["nominal_voltage"],
+                               max_power=battery_dict["max_power"])
     else:
         raise TypeError(
             "The argument `battery_type` must be of type `BatteryRechargeable` or `BatteryNonRechargeable`.")
