@@ -6,7 +6,7 @@ from typing import Callable
 from components.state import State, RotatingIOState, ElectricIOState, FuelIOState, \
     IOState
 from helpers.functions import assert_type, assert_range, assert_type_and_range, \
-    assert_numeric, assert_type_and_range, ang_vel_to_rpm
+    assert_numeric, ang_vel_to_rpm
 from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
 
 

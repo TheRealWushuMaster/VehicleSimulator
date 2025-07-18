@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Literal, Optional
 from uuid import uuid4
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType, PortDirection
 from components.state import State
@@ -116,8 +116,18 @@ class Converter():
                                         state=state,
                                         reverse=True)
 
-    def update_state(self, state: Optional[State]) -> None:
-        raise NotImplementedError
+    def update_state(self, state: State,
+                     which: Literal["in", "out"]="out") -> None:
+        """
+        Updates the internal state of the converter.
+        """
+        assert which in ("in", "out")
+        assert_type(state,
+                    expected_type=State)
+        if which=="out":
+            self.state.output = state.output
+        elif self.reversible:
+            self.state.input = state.input
 
     def return_port(self, which: PortType) -> Port:
         """
@@ -134,7 +144,7 @@ class Converter():
 class MechanicalConverter(Converter):
     """
     Models a mechanical converter, which involves movement.
-    Adds a moment of inertia to the `Converter` base class.
+    Adds inertia to the `Converter` base class.
     """
     inertia: float
 
