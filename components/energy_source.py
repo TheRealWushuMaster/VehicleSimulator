@@ -1,7 +1,7 @@
 """This module contains a base class for all power sources for the vehicle."""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Callable
 from uuid import uuid4
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
@@ -32,16 +32,12 @@ class EnergySource():
         - `efficiency` (float): efficiency when delivering or receiving [0.0-1.0]
         - `rechargeable` (bool): allows the source to be recharged
     """
-    id: str=field(init=False)
     name: str
-    nominal_energy: float
     input: Optional[PortInput|PortBidirectional]
     output: PortOutput|PortBidirectional
-    state: State=field(init=False)
     system_mass: float
     soh: float
-    efficiency: float
-    rechargeable: bool=field(init=False)
+    efficiency: Callable[[State], float]
 
     def __post_init__(self):
         assert_type(self.name,
@@ -114,23 +110,21 @@ class EnergySource():
         Returns the maximum amount of energy
         that can be held by the source.
         """
-        return self.nominal_energy * self.soh
+        raise NotImplementedError
 
     @property
     def is_empty(self) -> bool:
         """
         Check if the source has no usable energy left.
         """
-        assert self.state.energy_storage is not None
-        return self.state.energy_storage.energy <= 0
+        raise NotImplementedError
 
     @property
     def is_full(self) -> bool:
         """
         Check if the source cannot receive any more energy.
         """
-        assert self.state.energy_storage is not None
-        return self.state.energy_storage.energy==self.max_energy
+        raise NotImplementedError
 
     @property
     def max_fuel_mass(self) -> float:
@@ -158,7 +152,7 @@ class EnergySource():
         """
         Returns the total mass of the power source.
         """
-        return self.system_mass + self.fuel_mass
+        raise NotImplementedError
 
     def recharge(self, power: float, delta_t: float) -> float:
         """
@@ -199,8 +193,10 @@ class Battery(EnergySource):
     """
     Models a generic battery.
     """
+    nominal_energy: float
     nominal_voltage: float
-    max_power: float
+    voltage_vs_current: Callable[[State], float]
+    efficiency: Callable[[State], float]
 
     def __init__(self,
                  name: str,
@@ -209,11 +205,10 @@ class Battery(EnergySource):
                  battery_mass: float,
                  rechargeable: bool,
                  nominal_voltage: float,
-                 max_power: float,
-                 soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: float=BATTERY_EFFICIENCY_DEFAULT):
+                 efficiency: Callable[[State], float],
+                 voltage_vs_current: Callable[[State], float],
+                 soh: float=BATTERY_DEFAULT_SOH):
         super().__init__(name=name,
-                         nominal_energy=nominal_energy,
                          input=PortInput(exchange=PowerType.ELECTRIC) if rechargeable else None,
                          output=PortOutput(exchange=PowerType.ELECTRIC),
                          system_mass=battery_mass,
@@ -221,10 +216,30 @@ class Battery(EnergySource):
                          efficiency=efficiency)
         assert self.state.energy_storage is not None
         self.state.energy_storage.energy = min(nominal_energy, energy)
-        assert_type_and_range(nominal_voltage, max_power,
+        assert_type_and_range(nominal_voltage,
                               more_than=0.0)
+        self.nominal_energy = nominal_energy
         self.nominal_voltage = nominal_voltage
-        self.max_power = max_power
+        self.voltage_vs_current = voltage_vs_current
+        self.efficiency = efficiency
+
+    @property
+    def max_energy(self):
+        return self.nominal_energy * self.soh
+
+    @property
+    def is_empty(self):
+        assert self.state.energy_storage is not None
+        return self.state.energy_storage.energy <= 0.0
+
+    @property
+    def is_full(self):
+        assert self.state.energy_storage is not None
+        return self.state.energy_storage.energy == self.max_energy
+
+    @property
+    def total_mass(self):
+        return self.system_mass
 
 
 @dataclass
@@ -238,9 +253,9 @@ class BatteryRechargeable(Battery):
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: float,
+                 efficiency: Callable[[State], float],
                  nominal_voltage: float,
-                 max_power: float):
+                 voltage_vs_current: Callable[[State], float]):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          energy=energy,
@@ -249,7 +264,7 @@ class BatteryRechargeable(Battery):
                          efficiency=efficiency,
                          rechargeable=True,
                          nominal_voltage=nominal_voltage,
-                         max_power=max_power)
+                         voltage_vs_current=voltage_vs_current)
 
 
 @dataclass
@@ -263,9 +278,9 @@ class BatteryNonRechargeable(Battery):
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: float,
+                 efficiency: Callable[[State], float],
                  nominal_voltage: float,
-                 max_power: float):
+                 voltage_vs_current: Callable[[State], float]):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          energy=energy,
@@ -274,7 +289,7 @@ class BatteryNonRechargeable(Battery):
                          efficiency=efficiency,
                          rechargeable=False,
                          nominal_voltage=nominal_voltage,
-                         max_power=max_power)
+                         voltage_vs_current=voltage_vs_current)
 
 
 @dataclass
@@ -282,25 +297,27 @@ class LiquidFuelTank(EnergySource):
     """
     Models a fuel tank for a liquid fuel.
     """
+    max_liters: float
+    fuel: LiquidFuel
+
     def __init__(self,
                  name: str,
                  fuel: LiquidFuel,
-                 capacity_litres: float,
-                 litres: float,
+                 max_liters: float,
+                 liters: float,
                  tank_mass: float):
         assert_type(fuel,
                     expected_type=LiquidFuel)
         assert fuel.density is not None
         conversion = fuel.energy_density * fuel.density * LTS_TO_CUBIC_METERS
         super().__init__(name=name,
-                         nominal_energy=capacity_litres*conversion,
                          input=None,
                          output=PortOutput(exchange=fuel),
                          system_mass=tank_mass,
                          soh=1.0,
                          efficiency=1.0)
         assert self.state.energy_storage is not None
-        self.state.energy_storage.energy = litres * conversion
+        self.state.energy_storage.energy = liters * conversion
 
 
 @dataclass

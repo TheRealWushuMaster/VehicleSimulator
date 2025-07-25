@@ -65,32 +65,49 @@ class EnergyStorageState(BaseState):
     Represents the energy storage state of a component.
     """
     energy: float
-    fuel: Optional[Fuel]
 
     def __post_init__(self):
         assert_type_and_range(self.energy,
                               more_than=0.0)
-        assert_type(self.fuel,
-                    expected_type=Fuel,
-                    allow_none=True)
-
-    @property
-    def fuel_amount(self) -> float:
-        """
-        Returns the amount of fuel left, if applicable.
-        """
-        if self.fuel is not None:
-            return self.energy * self.fuel.energy_density
-        return 0.0
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
         base["energy"] = self.energy
-        if self.fuel is not None:
-            base["fuel"] = self.fuel
-            base["fuel_amount"] = self.fuel_amount
         return base
 
+
+@dataclass
+class LiquidFuelStorageState(BaseState):
+    """
+    Represents the liquid fuel storage of a fuel tank.
+    """
+    liters: float
+
+    def __post_init__(self):
+        assert_type_and_range(self.liters,
+                              more_than=0.0)
+
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["liters"] = self.liters
+        return base
+
+
+@dataclass
+class GaseousFuelStorageState(BaseState):
+    """
+    Represents the gaseous fuel storage of a fuel tank.
+    """
+    mass: float
+
+    def __post_init__(self):
+        assert_type_and_range(self.mass,
+                              more_than=0.0)
+
+    def as_dict(self) -> dict[str, Any]:
+        base = super().as_dict()
+        base["mass"] = self.mass
+        return base
 
 #=============================
 
@@ -189,6 +206,7 @@ class State():
     output: IOState
     internal: InternalState
     energy_storage: Optional[EnergyStorageState]
+    fuel_storage: Optional[]
 
     def __post_init__(self):
         assert_type(self.input,
