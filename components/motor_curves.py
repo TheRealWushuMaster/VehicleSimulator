@@ -273,9 +273,7 @@ class MechanicalDynamicResponse():
             j = em_params.j + downstream_inertia
             w_dot = (em_params.km * state.input.current - em_params.kf * state.output.ang_vel) / j
             new_w = state.output.ang_vel + w_dot * delta_t
-            return RotatingIOState(delivering=True,
-                                   receiving=False,
-                                   power=0.0,
+            return RotatingIOState(power=0.0,
                                    rpm=ang_vel_to_rpm(ang_vel=new_w))
         return dc_em_dynamic_response
 

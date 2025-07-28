@@ -3,7 +3,7 @@ Helper functions for use in the project.
 """
 
 from typing import Any
-from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM
+from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM, CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS
 
 def clamp(val: float, min_val: float, max_val: float) -> float:
     """
@@ -111,3 +111,35 @@ def torque_to_power(torque: float, rpm: float) -> float:
                           more_than=0.0,
                           include_more=True)
     return torque * rpm_to_ang_vel(rpm=rpm) if rpm > 0.0 else 0.0
+
+def kelvin_to_celsius(t_kelvin: float) -> float:
+    """
+    Converts temperature in Kelvin to Celsius.
+    """
+    assert_type_and_range(t_kelvin,
+                          more_than=0.0)
+    return t_kelvin - 273.15
+
+def kelvin_to_fahrenheit(t_kelvin: float) -> float:
+    """
+    Converts temperature in Kelvin to Fahrenheit.
+    """
+    assert_type_and_range(t_kelvin,
+                          more_than=0.0)
+    return kelvin_to_celsius(t_kelvin=t_kelvin) * 1.8 + 32.0
+
+def liters_to_cubic_meters(liters: float) -> float:
+    """
+    Converts liters to cubic meters.
+    """
+    assert_type_and_range(liters,
+                          more_than=0.0)
+    return liters * LTS_TO_CUBIC_METERS
+
+def cubic_meters_to_liters(cubic_meters: float) -> float:
+    """
+    Converts cubic meters to liters.
+    """
+    assert_type_and_range(cubic_meters,
+                          more_than=0.0)
+    return cubic_meters * CUBIC_METERS_TO_LTS

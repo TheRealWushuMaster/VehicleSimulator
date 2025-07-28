@@ -3,14 +3,13 @@ This module contains definitions for different types of fuel.
 """
 
 from dataclasses import dataclass
-from typing import Optional
-from helpers.functions import assert_type, assert_range
+from helpers.functions import assert_type, assert_range, assert_type_and_range
 from helpers.types import PowerType, StateOfMatter
 from simulation.constants import ENERGY_DENSITY_BIODIESEL, ENERGY_DENSITY_DIESEL, \
     ENERGY_DENSITY_ETHANOL, ENERGY_DENSITY_GASOLINE, ENERGY_DENSITY_HYDROGEN, \
     ENERGY_DENSITY_METHANOL, ENERGY_DENSITY_METHANE, DENSITY_GASOLINE, \
     DENSITY_DIESEL, DENSITY_ETHANOL, DENSITY_METHANOL, DENSITY_BIODIESEL, \
-    DENSITY_HYDROGEN_LIQUID, EPSILON
+    DENSITY_HYDROGEN_LIQUID
 
 
 @dataclass
@@ -27,22 +26,16 @@ class Fuel():
     """
     name: str
     energy_density: float
-    density: Optional[float]
     state: StateOfMatter
 
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
-        assert_type(self.energy_density,
-                    expected_type=float)
-        assert_type(self.density,
-                    expected_type=float,
-                    allow_none=True)
+        assert_type_and_range(self.energy_density,
+                              more_than=0.0,
+                              include_more=False)
         assert_type(self.state,
                     expected_type=StateOfMatter)
-        self.energy_density = max(self.energy_density, EPSILON)
-        if self.density:
-            self.density = max(self.density, EPSILON)
         self.power_type = PowerType.CHEMICAL
 
     @property
@@ -63,29 +56,30 @@ class Fuel():
 
 @dataclass
 class GaseousFuel(Fuel):
-    """Assists creating a gaseous fuel."""
+    """Creates a gaseous fuel."""
     def __init__(self,
                  name: str,
                  energy_density: float):
         super().__init__(name=name,
                          energy_density=energy_density,
-                         density=None,
                          state=StateOfMatter.GASEOUS)
 
 
 @dataclass
 class LiquidFuel(Fuel):
-    """Assists creating a liquid fuel."""
+    """Creates a liquid fuel."""
+    mass_density: float
+
     def __init__(self,
                  name: str,
                  energy_density: float,
-                 density: float):
-        assert_range(density,
+                 mass_density: float):
+        assert_range(mass_density,
                      more_than=0.0)
         super().__init__(name=name,
                          energy_density=energy_density,
-                         density=density,
                          state=StateOfMatter.LIQUID)
+        self.mass_density = mass_density
 
 
 @dataclass
@@ -102,7 +96,7 @@ class HydrogenLiquid(LiquidFuel):
     def __init__(self):
         super().__init__(name="Liquid Hydrogen",
                          energy_density=ENERGY_DENSITY_HYDROGEN,
-                         density=DENSITY_HYDROGEN_LIQUID)
+                         mass_density=DENSITY_HYDROGEN_LIQUID)
 
 
 @dataclass
@@ -119,7 +113,7 @@ class Gasoline(LiquidFuel):
     def __init__(self):
         super().__init__(name="Gasoline",
                          energy_density=ENERGY_DENSITY_GASOLINE,
-                         density=DENSITY_GASOLINE)
+                         mass_density=DENSITY_GASOLINE)
 
 
 @dataclass
@@ -128,7 +122,7 @@ class Diesel(LiquidFuel):
     def __init__(self):
         super().__init__(name="Diesel",
                          energy_density=ENERGY_DENSITY_DIESEL,
-                         density=DENSITY_DIESEL)
+                         mass_density=DENSITY_DIESEL)
 
 
 @dataclass
@@ -137,7 +131,7 @@ class Ethanol(LiquidFuel):
     def __init__(self):
         super().__init__(name="Ethanol",
                          energy_density=ENERGY_DENSITY_ETHANOL,
-                         density=DENSITY_ETHANOL)
+                         mass_density=DENSITY_ETHANOL)
 
 
 @dataclass
@@ -146,7 +140,7 @@ class Methanol(LiquidFuel):
     def __init__(self):
         super().__init__(name="Methanol",
                          energy_density=ENERGY_DENSITY_METHANOL,
-                         density=DENSITY_METHANOL)
+                         mass_density=DENSITY_METHANOL)
 
 
 @dataclass
@@ -155,4 +149,4 @@ class Biodiesel(LiquidFuel):
     def __init__(self):
         super().__init__(name="Biodiesel",
                          energy_density=ENERGY_DENSITY_BIODIESEL,
-                         density=DENSITY_BIODIESEL)
+                         mass_density=DENSITY_BIODIESEL)
