@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
-from components.fuel_type import Fuel
+from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range, \
     rpm_to_ang_vel, power_to_torque, kelvin_to_celsius, kelvin_to_fahrenheit
 
@@ -267,6 +267,8 @@ class LiquidFuelIOState(FuelIOState):
         assert_type_and_range(self.fuel_liters,
                               more_than=0.0)
         super().__post_init__()
+        assert_type(self.fuel,
+                    expected_type=LiquidFuel)
 
     @property
     def energy(self) -> float:
@@ -292,6 +294,8 @@ class GaseousFuelIOState(FuelIOState):
         assert_type_and_range(self.fuel_mass,
                               more_than=0.0)
         super().__post_init__()
+        assert_type(self.fuel,
+                    expected_type=GaseousFuel)
 
     @property
     def energy(self) -> float:
@@ -334,6 +338,9 @@ class State():
         assert_type(self.fuel_storage,
                     expected_type=FuelStorageState,
                     allow_none=True)
+
+
+# =============================
 
 
 def zero_rotating_io_state() -> RotatingIOState:
