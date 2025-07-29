@@ -8,7 +8,24 @@ class BatteryEfficiencyCurves():
     """
     Returns curves relating energy efficiency.
     """
-    pass
+    @staticmethod
+    def constant(efficiency: float,
+                 max_current: float) -> Callable[[float], float]:
+        """
+        Returns a constant efficiency for all current values.
+        """
+        assert_type_and_range(efficiency,
+                              more_than=0.0,
+                              less_than=1.0,
+                              include_more=False)
+        assert_type_and_range(max_current,
+                              more_than=0.0,
+                              include_more=False)
+        def constant_efficiency(current: float) -> float:
+            if 0.0 <= current <= max_current:
+                return efficiency
+            return 0.0
+        return constant_efficiency
 
 
 class BatteryVoltageVSCurrent():
@@ -17,18 +34,15 @@ class BatteryVoltageVSCurrent():
     """
     @staticmethod
     def constant_voltage(voltage: float,
-                         max_power: float) -> Callable[[float], float]:
+                         max_current: float) -> Callable[[float], float]:
         """
         Returns a constant voltage for all values of current.
         """
-        assert_type_and_range(voltage, max_power,
-                              more_than=0.0)
-        max_current = max_power / voltage
+        assert_type_and_range(voltage, max_current,
+                              more_than=0.0,
+                              include_more=False)
         def voltage_vs_current(current: float) -> float:
-            assert_type_and_range(current,
-                                  more_than=0.0)
-            if current <= max_current:
+            if 0.0 <= current <= max_current:
                 return voltage
             return 0.0
         return voltage_vs_current
-        

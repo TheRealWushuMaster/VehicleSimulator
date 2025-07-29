@@ -29,24 +29,36 @@ class IOState(BaseState):
     def __post_init__(self):
         self._is_del = None
 
-    def set_delivering(self):
+    def set_delivering(self) -> None:
+        """
+        Sets the state as delivering an output.
+        """
         self._is_del = True
 
-    def set_receiving(self):
+    def set_receiving(self) -> None:
+        """
+        Sets the state as receiving an input.
+        """
         self._is_del = False
 
     @property
-    def delivering(self):
-        return self._is_del==True
+    def is_delivering(self) -> bool:
+        """
+        Returns if the state is delivering an output.
+        """
+        return self._is_del is True
 
     @property
-    def receiving(self):
-        return self._is_del==False
+    def is_receiving(self) -> bool:
+        """
+        Returns if the state is receiving an input.
+        """
+        return self._is_del is False
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
-        base["delivering"] = self.delivering
-        base["receiving"] = self.receiving
+        base["is_delivering"] = self.is_delivering
+        base["is_receiving"] = self.is_receiving
         return base
 
 
@@ -320,7 +332,8 @@ class State():
                     expected_type=ElectricEnergyStorageState,
                     allow_none=True)
         assert_type(self.fuel_storage,
-                    expected_type=FuelStorageState)
+                    expected_type=FuelStorageState,
+                    allow_none=True)
 
 
 def zero_rotating_io_state() -> RotatingIOState:

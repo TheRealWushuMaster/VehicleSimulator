@@ -10,7 +10,7 @@ from components.state import ElectricEnergyStorageState, InternalState, State, \
     LiquidFuelStorageState, GaseousFuelStorageState
 from helpers.functions import assert_type, assert_type_and_range, liters_to_cubic_meters
 from helpers.types import PowerType
-from simulation.constants import BATTERY_DEFAULT_SOH, EPSILON
+from simulation.constants import BATTERY_DEFAULT_SOH, DEFAULT_TEMPERATURE
 
 
 @dataclass
@@ -50,7 +50,6 @@ class EnergySource():
         self.state = return_energy_source_base_state(es=self)
         if self.input is not None:
             assert self.input.exchange==self.output.exchange
-        self.nominal_energy = max(self.nominal_energy, EPSILON)
         self.id = f"EnergySource-{uuid4()}"
 
     @property
@@ -107,19 +106,21 @@ class Battery(EnergySource):
     """
     nominal_energy: float
     nominal_voltage: float
-    voltage_vs_current: Callable[[State], float]
-    efficiency: Callable[[State], float]
+    max_current: float
+    voltage_vs_current: Callable[[float], float]
+    efficiency: Callable[[float], float]
     soh: float=BATTERY_DEFAULT_SOH
 
     def __init__(self,
                  name: str,
                  nominal_energy: float,
+                 max_current: float,
                  energy: float,
                  battery_mass: float,
                  rechargeable: bool,
                  nominal_voltage: float,
-                 efficiency: Callable[[State], float],
-                 voltage_vs_current: Callable[[State], float],
+                 efficiency: Callable[[float], float],
+                 voltage_vs_current: Callable[[float], float],
                  soh: float=BATTERY_DEFAULT_SOH):
         super().__init__(name=name,
                          input=PortInput(exchange=PowerType.ELECTRIC) if rechargeable else None,
@@ -127,13 +128,14 @@ class Battery(EnergySource):
                          system_mass=battery_mass)
         assert self.state.electric_energy_storage is not None
         self.state.electric_energy_storage.energy = min(nominal_energy, energy)
-        assert_type_and_range(nominal_voltage,
+        assert_type_and_range(nominal_voltage, max_current,
                               more_than=0.0)
         assert_type_and_range(soh,
                               more_than=0.0,
                               less_than=1.0)
         self.nominal_energy = nominal_energy
         self.nominal_voltage = nominal_voltage
+        self.max_current = max_current
         self.voltage_vs_current = voltage_vs_current
         self.efficiency = efficiency
         self.soh = soh
@@ -171,7 +173,9 @@ class Battery(EnergySource):
         Returns actual energy spent.
         """
         assert self.state.electric_energy_storage is not None
-        output_energy = min(abs(power) * delta_t / self.efficiency(self.state), self.state.electric_energy_storage.energy)
+        assert isinstance(self.state.output, ElectricIOState)
+        output_energy = min(abs(power) * delta_t / self.efficiency(self.state.output.current), # pylint: disable=no-member
+                            self.state.electric_energy_storage.energy)
         self.state.electric_energy_storage.energy = max(0.0, self.state.electric_energy_storage.energy - output_energy)
         return output_energy
 
@@ -184,14 +188,16 @@ class BatteryRechargeable(Battery):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
+                 max_current: float,
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: Callable[[State], float],
+                 efficiency: Callable[[float], float],
                  nominal_voltage: float,
-                 voltage_vs_current: Callable[[State], float]):
+                 voltage_vs_current: Callable[[float], float]):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
+                         max_current=max_current,
                          energy=energy,
                          battery_mass=battery_mass,
                          soh=soh,
@@ -205,28 +211,32 @@ class BatteryRechargeable(Battery):
         Recharges the battery with the given power (W) over delta_t (s).
         Returns actual energy stored.
         """
-        input_energy = abs(power) * delta_t * self.efficiency(self.state)
         assert self.state.electric_energy_storage is not None
-        self.state.electric_energy_storage.energy = min(self.max_energy, self.state.electric_energy_storage.energy + input_energy)
+        assert isinstance(self.state.input, ElectricIOState)
+        input_energy = abs(power) * delta_t * self.efficiency(self.state.input.current)
+        self.state.electric_energy_storage.energy = min(self.max_energy,
+                                                        self.state.electric_energy_storage.energy + input_energy)
         return input_energy
 
 
 @dataclass
 class BatteryNonRechargeable(Battery):
     """
-    Models a generic, rechargeable battery type.
+    Models a generic, non rechargeable battery type.
     """
     def __init__(self,
                  name: str,
                  nominal_energy: float,
+                 max_current: float,
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: Callable[[State], float],
+                 efficiency: Callable[[float], float],
                  nominal_voltage: float,
-                 voltage_vs_current: Callable[[State], float]):
+                 voltage_vs_current: Callable[[float], float]):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
+                         max_current=max_current,
                          energy=energy,
                          battery_mass=battery_mass,
                          soh=soh,
@@ -318,7 +328,8 @@ class LiquidFuelTank(FuelTank):
     def fuel_mass(self):
         assert isinstance(self.state.fuel_storage, LiquidFuelStorageState)
         assert isinstance(self.state.fuel_storage.fuel, LiquidFuel)
-        return liters_to_cubic_meters(self.state.fuel_storage.fuel_liters) * self.state.fuel_storage.fuel.mass_density
+        return liters_to_cubic_meters(self.state.fuel_storage.fuel_liters) * \
+            self.state.fuel_storage.fuel.mass_density
 
     @property
     def is_empty(self) -> bool:
@@ -419,7 +430,7 @@ def return_energy_source_base_state(es: EnergySource) -> State:
                 st_list.append(RotatingIOState(power=0.0,
                                                rpm=0.0))
             else:
-                raise TypeError("Must be a fuel, or electric/mechanical power.")
+                raise TypeError("Must be a fuel or electric/mechanical power.")
         else:
             st_list.append(None)
     ees: Optional[ElectricEnergyStorageState] = None
@@ -435,7 +446,7 @@ def return_energy_source_base_state(es: EnergySource) -> State:
     assert st_list[1] is not None
     return State(input=st_list[0],
                  output=st_list[1],
-                 internal=InternalState(temperature_kelvin=300.0,
+                 internal=InternalState(temperature_kelvin=DEFAULT_TEMPERATURE,
                                         on=True),
                  electric_energy_storage=ees,
                  fuel_storage=fs)
