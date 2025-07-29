@@ -417,12 +417,11 @@ def return_energy_source_base_state(es: EnergySource) -> State:
     for obj in (es.input, es.output):
         if obj is not None:
             if isinstance(obj.exchange, LiquidFuel):
-                if isinstance(obj.exchange, LiquidFuel):
-                    st_list.append(LiquidFuelIOState(fuel=obj.exchange,
-                                                     fuel_liters=0.0))
-                elif isinstance(obj.exchange, GaseousFuel):
-                    st_list.append(GaseousFuelIOState(fuel=obj.exchange,
-                                                      fuel_mass=0.0))
+                st_list.append(LiquidFuelIOState(fuel=obj.exchange,
+                                                    fuel_liters=0.0))
+            elif isinstance(obj.exchange, GaseousFuel):
+                st_list.append(GaseousFuelIOState(fuel=obj.exchange,
+                                                    fuel_mass=0.0))
             elif obj.exchange==PowerType.ELECTRIC:
                 st_list.append(ElectricIOState(power=0.0,
                                                current=0.0))
