@@ -57,13 +57,17 @@ class EnergyConsumption(BaseConsumptionModel):
         assert_type_and_range(delta_t,
                               more_than=0.0)
         assert which in ("input", "output")
-        if which == "input":
-            source_state = state.output
+        if which == "output":
+            receiving_state = state.output
+            delivering_state = state.input
         else:
-            assert state.input is not None
-            source_state = state.input
-        assert isinstance(source_state, self.energy_type)
-        return source_state.power * delta_t / self.efficiency_func(state)  # type: ignore[attr-defined]
+            receiving_state = state.input
+            delivering_state = state.output
+        assert isinstance(receiving_state, self.energy_type)
+        assert receiving_state is not None and delivering_state is not None
+        receiving_state.set_receiving()
+        delivering_state.set_delivering()
+        return receiving_state.power * delta_t / self.efficiency_func(state)  # type: ignore[attr-defined]
 
     def efficiency_value(self, state: State) -> float:
         """

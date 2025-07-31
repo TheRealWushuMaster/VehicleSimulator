@@ -423,10 +423,10 @@ def return_energy_source_base_state(es: EnergySource) -> State:
                 st_list.append(GaseousFuelIOState(fuel=obj.exchange,
                                                     fuel_mass=0.0))
             elif obj.exchange==PowerType.ELECTRIC:
-                st_list.append(ElectricIOState(power=0.0,
+                st_list.append(ElectricIOState(voltage=0.0,
                                                current=0.0))
             elif obj.exchange==PowerType.MECHANICAL:
-                st_list.append(RotatingIOState(power=0.0,
+                st_list.append(RotatingIOState(torque=0.0,
                                                rpm=0.0))
             else:
                 raise TypeError("Must be a fuel or electric/mechanical power.")

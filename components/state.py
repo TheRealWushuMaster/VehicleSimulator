@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range, \
-    rpm_to_ang_vel, power_to_torque, kelvin_to_celsius, kelvin_to_fahrenheit
+    rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit
+from simulation.constants import DEFAULT_TEMPERATURE
 
 
 @dataclass
@@ -181,20 +182,20 @@ class RotatingIOState(IOState):
     """
     Represents the state of a rotating component (motor, engine, etc).
     """
-    power: float
+    torque: float
     rpm: float
 
     def __post_init__(self):
-        assert_range(self.power, self.rpm,
+        assert_range(self.torque, self.rpm,
                      more_than=0.0)
         super().__post_init__()
 
     @property
-    def torque(self) -> float:
+    def power(self) -> float:
         """
-        Dynamically calculate torque.
+        Dynamically calculate power.
         """
-        return power_to_torque(power=self.power,
+        return torque_to_power(torque=self.torque,
                                rpm=self.rpm)
 
     @property
@@ -216,7 +217,7 @@ class ElectricIOState(IOState):
     """
     Represents the state of an electrical condition (voltage and current).
     """
-    power: float
+    voltage: float
     current: float
 
     def __post_init__(self):
@@ -224,9 +225,17 @@ class ElectricIOState(IOState):
                      more_than=0.0)
         super().__post_init__()
 
+    @property
+    def power(self) -> float:
+        """
+        Dynamically calculates the electric power being transfered.
+        """
+        return self.voltage * self.current
+
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
         base["power"] = self.power
+        base["voltage"] = self.voltage
         base["current"] = self.current
         return base
 
@@ -347,14 +356,14 @@ def zero_rotating_io_state() -> RotatingIOState:
     """
     Returns a mechanical rotating state with values set to zero.
     """
-    return RotatingIOState(power=0.0,
+    return RotatingIOState(torque=0.0,
                            rpm=0.0)
 
 def zero_electric_io_state() -> ElectricIOState:
     """
     Returns an electric state with values set to zero.
     """
-    return ElectricIOState(power=0.0,
+    return ElectricIOState(voltage=0.0,
                            current= 0.0)
 
 def zero_liquid_fuel_io_state(fuel: Fuel) -> LiquidFuelIOState:
@@ -371,7 +380,7 @@ def zero_gaseous_fuel_io_state(fuel: Fuel) -> GaseousFuelIOState:
     return GaseousFuelIOState(fuel=fuel,
                               fuel_mass=0.0)
 
-def zero_internal_state(temperature: float=300.0,
+def zero_internal_state(temperature: float=DEFAULT_TEMPERATURE,
                         on: bool=False) -> InternalState:
     """
     Returns an internal state with values set to zero.
