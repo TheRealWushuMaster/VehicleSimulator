@@ -21,8 +21,12 @@ def assert_type(*args: Any,
     """
     for arg in args:
         is_expected_type = isinstance(arg, expected_type)  # type: ignore[arg-type]
+        if isinstance(expected_type, tuple):
+            is_expected_class = arg in expected_type
+        else:
+            is_expected_class = arg is expected_type
         is_none_allowed = allow_none and (arg is None)
-        assert is_expected_type or is_none_allowed, (
+        assert is_expected_type or is_expected_class or is_none_allowed, (
             f"Variable {arg}: Expected {expected_type}" +
             (" or None" if allow_none else "") + 
             f", got {type(arg).__name__}")
