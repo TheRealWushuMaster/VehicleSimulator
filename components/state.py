@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range, \
-    rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit
+    rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit, \
+    liters_to_cubic_meters
 from simulation.constants import DEFAULT_TEMPERATURE
 
 
@@ -284,7 +285,8 @@ class LiquidFuelIOState(FuelIOState):
         """
         Dynamically calculates the amount of energy transfered.
         """
-        return self.fuel_liters * self.fuel.energy_density
+        assert isinstance(self.fuel, LiquidFuel)
+        return liters_to_cubic_meters(self.fuel_liters) * self.fuel.mass_density * self.fuel.energy_density
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()

@@ -4,7 +4,7 @@ energy and fuel consumption for all components."""
 from abc import ABC
 from typing import Callable, Optional, Literal, Type
 from dataclasses import dataclass
-from components.state import State, ElectricIOState, RotatingIOState
+from components.state import State, FuelIOState, ElectricIOState, RotatingIOState
 from helpers.functions import assert_type, assert_type_and_range
 
 
@@ -114,9 +114,19 @@ class FuelConsumption(BaseConsumptionModel):
                 delta_t: float) -> float:
         assert_type(state,
                     expected_type=State)
+        assert isinstance(state.input, FuelIOState)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        return self.fuel_consumption_func(state)
+        assert which in ("input", "output")
+        if which == "output":
+            receiving_state = state.output
+            delivering_state = state.input
+        else:
+            receiving_state = state.input
+            delivering_state = state.output
+        receiving_state.set_receiving()
+        delivering_state.set_delivering()
+        return self.fuel_consumption_func(state) * delta_t
 
 
 @dataclass
