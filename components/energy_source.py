@@ -5,9 +5,12 @@ from typing import Optional, Callable
 from uuid import uuid4
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
-from components.state import ElectricEnergyStorageState, InternalState, State, \
+from components.state import InternalState, \
     ElectricIOState, LiquidFuelIOState, GaseousFuelIOState, RotatingIOState, \
-    LiquidFuelStorageState, GaseousFuelStorageState
+    ElectricEnergyStorageState, LiquidFuelStorageState, GaseousFuelStorageState, \
+    FullStateNoInput, FullStateWithInput, \
+    FullStateElectricEnergyStorageNoInput, FullStateElectricEnergyStorageWithInput, \
+    FullStateFuelStorageNoInput
 from helpers.functions import assert_type, assert_type_and_range, liters_to_cubic_meters
 from helpers.types import PowerType, ElectricSignalType
 from simulation.constants import BATTERY_DEFAULT_SOH, DEFAULT_TEMPERATURE
@@ -36,18 +39,20 @@ class EnergySource():
     input: Optional[PortInput|PortBidirectional]
     output: PortOutput|PortBidirectional
     system_mass: float
+    state: FullStateNoInput
 
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
         assert_type_and_range(self.system_mass,
                               more_than=0.0)
+        assert_type(self.state,
+                    expected_type=FullStateNoInput)
         if self.input is not None:
             assert self.input.exchange==self.output.exchange
             self.rechargeable = True
         else:
             self.rechargeable = False
-        self.state = return_energy_source_base_state(es=self)
         if self.input is not None:
             assert self.input.exchange==self.output.exchange
         self.id = f"EnergySource-{uuid4()}"
@@ -123,12 +128,18 @@ class Battery(EnergySource):
                  efficiency: Callable[[float], float],
                  voltage_vs_current: Callable[[float], float],
                  soh: float=BATTERY_DEFAULT_SOH):
+        state: FullStateElectricEnergyStorageNoInput|FullStateElectricEnergyStorageWithInput
+        if rechargeable:
+            state = default_battery_rechargeable_state(nominal_voltage=nominal_voltage,
+                                                       energy=min(nominal_energy, energy))
+        else:
+            state = default_battery_non_rechargeable_state(nominal_voltage=nominal_voltage,
+                                                           energy=energy)
         super().__init__(name=name,
                          input=PortInput(exchange=PowerType.ELECTRIC) if rechargeable else None,
                          output=PortOutput(exchange=PowerType.ELECTRIC),
-                         system_mass=battery_mass)
-        assert self.state.electric_energy_storage is not None
-        self.state.electric_energy_storage.energy = min(nominal_energy, energy)
+                         system_mass=battery_mass,
+                         state=state)
         assert_type_and_range(nominal_voltage, max_current,
                               more_than=0.0)
         assert_type_and_range(soh,
@@ -258,11 +269,13 @@ class FuelTank(EnergySource):
     def __init__(self,
                  name: str,
                  fuel: Fuel,
-                 tank_mass: float):
+                 tank_mass: float,
+                 state: FullStateFuelStorageNoInput):
         super().__init__(name=name,
                          input=None,
                          output=PortOutput(exchange=fuel),
-                         system_mass=tank_mass)
+                         system_mass=tank_mass,
+                         state=state)
 
     @property
     def filled_percentage(self) -> float:
@@ -319,12 +332,13 @@ class LiquidFuelTank(FuelTank):
         assert_type_and_range(liters,
                               more_than=0.0,
                               less_than=capacity_liters)
+        state = default_liquid_fuel_tank_state(fuel=fuel,
+                                               fuel_liters=liters)
         super().__init__(name=name,
                          fuel=fuel,
-                         tank_mass=tank_mass)
+                         tank_mass=tank_mass,
+                         state=state)
         self.capacity_liters = capacity_liters
-        assert isinstance(self.state.fuel_storage, LiquidFuelStorageState)
-        self.state.fuel_storage.fuel_liters = liters
 
     @property
     def fuel_mass(self):
@@ -376,12 +390,13 @@ class GaseousFuelTank(FuelTank):
         assert_type_and_range(fuel_mass,
                               more_than=0.0,
                               less_than=capacity_mass)
+        state = default_gaseous_fuel_tank_state(fuel=fuel,
+                                                fuel_mass=fuel_mass)
         super().__init__(name=name,
                          fuel=fuel,
-                         tank_mass=tank_mass)
+                         tank_mass=tank_mass,
+                         state=state)
         self.capacity_mass = capacity_mass
-        assert isinstance(self.state.fuel_storage, GaseousFuelStorageState)
-        self.state.fuel_storage.fuel_mass = fuel_mass
 
     @property
     def fuel_mass(self):
@@ -410,43 +425,37 @@ class GaseousFuelTank(FuelTank):
         return self.state.fuel_storage.fuel_mass / self.capacity_mass
 
 
-def return_energy_source_base_state(es: EnergySource) -> State:
-    """
-    Returns an appropriate base state for an energy source.
-    """
-    st_list: list[Optional[LiquidFuelIOState|GaseousFuelIOState|\
-        ElectricIOState|RotatingIOState]] = []
-    for obj in (es.input, es.output):
-        if obj is not None:
-            if isinstance(obj.exchange, LiquidFuel):
-                st_list.append(LiquidFuelIOState(fuel=obj.exchange,
-                                                    fuel_liters=0.0))
-            elif isinstance(obj.exchange, GaseousFuel):
-                st_list.append(GaseousFuelIOState(fuel=obj.exchange,
-                                                    fuel_mass=0.0))
-            elif obj.exchange==PowerType.ELECTRIC:
-                st_list.append(ElectricIOState(signal_type=ElectricSignalType.DC))
-            elif obj.exchange==PowerType.MECHANICAL:
-                st_list.append(RotatingIOState(torque=0.0,
-                                               rpm=0.0))
-            else:
-                raise TypeError("Must be a fuel or electric/mechanical power.")
-        else:
-            st_list.append(None)
-    ees: Optional[ElectricEnergyStorageState] = None
-    fs: Optional[LiquidFuelStorageState|GaseousFuelStorageState] = None
-    if isinstance(es.output.exchange, LiquidFuel):
-        fs = LiquidFuelStorageState(fuel=es.output.exchange,
-                                    fuel_liters=0.0)
-    elif isinstance(es.output.exchange, GaseousFuel):
-        fs = GaseousFuelStorageState(fuel=es.output.exchange,
-                                     fuel_mass=0.0)
-    elif es.output.exchange==PowerType.ELECTRIC:
-        ees = ElectricEnergyStorageState(energy=0.0)
-    assert st_list[1] is not None
-    return State(input=st_list[0],
-                 output=st_list[1],
-                 internal=InternalState(temperature_kelvin=DEFAULT_TEMPERATURE,
-                                        on=True),
-                 electric_energy_storage=ees,
-                 fuel_storage=fs)
+def default_battery_rechargeable_state(nominal_voltage: float,
+                                       energy: float) -> FullStateElectricEnergyStorageWithInput:
+    return FullStateElectricEnergyStorageWithInput(input=ElectricIOState(signal_type=ElectricSignalType.DC,
+                                                                         voltage=nominal_voltage,
+                                                                         current=0.0),
+                                                   output=ElectricIOState(signal_type=ElectricSignalType.DC,
+                                                                          voltage=nominal_voltage,
+                                                                          current=0.0),
+                                                   internal=None,
+                                                   electric_energy_storage=ElectricEnergyStorageState(energy=energy))
+
+def default_battery_non_rechargeable_state(nominal_voltage: float,
+                                           energy: float) -> FullStateElectricEnergyStorageNoInput:
+    return FullStateElectricEnergyStorageNoInput(output=ElectricIOState(signal_type=ElectricSignalType.DC,
+                                                                        voltage=nominal_voltage,
+                                                                        current=0.0),
+                                                 internal=None,
+                                                 electric_energy_storage=ElectricEnergyStorageState(energy=energy))
+
+def default_liquid_fuel_tank_state(fuel: LiquidFuel,
+                                   fuel_liters: float) -> FullStateFuelStorageNoInput:
+    return FullStateFuelStorageNoInput(output=LiquidFuelIOState(fuel=fuel,
+                                                                fuel_liters=0.0),
+                                       internal=None,
+                                       fuel_storage=LiquidFuelStorageState(fuel=fuel,
+                                                                           fuel_liters=fuel_liters))
+
+def default_gaseous_fuel_tank_state(fuel: GaseousFuel,
+                                    fuel_mass: float) -> FullStateFuelStorageNoInput:
+    return FullStateFuelStorageNoInput(output=GaseousFuelIOState(fuel=fuel,
+                                                                 fuel_mass=0.0),
+                                       internal=None,
+                                       fuel_storage=GaseousFuelStorageState(fuel=fuel,
+                                                                            fuel_mass=fuel_mass))
