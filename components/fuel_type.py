@@ -178,3 +178,7 @@ class Biodiesel(LiquidFuel):
         super().__init__(name="Biodiesel",
                          energy_density=ENERGY_DENSITY_BIODIESEL,
                          mass_density=DENSITY_BIODIESEL)
+
+LIQUID_FUELS: list[LiquidFuel] = [Biodiesel(), Diesel(), Ethanol(),
+                                  Gasoline(), HydrogenLiquid(), Methanol()]
+GASEOUS_FUELS: list[GaseousFuel] = [HydrogenGas(), Methane()]
