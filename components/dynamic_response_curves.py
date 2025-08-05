@@ -5,6 +5,7 @@ from typing import Callable
 from components.state import State, ElectricIOState, RotatingIOState
 from helpers.functions import assert_type, assert_type_and_range, \
     ang_vel_to_rpm
+from helpers.types import ElectricSignalType
 import matplotlib.pyplot as plt
 
 @dataclass
@@ -84,7 +85,8 @@ class ElectricToMechanical():
 
 
     @staticmethod
-    def first_order_voltage_controlled(motor_params: DCElectricMotorParams
+    def first_order_voltage_controlled(motor_params: DCElectricMotorParams,
+                                       signal_type: ElectricSignalType
                                        ) -> Callable[[State, float, float, float, bool], State]:
         def response(state: State,
                      counter_torque: float,
@@ -103,7 +105,8 @@ class ElectricToMechanical():
                 t = motor_params.kt * i
                 w_dot = (t - counter_torque) / j
                 rpm = state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
-                inp = ElectricIOState(voltage=state.input.voltage,
+                inp = ElectricIOState(signal_type=signal_type,
+                                      voltage=state.input.voltage,
                                       current=i)
                 inp.set_delivering()
                 outp = RotatingIOState(torque=t,
@@ -116,7 +119,8 @@ class ElectricToMechanical():
             v = v_m + motor_params.r * i
             w_dot = (state.output.torque - counter_torque) / j
             rpm = state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
-            inp = ElectricIOState(voltage=v,
+            inp = ElectricIOState(signal_type=signal_type,
+                                  voltage=v,
                                   current=i)
             inp.set_receiving()
             outp = RotatingIOState(torque=state.output.torque,
