@@ -5,7 +5,7 @@ from typing import Any, Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range, \
     rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit, \
-    liters_to_cubic_meters, electric_power
+    electric_power
 from helpers.types import ElectricSignalType
 from simulation.constants import DEFAULT_TEMPERATURE
 
@@ -61,6 +61,13 @@ class IOState(BaseState):
         Returns if the state is receiving an input.
         """
         return self._is_del is False
+
+    @property
+    def power(self) -> float:
+        """
+        Returns power exchanged, if applicable.
+        """
+        raise NotImplementedError
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
@@ -303,10 +310,15 @@ class LiquidFuelIOState(FuelIOState):
     @property
     def energy(self) -> float:
         """
-        Dynamically calculates the amount of energy transfered.
+        Dynamically calculates the amount
+        of equivalent energy transfered.
         """
         assert isinstance(self.fuel, LiquidFuel)
-        return liters_to_cubic_meters(self.fuel_liters) * self.fuel.mass_density * self.fuel.energy_density
+        return self.fuel.energy_per_liter(liters=self.fuel_liters)
+
+    @property
+    def power(self) -> float:
+        return 0.0
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
@@ -335,6 +347,10 @@ class GaseousFuelIOState(FuelIOState):
         """
         return self.fuel_mass * self.fuel.energy_density
 
+    @property
+    def power(self) -> float:
+        return 0.0
+
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
         base["energy"] = self.energy
@@ -347,20 +363,14 @@ class GaseousFuelIOState(FuelIOState):
 
 
 @dataclass
-class State():
+class FullStateNoInput():
     """
-    Class containing all components' states.
+    Base class for the full state of a component.
     """
-    input: Optional[IOState]
     output: IOState
-    internal: Optional[InternalState]=None
-    electric_energy_storage: Optional[ElectricEnergyStorageState]=None
-    fuel_storage: Optional[FuelStorageState]=None
+    internal: Optional[InternalState]
 
     def __post_init__(self):
-        assert_type(self.input,
-                    expected_type=IOState,
-                    allow_none=True)
         assert_type(self.output,
                     expected_type=IOState)
         assert_type(self.internal,
@@ -369,31 +379,69 @@ class State():
         if self.internal is None:
             self.internal = InternalState(temperature_kelvin=DEFAULT_TEMPERATURE,
                                           on=True)
-        assert_type(self.electric_energy_storage,
-                    expected_type=ElectricEnergyStorageState,
-                    allow_none=True)
-        assert_type(self.fuel_storage,
-                    expected_type=FuelStorageState,
-                    allow_none=True)
+
+
+@dataclass
+class FullStateWithInput(FullStateNoInput):
+    """
+    Base class for a full state of a component with input.
+    """
+    input: IOState
+
+    def __post_init__(self):
+        assert_type(self.input,
+                    expected_type=IOState)
 
     @property
     def efficiency(self) -> float:
         """
-        Returns the efficiency of conversion, if applicable.
+        Returns the power efficiency in the
+        input-output exchange, if applicable.
         """
-        if self.input is None:
-            return 0.0
-        if not isinstance(self.input, (ElectricIOState, RotatingIOState)):
-            return 0.0
-        if not isinstance(self.output, (ElectricIOState, RotatingIOState)):
-            return 0.0
-        assert isinstance(self.input, (ElectricIOState, RotatingIOState))
-        assert isinstance(self.output, (ElectricIOState, RotatingIOState))
         if self.input.is_delivering == self.output.is_delivering:
             return 0.0
         if self.input.is_delivering:
             return self.output.power / self.input.power if self.input.power > 0.0 else 0.0
         return self.input.power / self.output.power if self.output.power > 0.0 else 0.0
+
+
+@dataclass
+class FullStateElectricEnergyStorageNoInput(FullStateNoInput):
+    """
+    Represents the state of a component with electric
+    energy storage and no input (non rechargeable).
+    """
+    electric_energy_storage: ElectricEnergyStorageState
+
+    def __post_init__(self):
+        assert_type(self.electric_energy_storage,
+                    expected_type=ElectricEnergyStorageState)
+
+
+@dataclass
+class FullStateElectricEnergyStorageWithInput(FullStateWithInput):
+    """
+    Represents the state of a component with electric
+    energy storage with an input (rechargeable).
+    """
+    electric_energy_storage: ElectricEnergyStorageState
+
+    def __post_init__(self):
+        assert_type(self.electric_energy_storage,
+                    expected_type=ElectricEnergyStorageState)
+
+
+@dataclass
+class FullStateFuelStorageNoInput(FullStateNoInput):
+    """
+    Represents the stage of a component with
+    fuel storage but no input (not rechargeable)
+    """
+    fuel_storage: FuelStorageState
+
+    def __post_init__(self):
+        assert_type(self.fuel_storage,
+                    expected_type=FuelStorageState)
 
 
 # =============================
