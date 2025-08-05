@@ -5,9 +5,14 @@ from typing import Any, Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range, \
     rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit, \
-    liters_to_cubic_meters
+    liters_to_cubic_meters, electric_power
+from helpers.types import ElectricSignalType
 from simulation.constants import DEFAULT_TEMPERATURE
 
+
+#=============================
+# BASE STATES
+#=============================
 
 @dataclass
 class BaseState():
@@ -69,8 +74,8 @@ class InternalState(BaseState):
     """
     Represents basic internal properties of the component.
     """
-    temperature_kelvin: float
     on: bool
+    temperature_kelvin: float=DEFAULT_TEMPERATURE
 
     def __post_init__(self):
         assert_type_and_range(self.temperature_kelvin,
@@ -102,6 +107,8 @@ class InternalState(BaseState):
         return base
 
 
+#=============================
+# STORAGE STATES
 #=============================
 
 
@@ -176,6 +183,8 @@ class GaseousFuelStorageState(FuelStorageState):
 
 
 #=============================
+# ENERGY EXCHANGE STATES
+#=============================
 
 
 @dataclass
@@ -183,8 +192,8 @@ class RotatingIOState(IOState):
     """
     Represents the state of a rotating component (motor, engine, etc).
     """
-    torque: float
-    rpm: float
+    torque: float=0.0
+    rpm: float=0.0
 
     def __post_init__(self):
         assert_range(self.torque, self.rpm,
@@ -210,6 +219,8 @@ class RotatingIOState(IOState):
         base = super().as_dict()
         base["torque"] = self.torque
         base["ang_vel"] = self.ang_vel
+        base["power"] = self.power
+        base["rpm"] = self.rpm
         return base
 
 
@@ -218,12 +229,15 @@ class ElectricIOState(IOState):
     """
     Represents the state of an electrical condition (voltage and current).
     """
-    voltage: float
-    current: float
+    signal_type: ElectricSignalType
+    voltage: float=0.0
+    current: float=0.0
 
     def __post_init__(self):
         assert_range(self.power,
                      more_than=0.0)
+        assert_type(self.signal_type,
+                    expected_type=ElectricSignalType)
         super().__post_init__()
 
     @property
@@ -231,7 +245,8 @@ class ElectricIOState(IOState):
         """
         Dynamically calculates the electric power being transfered.
         """
-        return self.voltage * self.current
+        return electric_power(voltage=self.voltage,
+                              current=self.current)
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
@@ -239,6 +254,11 @@ class ElectricIOState(IOState):
         base["voltage"] = self.voltage
         base["current"] = self.current
         return base
+
+
+#=============================
+# FUEL EXCHANGE STATES
+#=============================
 
 
 @dataclass
@@ -271,7 +291,7 @@ class LiquidFuelIOState(FuelIOState):
     """
     Represents the state of liquid fuel transfer.
     """
-    fuel_liters: float
+    fuel_liters: float=0.0
 
     def __post_init__(self):
         assert_type_and_range(self.fuel_liters,
@@ -299,7 +319,7 @@ class GaseousFuelIOState(FuelIOState):
     """
     Represents the state of gaseous fuel transfer.
     """
-    fuel_mass: float
+    fuel_mass: float=0.0
 
     def __post_init__(self):
         assert_type_and_range(self.fuel_mass,
@@ -322,6 +342,8 @@ class GaseousFuelIOState(FuelIOState):
 
 
 #=============================
+# FULL STATE CONFIG
+#=============================
 
 
 @dataclass
@@ -331,9 +353,9 @@ class State():
     """
     input: Optional[IOState]
     output: IOState
-    internal: Optional[InternalState]
-    electric_energy_storage: Optional[ElectricEnergyStorageState]
-    fuel_storage: Optional[FuelStorageState]
+    internal: Optional[InternalState]=None
+    electric_energy_storage: Optional[ElectricEnergyStorageState]=None
+    fuel_storage: Optional[FuelStorageState]=None
 
     def __post_init__(self):
         assert_type(self.input,
@@ -342,13 +364,36 @@ class State():
         assert_type(self.output,
                     expected_type=IOState)
         assert_type(self.internal,
-                    expected_type=InternalState)
+                    expected_type=InternalState,
+                    allow_none=True)
+        if self.internal is None:
+            self.internal = InternalState(temperature_kelvin=DEFAULT_TEMPERATURE,
+                                          on=True)
         assert_type(self.electric_energy_storage,
                     expected_type=ElectricEnergyStorageState,
                     allow_none=True)
         assert_type(self.fuel_storage,
                     expected_type=FuelStorageState,
                     allow_none=True)
+
+    @property
+    def efficiency(self) -> float:
+        """
+        Returns the efficiency of conversion, if applicable.
+        """
+        if self.input is None:
+            return 0.0
+        if not isinstance(self.input, (ElectricIOState, RotatingIOState)):
+            return 0.0
+        if not isinstance(self.output, (ElectricIOState, RotatingIOState)):
+            return 0.0
+        assert isinstance(self.input, (ElectricIOState, RotatingIOState))
+        assert isinstance(self.output, (ElectricIOState, RotatingIOState))
+        if self.input.is_delivering == self.output.is_delivering:
+            return 0.0
+        if self.input.is_delivering:
+            return self.output.power / self.input.power if self.input.power > 0.0 else 0.0
+        return self.input.power / self.output.power if self.output.power > 0.0 else 0.0
 
 
 # =============================
@@ -361,12 +406,13 @@ def zero_rotating_io_state() -> RotatingIOState:
     return RotatingIOState(torque=0.0,
                            rpm=0.0)
 
-def zero_electric_io_state() -> ElectricIOState:
+def zero_electric_io_state(signal_type: ElectricSignalType) -> ElectricIOState:
     """
     Returns an electric state with values set to zero.
     """
-    return ElectricIOState(voltage=0.0,
-                           current= 0.0)
+    return ElectricIOState(signal_type=signal_type,
+                           voltage=0.0,
+                           current=0.0)
 
 def zero_liquid_fuel_io_state(fuel: Fuel) -> LiquidFuelIOState:
     """

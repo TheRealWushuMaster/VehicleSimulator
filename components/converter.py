@@ -5,8 +5,10 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType, PortDirection
-from components.state import State
-from helpers.functions import assert_type, assert_numeric, assert_type_and_range
+from components.state import State, ElectricIOState
+from helpers.functions import assert_type, assert_numeric, \
+    assert_type_and_range, assert_callable, electric_power
+from helpers.types import ElectricSignalType, PowerType
 
 
 @dataclass
@@ -61,8 +63,7 @@ class Converter():
                               more_than=0.0,
                               less_than=1.0,
                               allow_none=True)
-        assert_type(self.efficiency_func,
-                    expected_type=Callable)  # type: ignore[arg-type]
+        assert_callable(self.efficiency_func)
         self.mass = max(self.mass, 0.0)
         self.id = f"Converter-{uuid4()}"
         assert_numeric(self.control_signal)
@@ -78,6 +79,20 @@ class Converter():
         Returns if the converter is reversible.
         """
         return self.reverse_dynamic_response is not None
+
+    @property
+    def power_at_input(self) -> float:
+        """
+        Dynamically calculates the power at the input, if applicable.
+        """
+        raise NotImplementedError
+
+    @property
+    def power_at_output(self) -> float:
+        """
+        Dynamically calculates the power at the output.
+        """
+        raise NotImplementedError
 
     def _compute_conversion(self, delta_t: float,
                             state: Optional[State]=None,
@@ -152,3 +167,82 @@ class MechanicalConverter(Converter):
         super().__post_init__()
         assert_type_and_range(self.inertia,
                               more_than=0.0)
+
+
+@dataclass
+class PureElectricConverter(Converter):
+    """
+    Models a purely electrical converter.
+    """
+    in_type: ElectricSignalType
+    out_type: ElectricSignalType
+    nominal_voltage_in: float=field(init=False)
+    nominal_voltage_out: float=field(init=False)
+    nominal_current_in: float=field(init=False)
+    nominal_current_out: float=field(init=False)
+
+    def __init__(self,
+                 name: str,
+                 mass: float,
+                 max_power: float,
+                 eff_func: Callable[[State], float],
+                 reverse_efficiency: float,
+                 power_func: Callable[[State], float],
+                 reversible: bool,
+                 in_type: ElectricSignalType,
+                 out_type: ElectricSignalType,
+                 nominal_voltage_in: Optional[float]=None,
+                 nominal_voltage_out: Optional[float]=None,
+                 nominal_current_in: Optional[float]=None,
+                 nominal_current_out: Optional[float]=None):
+        assert_type(in_type, out_type,
+                    expected_type=ElectricSignalType)
+        assert_type_and_range(nominal_voltage_in, nominal_voltage_out,
+                              nominal_current_in, nominal_current_out,
+                              more_than=0.0,
+                              include_more=False,
+                              allow_none=True)
+        input_port: PortInput|PortBidirectional
+        output_port: PortOutput|PortBidirectional
+        if reversible:
+            input_port = PortBidirectional(exchange=PowerType.ELECTRIC)
+            output_port = PortBidirectional(exchange=PowerType.ELECTRIC)
+        else:
+            input_port = PortInput(exchange=PowerType.ELECTRIC)
+            output_port = PortOutput(exchange=PowerType.ELECTRIC)
+        super().__init__(name=name,
+                         mass=mass,
+                         input=input_port,
+                         output=output_port,
+                         control_signal=344,
+                         max_power=max_power,
+                         power_func=power_func,
+                         efficiency_func=eff_func,
+                         dynamic_response=dyn_resp,
+                         reverse_dynamic_response=rev_dyn_resp,
+                         reverse_efficiency=234)
+        self.in_type = in_type
+        self.out_type = out_type
+        volt = nominal_voltage_in is not None and nominal_voltage_out is not None
+        curr = nominal_current_in is not None and nominal_current_out is not None
+        assert volt and not curr or curr and not volt
+        if volt:
+            assert nominal_voltage_in is not None and nominal_voltage_out is not None
+            self.nominal_voltage_in = nominal_voltage_in
+            self.nominal_voltage_out = nominal_voltage_out
+        else:
+            assert nominal_current_in is not None and nominal_current_out is not None
+            self.nominal_current_in = nominal_current_in
+            self.nominal_current_out = nominal_current_out
+
+    @property
+    def power_at_input(self) -> float:
+        assert isinstance(self.state.input, ElectricIOState)
+        return electric_power(voltage=self.state.input.voltage,
+                              current=self.state.input.current)
+
+    @property
+    def power_at_output(self) -> float:
+        assert isinstance(self.state.output, ElectricIOState)
+        return electric_power(voltage=self.state.output.voltage,
+                              current=self.state.output.current)

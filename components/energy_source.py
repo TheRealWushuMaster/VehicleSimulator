@@ -1,6 +1,6 @@
 """This module contains a base class for all power sources for the vehicle."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Callable
 from uuid import uuid4
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
@@ -9,7 +9,7 @@ from components.state import ElectricEnergyStorageState, InternalState, State, \
     ElectricIOState, LiquidFuelIOState, GaseousFuelIOState, RotatingIOState, \
     LiquidFuelStorageState, GaseousFuelStorageState
 from helpers.functions import assert_type, assert_type_and_range, liters_to_cubic_meters
-from helpers.types import PowerType
+from helpers.types import PowerType, ElectricSignalType
 from simulation.constants import BATTERY_DEFAULT_SOH, DEFAULT_TEMPERATURE
 
 
@@ -110,6 +110,7 @@ class Battery(EnergySource):
     voltage_vs_current: Callable[[float], float]
     efficiency: Callable[[float], float]
     soh: float=BATTERY_DEFAULT_SOH
+    signal_type: ElectricSignalType=field(init=False)
 
     def __init__(self,
                  name: str,
@@ -139,6 +140,7 @@ class Battery(EnergySource):
         self.voltage_vs_current = voltage_vs_current
         self.efficiency = efficiency
         self.soh = soh
+        self.signal_type = ElectricSignalType.DC
 
     @property
     def soc(self) -> float:
@@ -423,8 +425,7 @@ def return_energy_source_base_state(es: EnergySource) -> State:
                 st_list.append(GaseousFuelIOState(fuel=obj.exchange,
                                                     fuel_mass=0.0))
             elif obj.exchange==PowerType.ELECTRIC:
-                st_list.append(ElectricIOState(voltage=0.0,
-                                               current=0.0))
+                st_list.append(ElectricIOState(signal_type=ElectricSignalType.DC))
             elif obj.exchange==PowerType.MECHANICAL:
                 st_list.append(RotatingIOState(torque=0.0,
                                                rpm=0.0))

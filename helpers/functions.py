@@ -2,8 +2,9 @@
 Helper functions for use in the project.
 """
 
-from typing import Any
-from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM, CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS
+from typing import Any, Callable
+from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM, \
+    CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS
 
 def clamp(val: float, min_val: float, max_val: float) -> float:
     """
@@ -11,7 +12,30 @@ def clamp(val: float, min_val: float, max_val: float) -> float:
     """
     return max(min(val, max_val), min_val)
 
+# CALCULATIONS
+
+def electric_power(voltage: float,
+                   current: float) -> float:
+    """
+    Returns the power in an electric exchange.
+    When the signal is AC, the values of `voltage`
+    and `current` must be effective values.
+    """
+    assert_type_and_range(voltage, current,
+                          more_than=0.0)
+    return voltage * current
+
 # VERIFICATIONS
+
+def assert_callable(*args: Any,
+                    allow_none: bool=False) -> None:
+    """
+    Asserts that all the arguments in *args are of type Callable.
+    """
+    assert isinstance(allow_none, bool)
+    assert_type(args,
+                expected_type=Callable,  # type: ignore[arg-type]
+                allow_none=allow_none)
 
 def assert_type(*args: Any,
                 expected_type: type|tuple[type, ...],
@@ -19,6 +43,8 @@ def assert_type(*args: Any,
     """
     Asserts that all the arguments in *args are of the expected types.
     """
+    assert isinstance(expected_type, (type, tuple))
+    assert isinstance(allow_none, bool)
     for arg in args:
         is_expected_type = isinstance(arg, expected_type)  # type: ignore[arg-type]
         if isinstance(expected_type, tuple):
@@ -45,6 +71,10 @@ def assert_range(*args: Any,
     If one of the values is missing, it assumes a simple less than or
     more than comparison.
     """
+    assert_type(more_than, less_than,
+                expected_type=float)
+    assert_type(include_more, include_less,
+                expected_type=bool)
     for arg in args:
         assert_numeric(arg,
                        allow_none=allow_none)

@@ -7,6 +7,16 @@ from enum import Enum
 from helpers.functions import assert_type_and_range, assert_range
 from simulation.constants import RPM_TO_ANG_VEL
 
+
+class ElectricSignalType(Enum):
+    """
+    A list of electric signals types.
+    Applies to voltage and current.
+    """
+    AC = "AC"
+    DC = "DC"
+
+
 class PowerType(Enum):
     """
     A comprehensive list of types of power useable in the vehicle.
