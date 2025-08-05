@@ -3,7 +3,8 @@ This module contains definitions for different types of fuel.
 """
 
 from dataclasses import dataclass
-from helpers.functions import assert_type, assert_range, assert_type_and_range
+from helpers.functions import assert_type, assert_range, assert_type_and_range, \
+    liters_to_cubic_meters
 from helpers.types import PowerType, StateOfMatter
 from simulation.constants import ENERGY_DENSITY_BIODIESEL, ENERGY_DENSITY_DIESEL, \
     ENERGY_DENSITY_ETHANOL, ENERGY_DENSITY_GASOLINE, ENERGY_DENSITY_HYDROGEN, \
@@ -53,6 +54,15 @@ class Fuel():
         """Returns whether the fuel is gaseous."""
         return self.state==StateOfMatter.GASEOUS
 
+    def energy_per_kg(self, mass: float) -> float:
+        """
+        Returns the amount of energy contained
+        in a certain mass of fuel.
+        """
+        assert_type_and_range(mass,
+                              more_than=0.0)
+        return mass * self.energy_density
+
 
 @dataclass
 class GaseousFuel(Fuel):
@@ -80,6 +90,24 @@ class LiquidFuel(Fuel):
                          energy_density=energy_density,
                          state=StateOfMatter.LIQUID)
         self.mass_density = mass_density
+
+    def energy_per_liter(self, liters: float) -> float:
+        """
+        Returns the amount of energy contained
+        in a certain volume (liters) of fuel.
+        """
+        assert_type_and_range(liters,
+                              more_than=0.0)
+        return liters_to_cubic_meters(liters) * self.mass_density * self.energy_density
+
+    def energy_per_cubic_meter(self, cubic_meters: float) -> float:
+        """
+        Returns the amount of energy contained
+        in a certain volume (liters) of fuel.
+        """
+        assert_type_and_range(cubic_meters,
+                              more_than=0.0)
+        return cubic_meters * self.mass_density * self.energy_density
 
 
 @dataclass
