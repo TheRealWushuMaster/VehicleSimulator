@@ -4,9 +4,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
+from components.dynamic_response import ForwardDynamicResponse, BidirectionalDynamicResponse
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType, PortDirection
-from components.state import State, ElectricIOState
-from helpers.functions import assert_type, assert_numeric, \
+from components.state import IOState, ElectricIOState, FuelIOState, FullStateWithInput, InternalState
+from helpers.functions import assert_type, \
     assert_type_and_range, assert_callable, electric_power
 from helpers.types import ElectricSignalType, PowerType
 
@@ -38,14 +39,10 @@ class Converter():
     mass: float
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
-    state: State=field(init=False)
-    control_signal: float
-    max_power: float
-    power_func: Callable[[State], float]
-    efficiency_func: Callable[[State], float]
-    dynamic_response: Callable[[State, float, float], State] # Depends on the state, control signal, and delta time
-    reverse_dynamic_response: Optional[Callable[[State, float, float], State]]
-    reverse_efficiency: Optional[float]
+    state: FullStateWithInput=field(init=False)
+    power_func: Callable[[IOState, InternalState], float]
+    efficiency_func: Callable[[IOState, InternalState], float]
+    dynamic_response: ForwardDynamicResponse|BidirectionalDynamicResponse
 
     def __post_init__(self):
         assert_type(self.name,
@@ -57,28 +54,24 @@ class Converter():
         assert PortDirection.BIDIRECTIONAL not in (self.input.direction, self.output.direction) and \
             self.input.direction!=self.output.direction or \
             self.input.direction==PortDirection.BIDIRECTIONAL==self.output.direction
-        assert_type_and_range(self.mass, self.max_power,
-                              more_than=0.0)
-        assert_type_and_range(self.reverse_efficiency,
-                              more_than=0.0,
-                              less_than=1.0,
-                              allow_none=True)
+        assert_callable(self.power_func)
         assert_callable(self.efficiency_func)
+        assert_type(self.dynamic_response,
+                    expected_type=(ForwardDynamicResponse, BidirectionalDynamicResponse))
         self.mass = max(self.mass, 0.0)
         self.id = f"Converter-{uuid4()}"
-        assert_numeric(self.control_signal)
 
     @property
     def efficiency(self) -> float:
         """Returns the efficiency value at the current state."""
-        return self.efficiency_func(self.state)
+        return self.state.efficiency
 
     @property
     def reversible(self) -> bool:
         """
         Returns if the converter is reversible.
         """
-        return self.reverse_dynamic_response is not None
+        raise NotImplementedError
 
     @property
     def power_at_input(self) -> float:
@@ -95,54 +88,51 @@ class Converter():
         raise NotImplementedError
 
     def _compute_conversion(self, delta_t: float,
-                            state: Optional[State]=None,
-                            reverse: bool=False) -> Optional[State]:
+                            state: Optional[IOState]=None,
+                            reverse: bool=False) -> Optional[IOState]:
         """
         Returns the result of a conversion or recovery.
         """
         if reverse and not self.reversible:
             return None
         if state is None:
-            state = self.state
+            state = self.state.input if not reverse else self.state.output
+        assert self.state.internal is not None
         if not reverse:
-            return self.dynamic_response(state, self.control_signal, delta_t)
-        assert self.reverse_dynamic_response is not None
-        return self.reverse_dynamic_response(state, self.control_signal, delta_t)
+            return self.dynamic_response.forward_response(state, self.state.internal, delta_t)
+        assert isinstance(self.dynamic_response, BidirectionalDynamicResponse)
+        return self.dynamic_response.reverse_response(state, self.state.internal, delta_t)
 
-    def convert(self, state: Optional[State],
-                delta_t: float,
-                update_state: bool=True) -> Optional[State]:
+    def convert(self, delta_t: float,
+                state: Optional[IOState]=None,
+                update_state: bool=True) -> Optional[IOState]:
         """
-        Calculates the conversion.
+        Calculates the forward conversion.
         """
+        if state is None:
+            state = self.state.input
         conv = self._compute_conversion(delta_t=delta_t,
                                         state=state,
                                         reverse=False)
         if not update_state:
             return conv
         if conv is not None:
-            self.update_state(state=conv)
+            self.update_io_state(new_state=conv,
+                                 which="out")
         return None
 
-    def recover(self, state: Optional[State],
-                delta_t: float) -> Optional[State]:
-        """Calculates the reverse delivery, if applicable."""
-        return self._compute_conversion(delta_t=delta_t,
-                                        state=state,
-                                        reverse=True)
-
-    def update_state(self, state: State,
+    def update_io_state(self, new_state: IOState,
                      which: Literal["in", "out"]="out") -> None:
         """
         Updates the internal state of the converter.
         """
         assert which in ("in", "out")
-        assert_type(state,
-                    expected_type=State)
+        assert_type(new_state,
+                    expected_type=IOState)
         if which=="out":
-            self.state.output = state.output
+            self.state.output = new_state
         elif self.reversible:
-            self.state.input = state.input
+            self.state.input = new_state
 
     def return_port(self, which: PortType) -> Port:
         """
@@ -153,6 +143,74 @@ class Converter():
         if which==PortType.INPUT_PORT:
             return self.input
         return self.output
+
+
+@dataclass
+class ReversibleConverter(Converter):
+    """
+    Base class for reversible converters.
+    """
+    def __init__(self, name: str,
+                 mass: float,
+                 input_port: PortBidirectional,
+                 output_port: PortBidirectional,
+                 power_func: Callable[[IOState, InternalState], float],
+                 efficiency_func: Callable[[IOState, InternalState], float],
+                 dynamic_response: BidirectionalDynamicResponse):
+        super().__init__(name=name,
+                         mass=mass,
+                         input=input_port,
+                         output=output_port,
+                         power_func=power_func,
+                         efficiency_func=efficiency_func,
+                         dynamic_response=dynamic_response)
+
+    @property
+    def reversible(self) -> bool:
+        return True
+
+    def recover(self, delta_t: float,
+                state: Optional[IOState]=None,
+                update_state: bool=True) -> Optional[IOState]:
+        """
+        Calculates the reverse conversion.
+        """
+        if state is None:
+            state = self.state.output
+        conv = self._compute_conversion(delta_t=delta_t,
+                                        state=state,
+                                        reverse=True)
+        if not update_state:
+            return conv
+        if conv is not None:
+            self.update_io_state(new_state=conv,
+                                 which="in")
+        return None
+
+
+@dataclass
+class ForwardConverter(Converter):
+    """
+    Base class for non-reversible converters.
+    """
+    def __init__(self, name: str,
+                 mass: float,
+                 input_port: PortInput,
+                 output_port: PortOutput,
+                 power_func: Callable[[IOState, InternalState], float],
+                 efficiency_func: Callable[[IOState, InternalState], float],
+                 dynamic_response: ForwardDynamicResponse):
+        super().__init__(name=name,
+                         mass=mass,
+                         input=input_port,
+                         output=output_port,
+                         power_func=power_func,
+                         efficiency_func=efficiency_func,
+                         dynamic_response=dynamic_response)
+
+    @property
+    def reversible(self) -> bool:
+        return False
 
 
 @dataclass
