@@ -98,7 +98,7 @@ class LiquidFuel(Fuel):
         """
         assert_type_and_range(liters,
                               more_than=0.0)
-        return liters_to_cubic_meters(liters) * self.mass_density * self.energy_density
+        return self.energy_per_cubic_meter(cubic_meters=liters_to_cubic_meters(liters=liters))
 
     def energy_per_cubic_meter(self, cubic_meters: float) -> float:
         """
