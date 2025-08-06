@@ -314,7 +314,7 @@ class LiquidFuelIOState(FuelIOState):
         of equivalent energy transfered.
         """
         assert isinstance(self.fuel, LiquidFuel)
-        return self.fuel.energy_per_liter(liters=self.fuel_liters)
+        return self.fuel.energy_per_liter(liters=self.fuel_liters)  # pylint: disable=no-member
 
     @property
     def power(self) -> float:
