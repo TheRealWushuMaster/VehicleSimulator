@@ -256,10 +256,10 @@ class ForwardVoltageConverter(ForwardConverter):
         super().__init__(name=name,
                          mass=mass,
                          input_port=PortInput(exchange=PowerType.ELECTRIC_AC
-                                              if in_type == ElectricSignalType.AC
+                                              if in_type==ElectricSignalType.AC
                                               else PowerType.ELECTRIC_DC),
                          output_port=PortOutput(exchange=PowerType.ELECTRIC_AC
-                                                if out_type == ElectricSignalType.AC
+                                                if out_type==ElectricSignalType.AC
                                                 else PowerType.ELECTRIC_DC),
                          power_func=power_func,
                          efficiency_func=efficiency_func,
@@ -282,7 +282,7 @@ class ForwardVoltageConverter(ForwardConverter):
         Returns the type of output electric signal.
         """
         return (ElectricSignalType.AC
-                if self.output.exchange == PowerType.ELECTRIC_AC
+                if self.output.exchange==PowerType.ELECTRIC_AC
                 else ElectricSignalType.DC)
 
 
