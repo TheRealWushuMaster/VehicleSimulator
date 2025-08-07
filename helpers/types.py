@@ -22,10 +22,11 @@ class PowerType(Enum):
     A comprehensive list of types of power useable in the vehicle.
     Usable both for input and output of each block.
     """
-    CHEMICAL   = "CHEMICAL"
-    ELECTRIC   = "ELECTRIC"
-    MECHANICAL = "MECHANICAL"
-    PNEUMATIC  = "PNEUMATIC"
+    CHEMICAL    = "CHEMICAL"
+    ELECTRIC_AC = "ELECTRIC_AC"
+    ELECTRIC_DC = "ELECTRIC_DC"
+    MECHANICAL  = "MECHANICAL"
+    PNEUMATIC   = "PNEUMATIC"
 
 
 class StateOfMatter(Enum):
