@@ -4,95 +4,107 @@ This module contains definitions for motors and engines.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional
 from components.fuel_type import Fuel
-from components.converter import MechanicalConverter
+from components.converter import MechanicalConverter, \
+    ForwardConverter, ReversibleConverter
+from components.dynamic_response import ForwardDynamicResponse, \
+    BidirectionalDynamicResponse
 from components.port import PortInput, PortOutput, PortBidirectional
-from components.state import MechanicalState, zero_mechanical_state
-from helpers.functions import assert_type_and_range
-from helpers.types import PowerType
-
-@dataclass
-class ElectricMotor(MechanicalConverter):
-    """Models a simple, reversible electric motor."""
-    def __init__(self,
-                 name: str,
-                 mass: float,
-                 max_power: float,
-                 eff_func: Callable[[MechanicalState], float],
-                 reverse_efficiency: float,
-                 state: Optional[MechanicalState],
-                 power_func: Callable[[MechanicalState], float],
-                 inertia: float):
-        if state is None:
-            state = zero_mechanical_state()
-        input_port = PortBidirectional(exchange=PowerType.ELECTRIC)
-        output_port = PortBidirectional(exchange=PowerType.MECHANICAL)
-        super().__init__(name=name,
-                         mass=mass,
-                         input=input_port,
-                         output=output_port,
-                         control_signal=0.0,
-                         state=state,
-                         max_power=max_power,
-                         power_func=power_func, # type: ignore[arg-type]
-                         efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=reverse_efficiency,
-                         inertia=inertia)
+from components.state import IOState, InternalState
+from helpers.types import PowerType, ElectricSignalType
 
 
 @dataclass
-class InternalCombustionEngine(MechanicalConverter):
-    """Models a simple internal combustion engine."""
+class ElectricMotor(MechanicalConverter, ReversibleConverter):
+    """
+    Models a reversible electric motor (can act as a generator).
+    """
     def __init__(self,
                  name: str,
                  mass: float,
-                 max_power: float,
-                 eff_func: Callable[[MechanicalState], float],
-                 state: Optional[MechanicalState],
-                 power_func: Callable[[MechanicalState], float],
-                 fuel: Fuel,
+                 power_func: Callable[[IOState, InternalState], float],
+                 efficiency_func: Callable[[IOState, InternalState], float],
+                 dynamic_response: BidirectionalDynamicResponse,
+                 electric_type: ElectricSignalType,
                  inertia: float):
-        if state is None:
-            state = zero_mechanical_state()
-        input_port = PortInput(exchange=fuel)
-        output_port = PortOutput(exchange=PowerType.MECHANICAL)
-        super().__init__(name=name,
-                         mass=mass,
-                         input=input_port,
-                         output=output_port,
-                         control_signal=0.0,
-                         state=state,
-                         max_power=max_power,
-                         power_func=power_func, # type: ignore[arg-type]
-                         efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=None,
-                         inertia=inertia)
+        super().__init__(inertia=inertia)
+        assert isinstance(electric_type, ElectricSignalType)
+        ReversibleConverter.__init__(self=self,
+                                     name=name,
+                                     mass=mass,
+                                     input_port=PortBidirectional(exchange=PowerType.ELECTRIC_AC
+                                                                  if electric_type==ElectricSignalType.AC
+                                                                  else PowerType.ELECTRIC_DC),
+                                     output_port=PortBidirectional(exchange=PowerType.MECHANICAL),
+                                     power_func=power_func,
+                                     efficiency_func=efficiency_func,
+                                     dynamic_response=dynamic_response)
+
+    @property
+    def electric_type(self) -> ElectricSignalType:
+        """
+        Returns the type of input electric signal.
+        """
+        return (ElectricSignalType.AC
+                if self.input.exchange == PowerType.ELECTRIC_AC
+                else ElectricSignalType.DC)
 
 
 @dataclass
-class ElectricGenerator(MechanicalConverter):
-    """Models a simple, non reversible electric generator."""
+class InternalCombustionEngine(MechanicalConverter, ForwardConverter):
+    """
+    Models an internal combustion engine (irreversible).
+    """
     def __init__(self,
                  name: str,
                  mass: float,
-                 max_power: float,
-                 eff_func: Callable[[MechanicalState], float],
-                 state: Optional[MechanicalState],
-                 power_func: Callable[[MechanicalState], float],
+                 power_func: Callable[[IOState, InternalState], float],
+                 efficiency_func: Callable[[IOState, InternalState], float],
+                 dynamic_response: ForwardDynamicResponse,
+                 inertia: float,
+                 fuel: Fuel):
+        super().__init__(inertia=inertia)
+        ForwardConverter.__init__(self=self,
+                                  name=name,
+                                  mass=mass,
+                                  input_port=PortInput(exchange=fuel),
+                                  output_port=PortOutput(exchange=PowerType.MECHANICAL),
+                                  power_func=power_func,
+                                  efficiency_func=efficiency_func,
+                                  dynamic_response=dynamic_response)
+
+
+@dataclass
+class ElectricGenerator(MechanicalConverter, ForwardConverter):
+    """
+    Models an irreversible electric generator.
+    """
+    def __init__(self,
+                 name: str,
+                 mass: float,
+                 power_func: Callable[[IOState, InternalState], float],
+                 efficiency_func: Callable[[IOState, InternalState], float],
+                 dynamic_response: ForwardDynamicResponse,
+                 electric_type: ElectricSignalType,
                  inertia: float):
-        if state is None:
-            state = zero_mechanical_state()
-        input_port = PortInput(exchange=PowerType.MECHANICAL)
-        output_port = PortOutput(exchange=PowerType.ELECTRIC)
-        super().__init__(name=name,
-                         mass=mass,
-                         input=input_port,
-                         output=output_port,
-                         control_signal=None,
-                         state=state,
-                         max_power=max_power,
-                         power_func=power_func, # type: ignore[arg-type]
-                         efficiency_func=eff_func, # type: ignore[arg-type]
-                         reverse_efficiency=None,
-                         inertia=inertia)
+        super().__init__(inertia=inertia)
+        assert isinstance(electric_type, ElectricSignalType)
+        ForwardConverter.__init__(self=self,
+                                  name=name,
+                                  mass=mass,
+                                  input_port=PortInput(exchange=PowerType.MECHANICAL),
+                                  output_port=PortOutput(exchange=PowerType.ELECTRIC_AC
+                                                         if electric_type==ElectricSignalType.AC
+                                                         else PowerType.ELECTRIC_DC),
+                                  power_func=power_func,
+                                  efficiency_func=efficiency_func,
+                                  dynamic_response=dynamic_response)
+
+    @property
+    def electric_type(self) -> ElectricSignalType:
+        """
+        Returns the type of output electric signal.
+        """
+        return (ElectricSignalType.AC
+                if self.output.exchange == PowerType.ELECTRIC_AC
+                else ElectricSignalType.DC)
