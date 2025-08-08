@@ -3,9 +3,8 @@ This module contains routines for handling
 components' state limitations.
 """
 
-from abc import ABC
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 from components.state import FullStateNoInput, FullStateWithInput
 from helpers.functions import assert_type, assert_numeric, assert_callable
 
@@ -20,11 +19,11 @@ class AbsoluteLimitValue():
     """
     Contains absolute limit values.
     """
-    min: float
     max: float
+    min: float=0.0
 
     def __post_init__(self):
-        assert_numeric(self.min, self.max)
+        assert_numeric(self.max, self.min)
 
 
 @dataclass
@@ -32,11 +31,11 @@ class RelativeLimitValue():
     """
     Contains absolute limit values.
     """
-    min: Callable[[FullStateNoInput|FullStateWithInput], float]
     max: Callable[[FullStateNoInput|FullStateWithInput], float]
+    min: Callable[[FullStateNoInput|FullStateWithInput], float]=lambda s: 0.0
 
     def __post_init__(self):
-        assert_callable(self.min, self.max)
+        assert_callable(self.max, self.min)
 
 
 # ====================
@@ -56,117 +55,197 @@ class InternalLimitations():
                     expected_type=(AbsoluteLimitValue, RelativeLimitValue))
 
 
-# ==============================================
-# DOMAIN LIMITATIONS (ELECTRIC, MECHANICAL, ETC)
-# ==============================================
+# ===============================================
+# DOMAIN LIMITATIONS (ELECTRIC, MECHANICAL, FUEL)
+# ===============================================
 
 
 @dataclass
-class DomainLimitations():
-    """
-    Placeholder class for domain limitations.
-    """
-
-
-@dataclass
-class ElectricLimitations(DomainLimitations):
+class AbsoluteElectricLimitations():
     """
     Contains the electric variables subject to limitations.
     """
-    voltage: AbsoluteLimitValue|RelativeLimitValue
-    current: AbsoluteLimitValue|RelativeLimitValue
+    voltage: AbsoluteLimitValue
+    current: AbsoluteLimitValue
 
     def __post_init__(self):
-        assert type(self.voltage)==type(self.current) and \
-            type(self.voltage) in (AbsoluteLimitValue, RelativeLimitValue)
+        assert_type(self.voltage, self.current,
+                    expected_type=AbsoluteLimitValue)
 
 
 @dataclass
-class MechanicalLimitations(DomainLimitations):
+class RelativeElectricLimitations():
     """
     Contains the electric variables subject to limitations.
     """
-    torque: AbsoluteLimitValue|RelativeLimitValue
-    rpm: AbsoluteLimitValue|RelativeLimitValue
+    voltage: RelativeLimitValue
+    current: RelativeLimitValue
 
     def __post_init__(self):
-        assert type(self.torque)==type(self.rpm) and \
-            type(self.torque) in (AbsoluteLimitValue, RelativeLimitValue)
+        assert_type(self.voltage, self.current,
+                    expected_type=RelativeLimitValue)
 
 
 @dataclass
-class FuelLimitations(DomainLimitations):
+class AbsoluteMechanicalLimitations():
     """
-    Placeholder for fuel limitations.
+    Contains the electric variables subject to limitations.
     """
+    torque: AbsoluteLimitValue
+    rpm: AbsoluteLimitValue
+
+    def __post_init__(self):
+        assert_type(self.torque, self.rpm,
+                    expected_type=AbsoluteLimitValue)
 
 
 @dataclass
-class LiquidFuelLimitations(FuelLimitations):
+class RelativeMechanicalLimitations():
+    """
+    Contains the electric variables subject to limitations.
+    """
+    torque: RelativeLimitValue
+    rpm: RelativeLimitValue
+
+    def __post_init__(self):
+        assert_type(self.torque, self.rpm,
+                    expected_type=RelativeLimitValue)
+
+
+@dataclass
+class AbsoluteLiquidFuelLimitations():
     """
     Contains the limitations on liquid fuel transfer.
     """
-    fuel_liters: AbsoluteLimitValue|RelativeLimitValue
+    fuel_liters: AbsoluteLimitValue
 
     def __post_init__(self):
         assert_type(self.fuel_liters,
-                    expected_type=(AbsoluteLimitValue, RelativeLimitValue))
+                    expected_type=AbsoluteLimitValue)
 
 
 @dataclass
-class GaseousFuelLimitations(FuelLimitations):
+class RelativeLiquidFuelLimitations():
+    """
+    Contains the limitations on liquid fuel transfer.
+    """
+    fuel_liters: RelativeLimitValue
+
+    def __post_init__(self):
+        assert_type(self.fuel_liters,
+                    expected_type=RelativeLimitValue)
+
+
+@dataclass
+class AbsoluteGaseousFuelLimitations():
     """
     Contains the limitations on gaseous fuel transfer.
     """
-    fuel_mass: AbsoluteLimitValue|RelativeLimitValue
+    fuel_mass: AbsoluteLimitValue
 
     def __post_init__(self):
         assert_type(self.fuel_mass,
-                    expected_type=(AbsoluteLimitValue, RelativeLimitValue))
-
-
-# ================
-# FULL LIMITATIONS
-# ================
+                    expected_type=AbsoluteLimitValue)
 
 
 @dataclass
-class LimitsBase():
+class RelativeGaseousFuelLimitations():
     """
-    Contains the areas of limitations.
+    Contains the limitations on gaseous fuel transfer.
     """
-    output: DomainLimitations
+    fuel_mass: RelativeLimitValue
+
+    def __post_init__(self):
+        assert_type(self.fuel_mass,
+                    expected_type=RelativeLimitValue)
+
+
+# ========================
+# INPUT/OUTPUT LIMITATIONS
+# ========================
+
+
+@dataclass
+class BaseLimitWithInternal():
     internal: InternalLimitations
 
-    def __post_init__(self):
-        assert_type(self.output,
-                    expected_type=DomainLimitations)
-        assert_type(self.internal,
-                    expected_type=InternalLimitations)
-
+@dataclass
+class RechargeableBatteryAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteElectricLimitations
+    output: AbsoluteElectricLimitations
 
 @dataclass
-class LimitsWithInput(LimitsBase):
-    """
-    Adds an input to the limitations.
-    """
-    input: DomainLimitations
+class RechargeableBatteryRelativeLimits(BaseLimitWithInternal):
+    input: RelativeElectricLimitations
+    output: RelativeElectricLimitations
 
-    def __post_init__(self):
-        assert_type(self.input,
-                    expected_type=DomainLimitations)
+@dataclass
+class NonRechargeableBatteryAbsoluteLimits(BaseLimitWithInternal):
+    output: AbsoluteElectricLimitations
 
+@dataclass
+class NonRechargeableBatteryRelativeLimits(BaseLimitWithInternal):
+    output: RelativeElectricLimitations
 
-class Limitation(ABC):
-    """
-    Base class for limitations.
-    """
-    absolute_limits: LimitsBase|LimitsWithInput
-    relative_limits: LimitsBase|LimitsWithInput
+@dataclass
+class ElectricMotorAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteElectricLimitations
+    output: AbsoluteMechanicalLimitations
 
-    def __post_init__(self):
-        assert_type(self.absolute_limits, self.relative_limits,
-                    expected_type=(LimitsBase, LimitsWithInput))
+@dataclass
+class ElectricMotorRelativeLimits(BaseLimitWithInternal):
+    input: RelativeElectricLimitations
+    output: RelativeMechanicalLimitations
+
+@dataclass
+class LiquidCombustionEngineAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteLiquidFuelLimitations
+    output: AbsoluteMechanicalLimitations
+
+@dataclass
+class LiquidCombustionEngineRelativeLimits(BaseLimitWithInternal):
+    input: RelativeLiquidFuelLimitations
+    output: RelativeMechanicalLimitations
+
+@dataclass
+class GaseousCombustionEngineAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteGaseousFuelLimitations
+    output: AbsoluteMechanicalLimitations
+
+@dataclass
+class GaseousCombustionEngineRelativeLimits(BaseLimitWithInternal):
+    input: RelativeGaseousFuelLimitations
+    output: RelativeMechanicalLimitations
+
+@dataclass
+class ElectricGeneratorAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteMechanicalLimitations
+    output: AbsoluteElectricLimitations
+
+@dataclass
+class ElectricGeneratorRelativeLimits(BaseLimitWithInternal):
+    input: RelativeMechanicalLimitations
+    output: RelativeElectricLimitations
+
+@dataclass
+class PureElectricAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteElectricLimitations
+    output: AbsoluteElectricLimitations
+
+@dataclass
+class PureElectricRelativeLimits(BaseLimitWithInternal):
+    input: RelativeElectricLimitations
+    output: RelativeElectricLimitations
+
+@dataclass
+class PureMechanicalAbsoluteLimits(BaseLimitWithInternal):
+    input: AbsoluteMechanicalLimitations
+    output: AbsoluteMechanicalLimitations
+
+@dataclass
+class PureMechanicalRelativeLimits(BaseLimitWithInternal):
+    input: RelativeMechanicalLimitations
+    output: RelativeMechanicalLimitations
 
 
 # ===========================
@@ -175,196 +254,65 @@ class Limitation(ABC):
 
 
 @dataclass
-class RechargeableBatteryLimits(Limitation):
+class RechargeableBattery():
     """
-    Limits for a rechargeable battery.
+    Holds the limitations of a rechargeable battery.
     """
-    def __init__(self,
-                 absolute_voltage_in: AbsoluteLimitValue,
-                 absolute_current_in: AbsoluteLimitValue,
-                 absolute_voltage_out: AbsoluteLimitValue,
-                 absolute_current_out: AbsoluteLimitValue,
-                 absolute_temperature: AbsoluteLimitValue,
-                 relative_voltage_in: RelativeLimitValue,
-                 relative_current_in: RelativeLimitValue,
-                 relative_voltage_out: RelativeLimitValue,
-                 relative_current_out: RelativeLimitValue,
-                 relative_temperature: RelativeLimitValue):
-        assert_type(absolute_voltage_in, absolute_current_in,
-                    absolute_voltage_out, absolute_current_out,
-                    absolute_temperature,
-                    expected_type=AbsoluteLimitValue)
-        assert_type(relative_voltage_in, relative_current_in,
-                    relative_voltage_out, relative_current_out,
-                    relative_temperature,
-                    expected_type=RelativeLimitValue)
-        absolute_limits = LimitsWithInput(input=ElectricLimitations(voltage=absolute_voltage_in,
-                                                                    current=absolute_current_in),
-                                          output=ElectricLimitations(voltage=absolute_voltage_out,
-                                                                     current=absolute_current_out),
-                                          internal=InternalLimitations(temperature=absolute_temperature)
-                                          )
-        relative_limits = LimitsWithInput(input=ElectricLimitations(voltage=relative_voltage_in,
-                                                                    current=relative_current_in),
-                                          output=ElectricLimitations(voltage=relative_voltage_out,
-                                                                     current=relative_current_out),
-                                          internal=InternalLimitations(temperature=relative_temperature)
-                                          )
-        self.absolute_limits = absolute_limits
-        self.relative_limits = relative_limits
+    absolute_limits: RechargeableBatteryAbsoluteLimits
+    relative_limits: RechargeableBatteryRelativeLimits
 
 
 @dataclass
-class NonRechargeableBatteryLimits(Limitation):
+class NonRechargeableBattery():
     """
-    Limits for a non rechargeable battery.
+    Holds the limitations of a non rechargeable battery.
     """
-    def __init__(self,
-                 absolute_voltage_out: AbsoluteLimitValue,
-                 absolute_current_out: AbsoluteLimitValue,
-                 absolute_temperature: AbsoluteLimitValue,
-                 relative_voltage_out: RelativeLimitValue,
-                 relative_current_out: RelativeLimitValue,
-                 relative_temperature: RelativeLimitValue):
-        assert_type(absolute_voltage_out, absolute_current_out,
-                    absolute_temperature,
-                    expected_type=AbsoluteLimitValue)
-        assert_type(relative_voltage_out, relative_current_out,
-                    relative_temperature,
-                    expected_type=RelativeLimitValue)
-        absolute_limits = LimitsBase(output=ElectricLimitations(voltage=absolute_voltage_out,
-                                                                current=absolute_current_out),
-                                     internal=InternalLimitations(temperature=absolute_temperature)
-                                     )
-        relative_limits = LimitsBase(output=ElectricLimitations(voltage=relative_voltage_out,
-                                                                current=relative_current_out),
-                                     internal=InternalLimitations(temperature=relative_temperature)
-                                     )
-        self.absolute_limits = absolute_limits
-        self.relative_limits = relative_limits
+    absolute_limits: NonRechargeableBatteryAbsoluteLimits
+    relative_limits: NonRechargeableBatteryRelativeLimits
 
 
 @dataclass
-class FuelTankLimits(Limitation):
+class LiquidCombustionEngine():
     """
-    Limits for a liquid or gaseous fuel tank.
+    Holds the limitations of a liquid fuel combustion engine.
     """
-    def __init__(self,
-                 liquid_fuel: bool,
-                 absolute_fuel_liters_out: AbsoluteLimitValue,
-                 absolute_temperature: AbsoluteLimitValue,
-                 relative_fuel_liters_out: RelativeLimitValue,
-                 relative_temperature: RelativeLimitValue):
-        assert_type(absolute_fuel_liters_out,
-                    absolute_temperature,
-                    expected_type=AbsoluteLimitValue)
-        assert_type(relative_fuel_liters_out,
-                    relative_temperature,
-                    expected_type=RelativeLimitValue)
-        abs_out = LiquidFuelLimitations(fuel_liters=absolute_fuel_liters_out) \
-            if liquid_fuel else GaseousFuelLimitations(fuel_mass=absolute_fuel_liters_out)
-        rel_out = LiquidFuelLimitations(fuel_liters=relative_fuel_liters_out) \
-            if liquid_fuel else GaseousFuelLimitations(fuel_mass=relative_fuel_liters_out)
-        absolute_limits = LimitsBase(output=abs_out,
-                                     internal=InternalLimitations(temperature=absolute_temperature)
-                                     )
-        relative_limits = LimitsBase(output=rel_out,
-                                     internal=InternalLimitations(temperature=relative_temperature)
-                                     )
-        self.absolute_limits = absolute_limits
-        self.relative_limits = relative_limits
+    absolute_limits: LiquidCombustionEngineAbsoluteLimits
+    relative_limits: LiquidCombustionEngineRelativeLimits
 
 
 @dataclass
-class ElectricMotorLimits(Limitation):
+class GaseousCombustionEngine():
     """
-    Limits for an electric motor.
+    Holds the limitations of a gaseous fuel combustion engine.
     """
-    def __init__(self,
-                 absolute_voltage_in: AbsoluteLimitValue,
-                 absolute_current_in: AbsoluteLimitValue,
-                 absolute_torque_out: AbsoluteLimitValue,
-                 absolute_rpm_out: AbsoluteLimitValue,
-                 absolute_temperature: AbsoluteLimitValue,
-                 relative_voltage_in: RelativeLimitValue,
-                 relative_current_in: RelativeLimitValue,
-                 relative_torque_out: RelativeLimitValue,
-                 relative_rpm_out: RelativeLimitValue,
-                 relative_temperature: RelativeLimitValue):
-        assert_type(absolute_voltage_in, absolute_current_in,
-                    absolute_torque_out, absolute_rpm_out,
-                    absolute_temperature,
-                    expected_type=AbsoluteLimitValue)
-        assert_type(relative_voltage_in, relative_current_in,
-                    relative_torque_out, relative_rpm_out,
-                    relative_temperature,
-                    expected_type=RelativeLimitValue)
-        absolute_limits = LimitsWithInput(input=ElectricLimitations(voltage=absolute_voltage_in,
-                                                                    current=absolute_current_in),
-                                          output=MechanicalLimitations(torque=absolute_torque_out,
-                                                                       rpm=absolute_rpm_out),
-                                          internal=InternalLimitations(temperature=absolute_temperature)
-                                          )
-        relative_limits = LimitsWithInput(input=ElectricLimitations(voltage=relative_voltage_in,
-                                                                    current=relative_current_in),
-                                          output=MechanicalLimitations(torque=relative_torque_out,
-                                                                       rpm=relative_rpm_out),
-                                          internal=InternalLimitations(temperature=relative_temperature)
-                                          )
-        self.absolute_limits = absolute_limits
-        self.relative_limits = relative_limits
+    absolute_limits: GaseousCombustionEngineAbsoluteLimits
+    relative_limits: GaseousCombustionEngineRelativeLimits
 
 
 @dataclass
-class ICELimits(Limitation):
+class ElectricGenerator():
     """
-    Limits for an internal combustion engine.
+    Holds the limitations of an electric generator.
     """
-    def __init__(self,
-                 liquid_fuel: bool,
-                 absolute_fuel_in: AbsoluteLimitValue,
-                 absolute_torque_out: AbsoluteLimitValue,
-                 absolute_rpm_out: AbsoluteLimitValue,
-                 absolute_temperature: AbsoluteLimitValue,
-                 relative_fuel_in: RelativeLimitValue,
-                 relative_torque_out: RelativeLimitValue,
-                 relative_rpm_out: RelativeLimitValue,
-                 relative_temperature: RelativeLimitValue):
-        assert_type(absolute_fuel_in,
-                    absolute_torque_out, absolute_rpm_out,
-                    absolute_temperature,
-                    expected_type=AbsoluteLimitValue)
-        assert_type(relative_fuel_in,
-                    relative_torque_out, relative_rpm_out,
-                    relative_temperature,
-                    expected_type=RelativeLimitValue)
-        abs_input = LiquidFuelLimitations(fuel_liters=absolute_fuel_in) \
-            if liquid_fuel else GaseousFuelLimitations(fuel_mass=absolute_fuel_in)
-        rel_input = LiquidFuelLimitations(fuel_liters=relative_fuel_in) \
-            if liquid_fuel else GaseousFuelLimitations(fuel_mass=relative_fuel_in)
-        absolute_limits = LimitsWithInput(input=abs_input,
-                                          output=MechanicalLimitations(torque=absolute_torque_out,
-                                                                       rpm=absolute_rpm_out),
-                                          internal=InternalLimitations(temperature=absolute_temperature)
-                                          )
-        relative_limits = LimitsWithInput(input=rel_input,
-                                          output=MechanicalLimitations(torque=relative_torque_out,
-                                                                       rpm=relative_rpm_out),
-                                          internal=InternalLimitations(temperature=relative_temperature)
-                                          )
-        self.absolute_limits = absolute_limits
-        self.relative_limits = relative_limits
+    absolute_limits: ElectricGeneratorAbsoluteLimits
+    relative_limits: ElectricGeneratorRelativeLimits
 
 
 @dataclass
-class ElectricGeneratorLimits(Limitation):
+class MechanicalToMechanical():
     """
-    Limits for an electric generator.
+    Holds the limitations of a mechanical to
+    mechanical converter (gears, etc).
     """
+    absolute_limits: PureMechanicalAbsoluteLimits
+    relative_limits: PureMechanicalRelativeLimits
 
 
 @dataclass
-class MechanicalToMechanicalLimits(Limitation):
+class ElectricToElectric():
     """
-    Limits for a pure mechanical component.
+    Holds the limitations of an electric to
+    electric converter (rectifier, inverter, etc).
     """
+    absolute_limits: PureElectricAbsoluteLimits
+    relative_limits: PureElectricRelativeLimits
