@@ -2,7 +2,7 @@
 Helper functions for use in the project.
 """
 
-from typing import Any, Callable
+from typing import Any
 from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM, \
     CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS
 
@@ -33,9 +33,13 @@ def assert_callable(*args: Any,
     Asserts that all the arguments in *args are of type Callable.
     """
     assert isinstance(allow_none, bool)
-    assert_type(args,
-                expected_type=Callable,  # type: ignore[arg-type]
-                allow_none=allow_none)
+    for arg in args:
+        is_callable = callable(arg)
+        is_none_allowed = allow_none and (arg is None)
+        assert is_callable or is_none_allowed, (
+            f"Variable {arg}: Expected callable" +
+            (" or None" if allow_none else "") + 
+            f", got {type(arg).__name__}")
 
 def assert_type(*args: Any,
                 expected_type: type|tuple[type, ...],
