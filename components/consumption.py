@@ -1,181 +1,289 @@
 """This module contains routines for managing
 energy and fuel consumption for all components."""
 
-from abc import ABC
-from typing import Callable, Optional, Literal, Type
+from typing import Callable
 from dataclasses import dataclass
-from components.state import State, FuelIOState, ElectricIOState, RotatingIOState
-from helpers.functions import assert_type, assert_type_and_range
+from components.state import FullStateNoInput, FullStateWithInput
+from helpers.functions import assert_type, assert_type_and_range, assert_callable
+
+
+# ============
+# BASE CLASSES
+# ============
 
 
 @dataclass
-class BaseConsumptionModel(ABC):
+class InternalNonReversibleEnergyConsumption():
     """
-    Base class for consumption objects.
+    Base class for modeling internal energy
+    consumption of a component.
+    Applies to components that store their
+    own energy (batteries and others).
     """
-    def compute(self, state: State,
-                which: Literal["input", "output"],
-                delta_t: float) -> float:
-        """
-        Calculates the base consumption.
-        """
-        raise NotImplementedError
-
-
-@dataclass
-class EnergyConsumption(BaseConsumptionModel):
-    """
-    Base class for modeling energy
-    consumption from a component.
-    Applies to electric and mechanical components.
-    """
-    efficiency_func: Callable[[State], float]
-    energy_type: Type[ElectricIOState]|Type[RotatingIOState]
+    efficiency_func: Callable[[FullStateNoInput|FullStateWithInput], float]
 
     def __post_init__(self):
-        assert_type(self.efficiency_func,
-                    expected_type=Callable)  # type: ignore[arg-type]
-        assert_type(self.energy_type,
-                    expected_type=(ElectricIOState, RotatingIOState))
+        assert_callable(self.efficiency_func)
 
-    def compute(self, state: State,
-                which: Literal["input", "output"],
+    def compute(self, state: FullStateNoInput|FullStateWithInput,
                 delta_t: float) -> float:
         """
-        Calculates energy consumption.
-        Arguments:
-            - `state` (State): the full state variable
-                of the component
-            - `which` ("input" or "output"): the state
-                originating the consumption
-        
-        The `which` IOState acts as the "output", generating
-        an input that consumes the energy being calculated.
+        Calculates energy consumption from internal
+        source being delivered to the output.
         """
         assert_type(state,
-                    expected_type=State)
+                    expected_type=(FullStateNoInput, FullStateWithInput))
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        assert which in ("input", "output")
-        if which == "output":
-            receiving_state = state.output
-            delivering_state = state.input
-        else:
-            receiving_state = state.input
-            delivering_state = state.output
-        assert isinstance(receiving_state, self.energy_type)
-        assert receiving_state is not None and delivering_state is not None
-        receiving_state.set_receiving()
-        delivering_state.set_delivering()
-        return receiving_state.power * delta_t / self.efficiency_func(state)  # type: ignore[attr-defined]
+        state.output.set_receiving()
+        return state.output.power * delta_t / self.efficiency_value(state=state)
 
-    def efficiency_value(self, state: State) -> float:
+    def efficiency_value(self, state: FullStateNoInput|FullStateWithInput) -> float:
         """
         Returns the efficiency value at a given state.
         """
         assert_type(state,
-                    expected_type=State)
+                    expected_type=(FullStateNoInput, FullStateWithInput))
         return self.efficiency_func(state)
 
 
 @dataclass
-class ElectricEnergyConsumption(EnergyConsumption):
+class InternalReversibleEnergyConsumption(InternalNonReversibleEnergyConsumption):
     """
-    Models the electric energy consumption of a component.
+    Base class for modeling internal reversible
+    energy consumption from a component.
+    Applies to components that store their
+    own energy (batteries and others).
     """
-    def __init__(self, efficiency_func: Callable[[State], float]):
-        super().__init__(efficiency_func=efficiency_func,
-                         energy_type=ElectricIOState)
-
-
-@dataclass
-class MechanicalEnergyConsumption(EnergyConsumption):
-    """
-    Models the mechanical energy consumption of a component.
-    """
-    def __init__(self, efficiency_func: Callable[[State], float]):
-        super().__init__(efficiency_func=efficiency_func,
-                         energy_type=RotatingIOState)
-
-
-@dataclass
-class FuelConsumption(BaseConsumptionModel):
-    """
-    Models the fuel consumption of components.
-    """
-    fuel_consumption_func: Callable[[State], float]
+    reverse_efficiency_func: Callable[[FullStateNoInput|FullStateWithInput], float]
 
     def __post_init__(self):
-        assert_type(self.fuel_consumption_func,
-                    expected_type=Callable)  # type: ignore[arg-type]
+        assert_callable(self.reverse_efficiency_func)
 
-    def compute(self, state: State,
-                which: Literal["input", "output"],
+    def reverse_compute(self, state: FullStateNoInput|FullStateWithInput,
+                        delta_t: float) -> float:
+        """
+        Calculates reverse energy consumption from the
+        output being delivered to the internal source.
+        """
+        assert_type(state,
+                    expected_type=(FullStateNoInput, FullStateWithInput))
+        assert_type_and_range(delta_t,
+                              more_than=0.0)
+        state.output.set_delivering()
+        return state.output.power * delta_t / self.reverse_efficiency_value(state=state)
+
+    def reverse_efficiency_value(self, state: FullStateNoInput|FullStateWithInput) -> float:
+        """
+        Returns the reverse efficiency value at a given state.
+        """
+        assert_type(state,
+                    expected_type=(FullStateNoInput, FullStateWithInput))
+        return self.reverse_efficiency_func(state)
+
+
+@dataclass
+class ExternalNonReversibleEnergyConsumption():
+    """
+    Base class for modeling non reversible
+    external energy consumption of a component.
+    Applies to components that request energy
+    from elsewhere (mainly converters).
+    """
+    efficiency_func: Callable[[FullStateWithInput], float]
+
+    def __post_init__(self):
+        assert_callable(self.efficiency_func)
+
+    def compute(self, state: FullStateWithInput,
                 delta_t: float) -> float:
+        """
+        Calculates energy consumption from the
+        input being delivered to the output.
+        """
         assert_type(state,
-                    expected_type=State)
-        assert isinstance(state.input, FuelIOState)
+                    expected_type=FullStateWithInput)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        assert which in ("input", "output")
-        if which == "output":
-            receiving_state = state.output
-            delivering_state = state.input
-        else:
-            receiving_state = state.input
-            delivering_state = state.output
-        receiving_state.set_receiving()
-        delivering_state.set_delivering()
-        return self.fuel_consumption_func(state) * delta_t
+        state.output.set_receiving()
+        state.input.set_delivering()
+        return state.output.power * delta_t / self.efficiency_value(state=state)
+
+    def efficiency_value(self, state: FullStateWithInput) -> float:
+        """
+        Returns the efficiency value at a given state.
+        """
+        assert_type(state,
+                    expected_type=FullStateWithInput)
+        return self.efficiency_func(state)
 
 
 @dataclass
-class Consumption():
+class ExternalReversibleEnergyConsumption(ExternalNonReversibleEnergyConsumption):
     """
-    Class containing forward and (optional) reverse consumption objects.
+    Base class for modeling reversible external
+    energy consumption of a component.
+    Applies to components that request energy
+    from elsewhere (mainly converters).
     """
-    forward: BaseConsumptionModel
-    reverse: Optional[BaseConsumptionModel]=None
+    reverse_efficiency_func: Callable[[FullStateWithInput], float]
 
     def __post_init__(self):
-        assert_type(self.forward,
-                    expected_type=BaseConsumptionModel)
-        assert_type(self.reverse,
-                    expected_type=BaseConsumptionModel,
-                    allow_none=True)
+        assert_callable(self.reverse_efficiency_func)
 
-    def compute_forward(self, state: State,
+    def reverse_compute(self, state: FullStateWithInput,
                         delta_t: float) -> float:
         """
-        Computes the forward consumption.
+        Calculates reverse energy consumption from the
+        output being delivered to the input.
         """
         assert_type(state,
-                    expected_type=State)
+                    expected_type=FullStateWithInput)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        return self.forward.compute(state=state,
-                                    which="output",
-                                    delta_t=delta_t)
+        state.output.set_delivering()
+        state.input.set_receiving()
+        return state.output.power * delta_t / self.reverse_efficiency_value(state=state)
 
-    def compute_reverse(self, state: State,
-                        delta_t: float) -> float:
+    def reverse_efficiency_value(self, state: FullStateWithInput) -> float:
         """
-        Computes the reverse consumption, if applicable.
+        Returns the reverse efficiency value at a given state.
         """
-        if not self.reversible:
-            raise ValueError("Consumption is not reversible.")
         assert_type(state,
-                    expected_type=State)
+                    expected_type=FullStateWithInput)
+        return self.reverse_efficiency_func(state)
+
+
+@dataclass
+class ExternalNonReversibleFuelConsumption():
+    """
+    Base class for modeling non reversible
+    fuel consumption from the input.
+    Applies to components that consume
+    fuel (combustion engines).
+    """
+    fuel_consumption_func: Callable[[FullStateWithInput], float]
+
+    def __post_init__(self):
+        assert_callable(self.fuel_consumption_func)
+
+    def compute(self, state: FullStateWithInput,
+                delta_t: float):
+        """
+        Calculates the fuel consumed from the input.
+        """
+        assert_type(state,
+                    expected_type=FullStateWithInput)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        assert self.reverse is not None
-        return self.reverse.compute(state=state,
-                                    which="input",
-                                    delta_t=delta_t)
+        state.input.set_delivering()
+        state.output.set_receiving()
+        return self.fuel_consumption(state) * delta_t
 
-    @property
-    def reversible(self) -> bool:
+    def fuel_consumption(self, state: FullStateWithInput) -> float:
         """
-        Returns whether the consumption is reversible.
+        Returns the marginal fuel consumption at a given state.
         """
-        return self.reverse is not None
+        assert_type(state,
+                    expected_type=FullStateWithInput)
+        return self.fuel_consumption_func(state)
+
+
+# ================
+# TAILORES CLASSES
+# ================
+
+
+@dataclass
+class RechargeableBatteryConsumption():
+    """
+    Models energy consumption in a rechargeable battery.
+    """
+    internal: InternalReversibleEnergyConsumption
+
+    def __post_init__(self):
+        assert_type(self.internal,
+        expected_type=InternalReversibleEnergyConsumption)
+
+
+@dataclass
+class NonRechargeableBatteryConsumption():
+    """
+    Models energy consumption in a non rechargeable battery.
+    """
+    internal: InternalNonReversibleEnergyConsumption
+
+    def __post_init__(self):
+        assert_type(self.internal,
+                    expected_type=InternalNonReversibleEnergyConsumption)
+
+
+@dataclass
+class ElectricMotorConsumption():
+    """
+    Models consumption in a non rechargeable battery.
+    """
+    external: ExternalReversibleEnergyConsumption
+
+    def __post_init__(self):
+        assert_type(self.external,
+                    expected_type=ExternalReversibleEnergyConsumption)
+
+
+@dataclass
+class ElectricGeneratorConsumption():
+    """
+    Models consumption in an irreversible electric generator.
+    """
+    external: ExternalNonReversibleEnergyConsumption
+
+    def __post_init__(self):
+        assert_type(self.external,
+                    expected_type=ExternalNonReversibleEnergyConsumption)
+
+
+@dataclass
+class CombustionEngineConsumption():
+    """
+    Models consumption in a combustion engine.
+    """
+    external: ExternalNonReversibleFuelConsumption
+
+    def __post_init__(self):
+        assert_type(self.external,
+                    expected_type=ExternalNonReversibleFuelConsumption)
+
+
+@dataclass
+class FuelCellConsumption(CombustionEngineConsumption):
+    """
+    Models consumption in a fuel cell.
+    """
+
+
+@dataclass
+class PureMechanicalConsumption():
+    """
+    Models consumption in a reversible
+    mechanical-to-mechanical component
+    (gears, etc).
+    """
+    external: ExternalReversibleEnergyConsumption
+
+    def __post_init__(self):
+        assert_type(self.external,
+                    expected_type=ExternalReversibleEnergyConsumption)
+
+
+@dataclass
+class PureElectricConsumption():
+    """
+    Models consumption in a non reversible 
+    electric-to-electric component (rectifiers,
+    inverters, etc).
+    """
+    external: ExternalNonReversibleEnergyConsumption
+
+    def __post_init__(self):
+        assert_type(self.external,
+                    expected_type=ExternalNonReversibleEnergyConsumption)
