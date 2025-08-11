@@ -287,3 +287,89 @@ class PureElectricConsumption():
     def __post_init__(self):
         assert_type(self.external,
                     expected_type=ExternalNonReversibleEnergyConsumption)
+
+
+# ========
+# CREATORS
+# ========
+
+def return_rechargeable_battery_consumption(
+        efficiency_func: Callable[
+            [FullStateNoInput|FullStateWithInput], float],
+        reverse_efficiency_func: Callable[
+            [FullStateNoInput|FullStateWithInput], float]
+        ) -> RechargeableBatteryConsumption:
+    return RechargeableBatteryConsumption(
+        internal=InternalReversibleEnergyConsumption(
+            efficiency_func=efficiency_func,
+            reverse_efficiency_func=reverse_efficiency_func
+            )
+        )
+
+def return_non_rechargeable_battery_consumption(
+        efficiency_func: Callable[
+            [FullStateNoInput|FullStateWithInput], float]
+        ) -> NonRechargeableBatteryConsumption:
+    return NonRechargeableBatteryConsumption(
+        internal=InternalNonReversibleEnergyConsumption(
+            efficiency_func=efficiency_func
+        )
+    )
+
+def return_electric_motor_consumption(
+        efficiency_func: Callable[[FullStateWithInput], float],
+        reverse_efficiency_func: Callable[[FullStateWithInput], float]
+        ) -> ElectricMotorConsumption:
+    return ElectricMotorConsumption(
+        external=ExternalReversibleEnergyConsumption(
+            efficiency_func=efficiency_func,
+            reverse_efficiency_func=reverse_efficiency_func
+        )
+    )
+
+def return_electric_generator_consumption(
+        efficiency_func: Callable[[FullStateWithInput], float]
+        ) -> ElectricGeneratorConsumption:
+    return ElectricGeneratorConsumption(
+        external=ExternalNonReversibleEnergyConsumption(
+            efficiency_func=efficiency_func
+        )
+    )
+
+def return_combustion_engine_consumption(
+        fuel_consumption_func: Callable[[FullStateWithInput], float]
+        ) -> CombustionEngineConsumption:
+    return CombustionEngineConsumption(
+        external=ExternalNonReversibleFuelConsumption(
+            fuel_consumption_func=fuel_consumption_func
+        )
+    )
+
+def return_fuel_cell_consumption(
+        fuel_consumption_func: Callable[[FullStateWithInput], float]
+        ) -> FuelCellConsumption:
+    return FuelCellConsumption(
+        external=ExternalNonReversibleFuelConsumption(
+            fuel_consumption_func=fuel_consumption_func
+        )
+    )
+
+def return_pure_mechanical_consumption(
+        efficiency_func: Callable[[FullStateWithInput], float],
+        reverse_efficiency_func: Callable[[FullStateWithInput], float]
+        ) -> PureMechanicalConsumption:
+    return PureMechanicalConsumption(
+        external=ExternalReversibleEnergyConsumption(
+            efficiency_func=efficiency_func,
+            reverse_efficiency_func=reverse_efficiency_func
+        )
+    )
+
+def return_pure_electric_consumption(
+    efficiency_func: Callable[[FullStateWithInput], float]
+    ) -> PureElectricConsumption:
+    return PureElectricConsumption(
+        external=ExternalNonReversibleEnergyConsumption(
+            efficiency_func=efficiency_func
+        )
+    )
