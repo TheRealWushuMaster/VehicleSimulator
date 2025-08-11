@@ -5,11 +5,13 @@ from components.limitation import return_electric_generator_limits, return_elect
     return_liquid_combustion_engine_limits, return_mechanical_to_mechanical_limits, \
     return_non_rechargeable_battery_limits, return_rechargeable_battery_limits, \
     return_fuel_cell_limits, \
+    return_liquid_fuel_tank_limits, return_gaseous_fuel_tank_limits, \
     RechargeableBatteryLimits, NonRechargeableBatteryLimits, \
     ElectricMotorLimits, ElectricGeneratorLimits, \
     LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
     MechanicalToMechanicalLimits, ElectricToElectricLimits, \
-    FuelCellLimits
+    FuelCellLimits, \
+    LiquidFuelTankLimits, GaseousFuelTankLimits
 
 abs_max_temp: float = 300.0
 abs_min_temp: float = 200.0
@@ -21,6 +23,13 @@ abs_max_voltage_out: float = 400.0
 abs_min_voltage_out: float = 0.0
 abs_max_current_out: float = 300.0
 abs_min_current_out: float = 0.0
+electric_energy_capacity: float = 1_000.0
+fuel_liters_capacity: float = 50.0
+abs_max_fuel_liters_transfer: float = 1.0
+abs_min_fuel_liters_transfer: float = 0.0
+fuel_mass_capacity: float = 40.0
+abs_max_fuel_mass_transfer: float = 1.0
+abs_min_fuel_mass_transfer: float = 0.0
 def rel_max_temp(s) -> float:
     return abs_max_temp
 def rel_min_temp(s) -> float:
@@ -52,7 +61,8 @@ def test_create_rechargeable_battery_limitation() -> None:
                                                     rel_max_voltage_in=rel_max_voltage_in, rel_min_voltage_in=rel_min_voltage_in,
                                                     rel_max_current_in=rel_max_current_in, rel_min_current_in=rel_min_current_in,
                                                     rel_max_voltage_out=rel_max_voltage_out, rel_min_voltage_out=rel_min_voltage_out,
-                                                    rel_max_current_out=rel_max_current_out, rel_min_current_out=rel_min_current_out)
+                                                    rel_max_current_out=rel_max_current_out, rel_min_current_out=rel_min_current_out,
+                                                    electric_energy_capacity=electric_energy_capacity)
     assert isinstance(limitation, RechargeableBatteryLimits)
 
 def test_create_non_rechargeable_battery_limitation() -> None:
@@ -61,7 +71,8 @@ def test_create_non_rechargeable_battery_limitation() -> None:
                                                         abs_max_current_out=abs_max_current_out, abs_min_current_out=abs_min_current_out,
                                                         rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
                                                         rel_max_voltage_out=rel_max_voltage_out, rel_min_voltage_out=rel_min_voltage_out,
-                                                        rel_max_current_out=rel_max_current_out, rel_min_current_out=rel_min_current_out)
+                                                        rel_max_current_out=rel_max_current_out, rel_min_current_out=rel_min_current_out,
+                                                        electric_energy_capacity=electric_energy_capacity)
     assert isinstance(limitation, NonRechargeableBatteryLimits)
 
 def test_create_electric_motor_limitation() -> None:
@@ -148,3 +159,17 @@ def test_create_mechanical_to_mechanical_limitation() -> None:
                                                         rel_max_torque_out=rel_max_voltage_out, rel_min_torque_out=rel_min_voltage_out,
                                                         rel_max_rpm_out=rel_max_current_out, rel_min_rpm_out=rel_min_current_out)
     assert isinstance(limitation, MechanicalToMechanicalLimits)
+
+def test_create_liquid_fuel_tank_limitation() -> None:
+    limitation = return_liquid_fuel_tank_limits(abs_max_temperature=abs_max_temp, abs_min_temperature=abs_min_temp,
+                                                abs_max_fuel_liters_transfer=abs_max_fuel_liters_transfer,
+                                                abs_min_fuel_liters_transfer=abs_min_fuel_liters_transfer,
+                                                fuel_liters_capacity=fuel_liters_capacity)
+    assert isinstance(limitation, LiquidFuelTankLimits)
+
+def test_create_gaseous_fuel_tank_limitation() -> None:
+    limitation = return_gaseous_fuel_tank_limits(abs_max_temperature=abs_max_temp, abs_min_temperature=abs_min_temp,
+                                                 abs_max_fuel_mass_transfer=abs_max_fuel_mass_transfer,
+                                                 abs_min_fuel_mass_transfer=abs_min_fuel_mass_transfer,
+                                                 fuel_mass_capacity=fuel_mass_capacity)
+    assert isinstance(limitation, GaseousFuelTankLimits)

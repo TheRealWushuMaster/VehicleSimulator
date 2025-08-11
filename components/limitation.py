@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from components.state import FullStateNoInput, FullStateWithInput
 from helpers.functions import assert_type, assert_numeric, \
-    assert_callable, assert_range
+    assert_callable, assert_range, assert_type_and_range
 
 
 # =================
@@ -133,24 +133,24 @@ class RelativeMechanicalLimitations():
 @dataclass
 class AbsoluteLiquidFuelLimitations():
     """
-    Contains the limitations on liquid fuel transfer.
+    Contains the limitations on liquid fuel transfer and storage.
     """
-    fuel_liters: AbsoluteLimitValue
+    fuel_liters_transfer: AbsoluteLimitValue
 
     def __post_init__(self):
-        assert_type(self.fuel_liters,
+        assert_type(self.fuel_liters_transfer,
                     expected_type=AbsoluteLimitValue)
 
 
 @dataclass
 class RelativeLiquidFuelLimitations():
     """
-    Contains the limitations on liquid fuel transfer.
+    Contains the limitations on liquid fuel transfer and storage.
     """
-    fuel_liters: RelativeLimitValue
+    fuel_liters_transfer: RelativeLimitValue
 
     def __post_init__(self):
-        assert_type(self.fuel_liters,
+        assert_type(self.fuel_liters_transfer,
                     expected_type=RelativeLimitValue)
 
 
@@ -159,10 +159,10 @@ class AbsoluteGaseousFuelLimitations():
     """
     Contains the limitations on gaseous fuel transfer.
     """
-    fuel_mass: AbsoluteLimitValue
+    fuel_mass_transfer: AbsoluteLimitValue
 
     def __post_init__(self):
-        assert_type(self.fuel_mass,
+        assert_type(self.fuel_mass_transfer,
                     expected_type=AbsoluteLimitValue)
 
 
@@ -171,11 +171,70 @@ class RelativeGaseousFuelLimitations():
     """
     Contains the limitations on gaseous fuel transfer.
     """
-    fuel_mass: RelativeLimitValue
+    fuel_mass_transfer: RelativeLimitValue
 
     def __post_init__(self):
-        assert_type(self.fuel_mass,
+        assert_type(self.fuel_mass_transfer,
                     expected_type=RelativeLimitValue)
+
+
+# ===================
+# STORAGE LIMITATIONS
+# ===================
+
+
+@dataclass
+class AbsoluteElectricEnergyStorageLimitations():
+    electric_energy_capacity: float
+
+    def __post_init__(self):
+        assert_type_and_range(self.electric_energy_capacity,
+                              more_than=0.0,
+                              include_more=False)
+
+
+@dataclass
+class RelativeElectricEnergyStorageLimitations():
+    electric_energy_capacity: Callable[[FullStateNoInput|FullStateWithInput], float]
+
+    def __post_init__(self):
+        assert_callable(self.electric_energy_capacity)
+
+
+@dataclass
+class AbsoluteLiquidFuelStorageLimitations():
+    fuel_liters_capacity: float
+
+    def __post_init__(self):
+        assert_type_and_range(self.fuel_liters_capacity,
+                              more_than=0.0,
+                              include_more=False)
+
+
+@dataclass
+class RelativeLiquidFuelStorageLimitations():
+    fuel_liters_capacity: Callable[[FullStateNoInput], float]
+
+    def __post_init__(self):
+        assert_callable(self.fuel_liters_capacity)
+
+
+@dataclass
+class AbsoluteGaseousFuelStorageLimitations():
+    fuel_mass_capacity: float
+
+    def __post_init__(self):
+        assert_type_and_range(self.fuel_mass_capacity,
+                              more_than=0.0,
+                              include_more=False)
+
+
+@dataclass
+class RelativeGaseousFuelStorageLimitations():
+    fuel_mass_capacity: Callable[[FullStateNoInput], float]
+
+    def __post_init__(self):
+        assert_callable(self.fuel_mass_capacity)
 
 
 # ========================
@@ -379,6 +438,38 @@ class PureMechanicalRelativeLimits(RelativeBaseLimitWithInternal):
         assert_type(self.input, self.output,
                     expected_type=RelativeMechanicalLimitations)
 
+@dataclass
+class LiquidFuelTankAbsoluteLimits(AbsoluteBaseLimitWithInternal):
+    output: AbsoluteLiquidFuelLimitations
+
+    def __post_init__(self):
+        assert_type(self.output,
+                    expected_type=AbsoluteLiquidFuelLimitations)
+
+@dataclass
+class LiquidFuelTankRelativeLimits(RelativeBaseLimitWithInternal):
+    output: RelativeLiquidFuelLimitations
+
+    def __post_init__(self):
+        assert_type(self.output,
+                    expected_type=RelativeLiquidFuelLimitations)
+
+@dataclass
+class GaseousFuelTankAbsoluteLimits(AbsoluteBaseLimitWithInternal):
+    output: AbsoluteGaseousFuelLimitations
+
+    def __post_init__(self):
+        assert_type(self.output,
+                    expected_type=AbsoluteGaseousFuelLimitations)
+
+@dataclass
+class GaseousFuelTankRelativeLimits(RelativeBaseLimitWithInternal):
+    output: RelativeGaseousFuelLimitations
+
+    def __post_init__(self):
+        assert_type(self.output,
+                    expected_type=RelativeGaseousFuelLimitations)
+
 
 # ===========================
 # TAILORED LIMITATION CLASSES
@@ -386,7 +477,21 @@ class PureMechanicalRelativeLimits(RelativeBaseLimitWithInternal):
 
 
 @dataclass
-class RechargeableBatteryLimits():
+class EnergySourceLimits():
+    """
+    Placeholder for energy sources' tailored limits.
+    """
+
+
+@dataclass
+class ConverterLimits():
+    """
+    Placeholder for converters' tailored limits.
+    """
+
+
+@dataclass
+class RechargeableBatteryLimits(EnergySourceLimits, AbsoluteElectricEnergyStorageLimitations):
     """
     Holds the limitations of a rechargeable battery.
     """
@@ -395,7 +500,7 @@ class RechargeableBatteryLimits():
 
 
 @dataclass
-class NonRechargeableBatteryLimits():
+class NonRechargeableBatteryLimits(EnergySourceLimits, AbsoluteElectricEnergyStorageLimitations):
     """
     Holds the limitations of a non rechargeable battery.
     """
@@ -404,7 +509,7 @@ class NonRechargeableBatteryLimits():
 
 
 @dataclass
-class ElectricMotorLimits():
+class ElectricMotorLimits(ConverterLimits):
     """
     Holds the limitations of an electric motor.
     """
@@ -413,7 +518,7 @@ class ElectricMotorLimits():
 
 
 @dataclass
-class LiquidCombustionEngineLimits():
+class LiquidCombustionEngineLimits(ConverterLimits):
     """
     Holds the limitations of a liquid fuel combustion engine.
     """
@@ -422,7 +527,7 @@ class LiquidCombustionEngineLimits():
 
 
 @dataclass
-class GaseousCombustionEngineLimits():
+class GaseousCombustionEngineLimits(ConverterLimits):
     """
     Holds the limitations of a gaseous fuel combustion engine.
     """
@@ -431,7 +536,7 @@ class GaseousCombustionEngineLimits():
 
 
 @dataclass
-class FuelCellLimits():
+class FuelCellLimits(ConverterLimits):
     """
     Holds the limitations of a fuel cell.
     """
@@ -440,7 +545,7 @@ class FuelCellLimits():
 
 
 @dataclass
-class ElectricGeneratorLimits():
+class ElectricGeneratorLimits(ConverterLimits):
     """
     Holds the limitations of an electric generator.
     """
@@ -449,7 +554,7 @@ class ElectricGeneratorLimits():
 
 
 @dataclass
-class MechanicalToMechanicalLimits():
+class MechanicalToMechanicalLimits(ConverterLimits):
     """
     Holds the limitations of a mechanical to
     mechanical converter (gears, etc).
@@ -459,13 +564,23 @@ class MechanicalToMechanicalLimits():
 
 
 @dataclass
-class ElectricToElectricLimits():
+class ElectricToElectricLimits(ConverterLimits):
     """
     Holds the limitations of an electric to
     electric converter (rectifier, inverter, etc).
     """
     absolute_limits: PureElectricAbsoluteLimits
     relative_limits: PureElectricRelativeLimits
+
+
+@dataclass
+class LiquidFuelTankLimits(EnergySourceLimits, AbsoluteLiquidFuelStorageLimitations):
+    absolute_limits: LiquidFuelTankAbsoluteLimits
+
+
+@dataclass
+class GaseousFuelTankLimits(EnergySourceLimits, AbsoluteGaseousFuelStorageLimitations):
+    absolute_limits: GaseousFuelTankAbsoluteLimits
 
 
 # ==================
@@ -481,7 +596,8 @@ def return_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: float,
                                        rel_max_voltage_in: Callable, rel_min_voltage_in: Callable,
                                        rel_max_current_in: Callable, rel_min_current_in: Callable,
                                        rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                                       rel_max_current_out: Callable, rel_min_current_out: Callable) -> RechargeableBatteryLimits:
+                                       rel_max_current_out: Callable, rel_min_current_out: Callable,
+                                       electric_energy_capacity: float) -> RechargeableBatteryLimits:
     return RechargeableBatteryLimits(absolute_limits=RechargeableBatteryAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                            min=abs_min_temp)),
                                                                                        input=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_in,
@@ -501,7 +617,8 @@ def return_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: float,
                                                                                        output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
                                                                                                                                                      min=rel_min_voltage_out),
                                                                                                                           current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                                                     min=rel_min_current_out)))
+                                                                                                                                                     min=rel_min_current_out))),
+                                     electric_energy_capacity=electric_energy_capacity
                                      )
 
 def return_non_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: float,
@@ -509,7 +626,8 @@ def return_non_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: fl
                                            abs_max_current_out: float, abs_min_current_out: float,
                                            rel_max_temp: Callable, rel_min_temp: Callable,
                                            rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                                           rel_max_current_out: Callable, rel_min_current_out: Callable) -> NonRechargeableBatteryLimits:
+                                           rel_max_current_out: Callable, rel_min_current_out: Callable,
+                                           electric_energy_capacity: float) -> NonRechargeableBatteryLimits:
     return NonRechargeableBatteryLimits(absolute_limits=NonRechargeableBatteryAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                                  min=abs_min_temp)),
                                                                                              output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
@@ -521,7 +639,8 @@ def return_non_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: fl
                                                                                              output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
                                                                                                                                                            min=rel_min_voltage_out),
                                                                                                                                 current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                                                           min=rel_min_current_out)))
+                                                                                                                                                           min=rel_min_current_out))),
+                                        electric_energy_capacity=electric_energy_capacity
                                         )
 
 def return_electric_motor_limits(abs_max_temp: float, abs_min_temp: float,
@@ -566,15 +685,15 @@ def return_liquid_combustion_engine_limits(abs_max_temp: float, abs_min_temp: fl
                                            rel_max_rpm_out: Callable, rel_min_rpm_out: Callable) -> LiquidCombustionEngineLimits:
     return LiquidCombustionEngineLimits(absolute_limits=LiquidCombustionEngineAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                                  min=abs_min_temp)),
-                                                                                             input=AbsoluteLiquidFuelLimitations(fuel_liters=AbsoluteLimitValue(max=abs_max_fuel_liters_in,
-                                                                                                                                                                min=abs_min_fuel_liters_in)),
+                                                                                             input=AbsoluteLiquidFuelLimitations(fuel_liters_transfer=AbsoluteLimitValue(max=abs_max_fuel_liters_in,
+                                                                                                                                                                         min=abs_min_fuel_liters_in)),
                                                                                              output=AbsoluteMechanicalLimitations(torque=AbsoluteLimitValue(max=abs_max_torque_out,
                                                                                                                                                             min=abs_min_torque_out),
                                                                                                                                   rpm=AbsoluteLimitValue(max=abs_max_rpm_out,
                                                                                                                                                          min=abs_min_rpm_out))),
                                         relative_limits=LiquidCombustionEngineRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                                  min=rel_min_temp)),
-                                                                                             input=RelativeLiquidFuelLimitations(fuel_liters=RelativeLimitValue(max=rel_max_fuel_liters_in,
+                                                                                             input=RelativeLiquidFuelLimitations(fuel_liters_transfer=RelativeLimitValue(max=rel_max_fuel_liters_in,
                                                                                                                                                                 min=rel_min_fuel_liters_in)),
                                                                                              output=RelativeMechanicalLimitations(torque=RelativeLimitValue(max=rel_max_torque_out,
                                                                                                                                                             min=rel_min_torque_out),
@@ -592,7 +711,7 @@ def return_gaseous_combustion_engine_limits(abs_max_temp: float, abs_min_temp: f
                                             rel_max_rpm_out: Callable, rel_min_rpm_out: Callable) -> GaseousCombustionEngineLimits:
     return GaseousCombustionEngineLimits(absolute_limits=GaseousCombustionEngineAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                                    min=abs_min_temp)),
-                                                                                               input=AbsoluteGaseousFuelLimitations(fuel_mass=AbsoluteLimitValue(max=abs_max_fuel_mass_in,
+                                                                                               input=AbsoluteGaseousFuelLimitations(fuel_mass_transfer=AbsoluteLimitValue(max=abs_max_fuel_mass_in,
                                                                                                                                                                  min=abs_min_fuel_mass_in)),
                                                                                                output=AbsoluteMechanicalLimitations(torque=AbsoluteLimitValue(max=abs_max_torque_out,
                                                                                                                                                               min=abs_min_torque_out),
@@ -600,7 +719,7 @@ def return_gaseous_combustion_engine_limits(abs_max_temp: float, abs_min_temp: f
                                                                                                                                                            min=abs_min_rpm_out))),
                                          relative_limits=GaseousCombustionEngineRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                                   min=rel_min_temp)),
-                                                                                               input=RelativeGaseousFuelLimitations(fuel_mass=RelativeLimitValue(max=rel_max_fuel_mass_in,
+                                                                                               input=RelativeGaseousFuelLimitations(fuel_mass_transfer=RelativeLimitValue(max=rel_max_fuel_mass_in,
                                                                                                                                                                  min=rel_min_fuel_mass_in)),
                                                                                                output=RelativeMechanicalLimitations(torque=RelativeLimitValue(max=rel_max_torque_out,
                                                                                                                                                               min=rel_min_torque_out),
@@ -618,7 +737,7 @@ def return_fuel_cell_limits(abs_max_temp: float, abs_min_temp: float,
                             rel_max_current_out: Callable, rel_min_current_out: Callable) -> FuelCellLimits:
     return FuelCellLimits(absolute_limits=FuelCellAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                      min=abs_min_temp)),
-                                                                 input=AbsoluteGaseousFuelLimitations(fuel_mass=AbsoluteLimitValue(max=abs_max_fuel_mass_in,
+                                                                 input=AbsoluteGaseousFuelLimitations(fuel_mass_transfer=AbsoluteLimitValue(max=abs_max_fuel_mass_in,
                                                                                                                                    min=abs_min_fuel_mass_in)),
                                                                  output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
                                                                                                                                min=abs_min_voltage_out),
@@ -626,7 +745,7 @@ def return_fuel_cell_limits(abs_max_temp: float, abs_min_temp: float,
                                                                                                                                min=abs_min_current_out))),
                           relative_limits=FuelCellRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                      min=rel_min_temp)),
-                                                                 input=RelativeGaseousFuelLimitations(fuel_mass=RelativeLimitValue(max=rel_max_fuel_mass_in,
+                                                                 input=RelativeGaseousFuelLimitations(fuel_mass_transfer=RelativeLimitValue(max=rel_max_fuel_mass_in,
                                                                                                                                    min=rel_min_fuel_mass_in)),
                                                                  output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
                                                                                                                                min=rel_min_voltage_out),
@@ -729,3 +848,23 @@ def return_electric_to_electric_limits(abs_max_temp: float, abs_min_temp: float,
                                                                                                                   current=RelativeLimitValue(max=rel_max_current_out,
                                                                                                                                              min=rel_min_current_out)))
                                     )
+
+def return_liquid_fuel_tank_limits(abs_max_temperature: float, abs_min_temperature: float,
+                                   abs_max_fuel_liters_transfer: float, abs_min_fuel_liters_transfer: float,
+                                   fuel_liters_capacity: float) -> LiquidFuelTankLimits:
+    return LiquidFuelTankLimits(absolute_limits=LiquidFuelTankAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temperature,
+                                                                                                                                                 min=abs_min_temperature)),
+                                                                             output=AbsoluteLiquidFuelLimitations(fuel_liters_transfer=AbsoluteLimitValue(max=abs_max_fuel_liters_transfer,
+                                                                                                                                                          min=abs_min_fuel_liters_transfer))),
+                                fuel_liters_capacity=fuel_liters_capacity
+                                )
+
+def return_gaseous_fuel_tank_limits(abs_max_temperature: float, abs_min_temperature: float,
+                                    abs_max_fuel_mass_transfer: float, abs_min_fuel_mass_transfer: float,
+                                    fuel_mass_capacity: float) -> GaseousFuelTankLimits:
+    return GaseousFuelTankLimits(absolute_limits=GaseousFuelTankAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temperature,
+                                                                                                                                                   min=abs_min_temperature)),
+                                                                               output=AbsoluteGaseousFuelLimitations(fuel_mass_transfer=AbsoluteLimitValue(max=abs_max_fuel_mass_transfer,
+                                                                                                                                                           min=abs_min_fuel_mass_transfer))),
+                                 fuel_mass_capacity=fuel_mass_capacity
+                                )
