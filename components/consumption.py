@@ -276,7 +276,21 @@ class InToOutFuelConsumption():
 
 
 @dataclass
-class RechargeableBatteryConsumption(InternalToOutEnergyConsumption, OutToInternalEnergyConsumption,
+class EnergySourceConsumption():
+    """
+    Placeholder for energy sources' tailored consumption classes.
+    """
+
+
+@dataclass
+class ConverterConsumption():
+    """
+    Placeholder for converters' tailored consumption classes.
+    """
+
+
+@dataclass
+class RechargeableBatteryConsumption(EnergySourceConsumption, InternalToOutEnergyConsumption, OutToInternalEnergyConsumption,
                                      InternalToInEnergyConsumption, InToInternalEnergyConsumption):
     """
     Models energy consumption in a rechargeable battery.
@@ -284,28 +298,28 @@ class RechargeableBatteryConsumption(InternalToOutEnergyConsumption, OutToIntern
 
 
 @dataclass
-class NonRechargeableBatteryConsumption(InternalToOutEnergyConsumption):
+class NonRechargeableBatteryConsumption(EnergySourceConsumption, InternalToOutEnergyConsumption):
     """
     Models energy consumption in a non rechargeable battery.
     """
 
 
 @dataclass
-class ElectricMotorConsumption(InToOutEnergyConsumption, OutToInEnergyConsumption):
+class ElectricMotorConsumption(ConverterConsumption, InToOutEnergyConsumption, OutToInEnergyConsumption):
     """
     Models energy consumption in a reversible electric motor.
     """
 
 
 @dataclass
-class ElectricGeneratorConsumption(InToOutEnergyConsumption):
+class ElectricGeneratorConsumption(ConverterConsumption, InToOutEnergyConsumption):
     """
     Models energy consumption in an irreversible electric generator.
     """
 
 
 @dataclass
-class CombustionEngineConsumption(InToOutFuelConsumption):
+class CombustionEngineConsumption(ConverterConsumption, InToOutFuelConsumption):
     """
     Models fuel consumption in a combustion engine.
     """
@@ -319,7 +333,7 @@ class FuelCellConsumption(CombustionEngineConsumption):
 
 
 @dataclass
-class PureMechanicalConsumption(InToOutEnergyConsumption, OutToInEnergyConsumption):
+class PureMechanicalConsumption(ConverterConsumption, InToOutEnergyConsumption, OutToInEnergyConsumption):
     """
     Models consumption in a reversible
     mechanical-to-mechanical component
@@ -328,7 +342,7 @@ class PureMechanicalConsumption(InToOutEnergyConsumption, OutToInEnergyConsumpti
 
 
 @dataclass
-class PureElectricConsumption(InToOutEnergyConsumption):
+class PureElectricConsumption(ConverterConsumption, InToOutEnergyConsumption):
     """
     Models consumption in a non reversible 
     electric-to-electric component (rectifiers,
@@ -337,7 +351,7 @@ class PureElectricConsumption(InToOutEnergyConsumption):
 
 
 @dataclass
-class FuelTankConsumption(InternalToOutFuelConsumption):
+class FuelTankConsumption(EnergySourceConsumption, InternalToOutFuelConsumption):
     """
     Models the fuel consumption in a fuel tank.
     """

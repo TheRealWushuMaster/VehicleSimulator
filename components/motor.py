@@ -2,15 +2,17 @@
 This module contains definitions for motors and engines.
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from components.fuel_type import Fuel
+from components.consumption import ElectricMotorConsumption, \
+    CombustionEngineConsumption, ElectricGeneratorConsumption
 from components.converter import MechanicalConverter, \
     ForwardConverter, ReversibleConverter
 from components.dynamic_response import ForwardDynamicResponse, \
     BidirectionalDynamicResponse
+from components.limitation import ElectricMotorLimits, LiquidCombustionEngineLimits, \
+    GaseousCombustionEngineLimits, ElectricGeneratorLimits
 from components.port import PortInput, PortOutput, PortBidirectional
-from components.state import IOState, InternalState
 from helpers.types import PowerType, ElectricSignalType
 
 
@@ -22,8 +24,8 @@ class ElectricMotor(MechanicalConverter, ReversibleConverter):
     def __init__(self,
                  name: str,
                  mass: float,
-                 power_func: Callable[[IOState, InternalState], float],
-                 efficiency_func: Callable[[IOState, InternalState], float],
+                 limits: ElectricMotorLimits,
+                 consumption: ElectricMotorConsumption,
                  dynamic_response: BidirectionalDynamicResponse,
                  electric_type: ElectricSignalType,
                  inertia: float):
@@ -36,8 +38,8 @@ class ElectricMotor(MechanicalConverter, ReversibleConverter):
                                                                   if electric_type==ElectricSignalType.AC
                                                                   else PowerType.ELECTRIC_DC),
                                      output_port=PortBidirectional(exchange=PowerType.MECHANICAL),
-                                     power_func=power_func,
-                                     efficiency_func=efficiency_func,
+                                     limits=limits,
+                                     consumption=consumption,
                                      dynamic_response=dynamic_response)
 
     @property
@@ -51,15 +53,16 @@ class ElectricMotor(MechanicalConverter, ReversibleConverter):
 
 
 @dataclass
-class InternalCombustionEngine(MechanicalConverter, ForwardConverter):
+class LiquidInternalCombustionEngine(MechanicalConverter, ForwardConverter):
     """
-    Models an internal combustion engine (irreversible).
+    Models an internal combustion engine
+    (irreversible) that runs on a liquid fuel.
     """
     def __init__(self,
                  name: str,
                  mass: float,
-                 power_func: Callable[[IOState, InternalState], float],
-                 efficiency_func: Callable[[IOState, InternalState], float],
+                 limits: LiquidCombustionEngineLimits,
+                 consumption: CombustionEngineConsumption,
                  dynamic_response: ForwardDynamicResponse,
                  inertia: float,
                  fuel: Fuel):
@@ -69,8 +72,33 @@ class InternalCombustionEngine(MechanicalConverter, ForwardConverter):
                                   mass=mass,
                                   input_port=PortInput(exchange=fuel),
                                   output_port=PortOutput(exchange=PowerType.MECHANICAL),
-                                  power_func=power_func,
-                                  efficiency_func=efficiency_func,
+                                  limits=limits,
+                                  consumption=consumption,
+                                  dynamic_response=dynamic_response)
+
+
+@dataclass
+class GaseousInternalCombustionEngine(MechanicalConverter, ForwardConverter):
+    """
+    Models an internal combustion engine
+    (irreversible) that runs on a gaseous fuel.
+    """
+    def __init__(self,
+                 name: str,
+                 mass: float,
+                 limits: GaseousCombustionEngineLimits,
+                 consumption: CombustionEngineConsumption,
+                 dynamic_response: ForwardDynamicResponse,
+                 inertia: float,
+                 fuel: Fuel):
+        super().__init__(inertia=inertia)
+        ForwardConverter.__init__(self=self,
+                                  name=name,
+                                  mass=mass,
+                                  input_port=PortInput(exchange=fuel),
+                                  output_port=PortOutput(exchange=PowerType.MECHANICAL),
+                                  limits=limits,
+                                  consumption=consumption,
                                   dynamic_response=dynamic_response)
 
 
@@ -82,8 +110,8 @@ class ElectricGenerator(MechanicalConverter, ForwardConverter):
     def __init__(self,
                  name: str,
                  mass: float,
-                 power_func: Callable[[IOState, InternalState], float],
-                 efficiency_func: Callable[[IOState, InternalState], float],
+                 limits: ElectricGeneratorLimits,
+                 consumption: ElectricGeneratorConsumption,
                  dynamic_response: ForwardDynamicResponse,
                  electric_type: ElectricSignalType,
                  inertia: float):
@@ -96,8 +124,8 @@ class ElectricGenerator(MechanicalConverter, ForwardConverter):
                                   output_port=PortOutput(exchange=PowerType.ELECTRIC_AC
                                                          if electric_type==ElectricSignalType.AC
                                                          else PowerType.ELECTRIC_DC),
-                                  power_func=power_func,
-                                  efficiency_func=efficiency_func,
+                                  limits=limits,
+                                  consumption=consumption,
                                   dynamic_response=dynamic_response)
 
     @property

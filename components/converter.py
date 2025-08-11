@@ -1,16 +1,17 @@
 """This module contains definitions for energy conversion modules."""
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
+from components.consumption import ConverterConsumption
 from components.dynamic_response import ForwardDynamicResponse, BidirectionalDynamicResponse
 from components.fuel_type import LiquidFuel, GaseousFuel
+from components.limitation import ConverterLimits
 from components.port import Port, PortInput, PortOutput, \
     PortBidirectional, PortType, PortDirection
-from components.state import IOState, FullStateWithInput, InternalState, \
+from components.state import IOState, FullStateWithInput, \
     LiquidFuelIOState, GaseousFuelIOState, ElectricIOState, RotatingIOState
-from helpers.functions import assert_type, assert_type_and_range, assert_callable
+from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import ElectricSignalType, PowerType
 
 
@@ -42,8 +43,8 @@ class Converter():
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
     state: FullStateWithInput=field(init=False)
-    power_func: Callable[[IOState, InternalState], float]
-    efficiency_func: Callable[[IOState, InternalState], float]
+    limits: ConverterLimits
+    consumption: ConverterConsumption
     dynamic_response: ForwardDynamicResponse|BidirectionalDynamicResponse
 
     def __post_init__(self):
@@ -55,11 +56,14 @@ class Converter():
                     expected_type=(PortOutput, PortBidirectional))
         assert_type_and_range(self.mass,
                               more_than=0.0)
-        assert PortDirection.BIDIRECTIONAL not in (self.input.direction, self.output.direction) and \
+        assert_type(self.limits,
+                    expected_type=ConverterLimits)
+        assert_type(self.consumption,
+                    expected_type=ConverterConsumption)
+        assert PortDirection.BIDIRECTIONAL not in (self.input.direction,
+                                                   self.output.direction) and \
             self.input.direction!=self.output.direction or \
             self.input.direction==PortDirection.BIDIRECTIONAL==self.output.direction
-        assert_callable(self.power_func)
-        assert_callable(self.efficiency_func)
         assert_type(self.dynamic_response,
                     expected_type=(ForwardDynamicResponse, BidirectionalDynamicResponse))
         self.id = f"Converter-{uuid4()}"
@@ -158,15 +162,15 @@ class ReversibleConverter(Converter):
                  mass: float,
                  input_port: PortBidirectional,
                  output_port: PortBidirectional,
-                 power_func: Callable[[IOState, InternalState], float],
-                 efficiency_func: Callable[[IOState, InternalState], float],
+                 limits: ConverterLimits,
+                 consumption: ConverterConsumption,
                  dynamic_response: BidirectionalDynamicResponse):
         super().__init__(name=name,
                          mass=mass,
                          input=input_port,
                          output=output_port,
-                         power_func=power_func,
-                         efficiency_func=efficiency_func,
+                         limits=limits,
+                         consumption=consumption,
                          dynamic_response=dynamic_response)
 
     @property
@@ -201,15 +205,15 @@ class ForwardConverter(Converter):
                  mass: float,
                  input_port: PortInput,
                  output_port: PortOutput,
-                 power_func: Callable[[IOState, InternalState], float],
-                 efficiency_func: Callable[[IOState, InternalState], float],
+                 limits: ConverterLimits,
+                 consumption: ConverterConsumption,
                  dynamic_response: ForwardDynamicResponse):
         super().__init__(name=name,
                          mass=mass,
                          input=input_port,
                          output=output_port,
-                         power_func=power_func,
-                         efficiency_func=efficiency_func,
+                         limits=limits,
+                         consumption=consumption,
                          dynamic_response=dynamic_response)
 
     @property
@@ -241,8 +245,8 @@ class ForwardVoltageConverter(ForwardConverter):
     def __init__(self,
                  name: str,
                  mass: float,
-                 efficiency_func: Callable[[IOState, InternalState], float],
-                 power_func: Callable[[IOState, InternalState], float],
+                 limits: ConverterLimits,
+                 consumption: ConverterConsumption,
                  dynamic_response: ForwardDynamicResponse,
                  in_type: ElectricSignalType,
                  out_type: ElectricSignalType,
@@ -261,8 +265,8 @@ class ForwardVoltageConverter(ForwardConverter):
                          output_port=PortOutput(exchange=PowerType.ELECTRIC_AC
                                                 if out_type==ElectricSignalType.AC
                                                 else PowerType.ELECTRIC_DC),
-                         power_func=power_func,
-                         efficiency_func=efficiency_func,
+                         limits=limits,
+                         consumption=consumption,
                          dynamic_response=dynamic_response)
         self.nominal_voltage_in = nominal_voltage_in
         self.nominal_voltage_out = nominal_voltage_out
