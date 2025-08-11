@@ -1,5 +1,6 @@
 """This module contains methods for testing consumption classes."""
 
+from collections.abc import Callable
 from components.consumption import \
     RechargeableBatteryConsumption, NonRechargeableBatteryConsumption, \
     ElectricGeneratorConsumption, ElectricMotorConsumption, \
@@ -13,7 +14,8 @@ from components.fuel_type import LIQUID_FUELS, GASEOUS_FUELS
 from components.state import return_rechargeable_battery_state, return_non_rechargeable_battery_state, \
     return_electric_generator_state, return_electric_motor_state, \
     return_liquid_combustion_engine_state, return_gaseous_combustion_engine_state, \
-    return_fuel_cell_state, return_pure_electric_state, return_pure_mechanical_state
+    return_fuel_cell_state, return_pure_electric_state, return_pure_mechanical_state, \
+    FullStateWithInput
 from helpers.functions import torque_to_power
 from helpers.types import ElectricSignalType
 
@@ -73,16 +75,18 @@ def create_electric_motor_consumption(motor_eff: float,
 
 def create_combustion_engine_consumption(fuel_cons: float
                                          ) -> CombustionEngineConsumption:
+    func: Callable[[FullStateWithInput], float] = lambda s: fuel_cons * s.output.power
     consumption = return_combustion_engine_consumption(
-        fuel_consumption_func=lambda s: fuel_cons
+        fuel_consumption_func=func
     )
     assert isinstance(consumption, CombustionEngineConsumption)
     return consumption
 
 def create_fuel_cell_consumption(fuel_cons: float
                                  ) -> FuelCellConsumption:
+    func: Callable[[FullStateWithInput], float] = lambda s: fuel_cons * s.output.power
     consumption = return_fuel_cell_consumption(
-        fuel_consumption_func=lambda s: fuel_cons
+        fuel_consumption_func=func
     )
     assert isinstance(consumption, FuelCellConsumption)
     return consumption
@@ -187,7 +191,7 @@ def test_create_liquid_combustion_engine_consumption() -> None:
                                                       rpm_out=rpm_out)
         fuel_consumption = consumption.compute_in_to_out(state=state,
                                                          delta_t=delta_t)
-        result = fuel_cons_per_sec * delta_t
+        result = state.output.power * fuel_cons_per_sec * delta_t
         assert fuel_consumption == result
 
 def test_create_gaseous_combustion_engine_consumption() -> None:
@@ -199,7 +203,7 @@ def test_create_gaseous_combustion_engine_consumption() -> None:
                                                        rpm_out=rpm_out)
         fuel_consumption = consumption.compute_in_to_out(state=state,
                                                          delta_t=delta_t)
-        result = fuel_cons_per_sec * delta_t
+        result = state.output.power * fuel_cons_per_sec * delta_t
         assert fuel_consumption == result
 
 def test_create_fuel_cell_consumption() -> None:
@@ -211,7 +215,7 @@ def test_create_fuel_cell_consumption() -> None:
                                        current_out=current_out)
         fuel_consumption = consumption.compute_in_to_out(state=state,
                                                          delta_t=delta_t)
-        result = fuel_cons_per_sec * delta_t
+        result = state.output.power * fuel_cons_per_sec * delta_t
         assert fuel_consumption == result
 
 def test_create_pure_electric_consumption() -> None:
