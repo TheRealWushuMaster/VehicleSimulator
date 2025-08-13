@@ -10,7 +10,6 @@ from components.state import ElectricIOState, RotatingIOState, \
 from helpers.functions import assert_type, assert_type_and_range, \
     ang_vel_to_rpm
 from helpers.types import ElectricSignalType
-import matplotlib.pyplot as plt
 
 
 @dataclass
@@ -73,6 +72,9 @@ class ElectricToMechanical():
                                        signal_type: ElectricSignalType
                                        ) -> Callable[[ElectricMotorState, float,
                                                       float, float], ElectricMotorState]:
+        """
+        Returns a dynamic response for a voltage-controlled electric motor.
+        """
         def response(state: ElectricMotorState,
                      counter_torque: float,
                      downstream_inertia: float,
@@ -107,53 +109,43 @@ class MechanicalToElectric():
     @staticmethod
     def voltage_controlled_first_order(motor_params: DCElectricMotorParams,
                                        signal_type: ElectricSignalType
-                                       ) -> Callable[[ElectricGeneratorState, float,
-                                                      float, float], ElectricMotorState]:
-        def response(state: ElectricMotorState,
+                                       ) -> Callable[[ElectricGeneratorState|ElectricMotorState,
+                                                      float, float, float],
+                                                     ElectricGeneratorState|ElectricMotorState]:
+        def response(state: ElectricGeneratorState|ElectricMotorState,
                      counter_torque: float,
                      downstream_inertia: float,
-                     delta_t: float) -> ElectricMotorState:
+                     delta_t: float) -> ElectricGeneratorState|ElectricMotorState:
             assert_type_and_range(counter_torque, downstream_inertia, delta_t,
                                   more_than=0.0)
-            assert isinstance(state.input, ElectricIOState)
-            assert isinstance(state.output, RotatingIOState)
+            assert_type(state,
+                        expected_type=(ElectricGeneratorState, ElectricMotorState))
+            if isinstance(state, ElectricGeneratorState):
+                mech_state = state.input
+            else:
+                mech_state = state.output
             j = motor_params.j + downstream_inertia
-            i = state.output.torque / motor_params.kt
-            v_m = state.output.ang_vel * motor_params.ke
+            i = mech_state.torque / motor_params.kt
+            v_m = mech_state.ang_vel * motor_params.ke
             v = v_m + motor_params.r * i
-            w_dot = (state.output.torque - counter_torque) / j
-            rpm = state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
-            new_state = ElectricMotorState(input=ElectricIOState(signal_type=signal_type,
-                                                                 voltage=v,
-                                                                 current=i),
-                                           output=RotatingIOState(torque=state.output.torque,
-                                                                  rpm=rpm),
+            w_dot = (mech_state.torque - counter_torque) / j
+            rpm = mech_state.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
+            new_mech_state = RotatingIOState(torque=mech_state.torque,
+                                             rpm=rpm)
+            new_elec_state = ElectricIOState(signal_type=signal_type,
+                                             voltage=v,
+                                             current=i)
+            if isinstance(state, ElectricGeneratorState):
+                gen_state = ElectricGeneratorState(input=new_mech_state,
+                                                   output=new_elec_state,
+                                                   internal=state.internal)
+                gen_state.input.set_delivering()
+                gen_state.output.set_receiving()
+                return gen_state
+            mot_state = ElectricMotorState(input=new_elec_state,
+                                           output=new_mech_state,
                                            internal=state.internal)
-            new_state.input.set_receiving()
-            new_state.output.set_delivering()
-            return new_state
+            mot_state.input.set_receiving()
+            mot_state.output.set_delivering()
+            return mot_state
         return response
-
-params = DCElectricMotorParams(r=0.1,
-                               kt=0.02,
-                               ke=0.02,
-                               j=0.02,
-                               max_power=lambda s: 1.0)
-resp = ElectricToMechanical.first_order_voltage_controlled(motor_params=params)
-st = State(input=ElectricIOState(voltage=0.0,
-                                 current=0.0),
-           output=RotatingIOState(torque=1.0,
-                                  rpm=0.0))
-results: list[float] = []
-for _ in range(50):
-    st = resp(state=st,
-              counter_torque=0.5,
-              downstream_inertia=0.0,
-              delta_t=1.0,
-              forward=False)
-    assert isinstance(st, State)
-    assert isinstance(st.input, ElectricIOState)
-    assert isinstance(st.output, RotatingIOState)
-    results.append(st.efficiency)
-plt.plot(results)
-plt.show()
