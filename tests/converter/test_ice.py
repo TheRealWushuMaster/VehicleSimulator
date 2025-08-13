@@ -1,80 +1,121 @@
 """This module contains routines for testing ICE creation."""
 
 from typing import TypedDict
-from components.fuel_type import Biodiesel, Diesel, Ethanol, Gasoline, \
-    HydrogenGas, HydrogenLiquid, Methane, Methanol, Fuel
-from components.motor import InternalCombustionEngine
-from components.motor_curves import MechanicalMaxPowerVsRPMCurves, \
-    MechanicalPowerEfficiencyCurves
-from components.state import MechanicalState, zero_mechanical_state
+from components.consumption import return_combustion_engine_consumption
+from components.dynamic_response import ForwardDynamicResponse
+from components.fuel_type import LiquidFuel, GaseousFuel, \
+    LIQUID_FUELS, GASEOUS_FUELS
+from components.limitation import return_liquid_combustion_engine_limits, \
+    return_gaseous_combustion_engine_limits
+from components.motor import LiquidInternalCombustionEngine, \
+    GaseousInternalCombustionEngine
+from components.state import FullStateWithInput, \
+    LiquidCombustionEngineState, GaseousCombustionEngineState, \
+    return_liquid_combustion_engine_state
 
 
 class TestICEParams(TypedDict):
     mass: float
-    max_power: float
-    min_rpm: float
-    max_rpm: float
-    efficiency: float
-    state: MechanicalState
+    inertia: float
+    motor_eff: float
+    gen_eff: float
+    max_temp: float
+    min_temp: float
+    max_voltage_in: float
+    min_voltage_in: float
+    max_current_in: float
+    min_current_in: float
+    max_torque_out: float
+    min_torque_out: float
+    max_rpm_out: float
+    min_rpm_out: float
 
+def t_func(s: FullStateWithInput, t: float) -> FullStateWithInput:
+    return return_liquid_combustion_engine_state(fuel=LIQUID_FUELS[0])
+
+def l_test_func(s: LiquidCombustionEngineState) -> float:
+    return 2.0
+
+def g_test_func(s: GaseousCombustionEngineState) -> float:
+    return 2.0
 
 ice_defaults: TestICEParams = {"mass": 50.0,
-                               "max_power": 50_000.0,
-                               "min_rpm": 800.0,
-                               "max_rpm": 5_000.0,
-                               "efficiency": 0.35,
-                               "state": zero_mechanical_state()}
+                               "inertia": 5.0,
+                               "motor_eff": 0.95,
+                               "gen_eff": 0.91,
+                               "max_temp": 350.0,
+                               "min_temp": 200.0,
+                               "max_voltage_in": 300.0,
+                               "min_voltage_in": 0.0,
+                               "max_current_in": 200.0,
+                               "min_current_in": 0.0,
+                               "max_torque_out": 100.0,
+                               "min_torque_out": 0.0,
+                               "max_rpm_out": 5_000.0,
+                               "min_rpm_out": 0.0}
 
-def create_ice(fuel: Fuel,
-               mass: float=ice_defaults["mass"],
-               max_power: float=ice_defaults["max_power"],
-               state: MechanicalState=ice_defaults["state"]) -> InternalCombustionEngine:
-    power_func = MechanicalMaxPowerVsRPMCurves.constant(max_power=max_power,
-                                                        max_rpm=ice_defaults["max_rpm"],
-                                                        min_rpm=ice_defaults["min_rpm"])
-    eff_func = MechanicalPowerEfficiencyCurves.constant(efficiency=ice_defaults["efficiency"],
-                                                        max_rpm=ice_defaults["max_rpm"],
-                                                        min_rpm=ice_defaults["min_rpm"],
-                                                        max_power_vs_rpm=power_func)
-    ice = InternalCombustionEngine(name="Test ICE",
-                                   mass=mass,
-                                   max_power=max_power,
-                                   eff_func=eff_func,
-                                   state=state,
-                                   power_func=power_func,
-                                   fuel=fuel)
-    return ice
+def create_liquid_combustion_engine(fuel: LiquidFuel) -> LiquidInternalCombustionEngine:
+    limits = return_liquid_combustion_engine_limits(
+        abs_max_temp=2.0, abs_min_temp=1.0,
+        abs_max_fuel_liters_in=2.0, abs_min_fuel_liters_in=1.0,
+        abs_max_torque_out=2.0, abs_min_torque_out=1.0,
+        abs_max_rpm_out=2.0, abs_min_rpm_out=1.0,
+        rel_max_temp=l_test_func, rel_min_temp=l_test_func,
+        rel_max_fuel_liters_in=l_test_func, rel_min_fuel_liters_in=l_test_func,
+        rel_max_torque_out=l_test_func, rel_min_torque_out=l_test_func,
+        rel_max_rpm_out=l_test_func, rel_min_rpm_out=l_test_func
+    )
+    consumption = return_combustion_engine_consumption(
+        fuel_consumption_func=lambda s: 1.0
+    )
+    dynamic_response = ForwardDynamicResponse(
+        forward_response=t_func
+    )
+    return LiquidInternalCombustionEngine(
+        name="Test Liquid Combustion Engine",
+        mass=ice_defaults["mass"],
+        limits=limits,
+        consumption=consumption,
+        dynamic_response=dynamic_response,
+        inertia=ice_defaults["inertia"],
+        fuel=fuel
+    )
+
+def create_gaseous_combustion_engine(fuel: GaseousFuel) -> GaseousInternalCombustionEngine:
+    limits = return_gaseous_combustion_engine_limits(
+        abs_max_temp=2.0, abs_min_temp=1.0,
+        abs_max_fuel_mass_in=2.0, abs_min_fuel_mass_in=1.0,
+        abs_max_torque_out=2.0, abs_min_torque_out=1.0,
+        abs_max_rpm_out=2.0, abs_min_rpm_out=1.0,
+        rel_max_temp=g_test_func, rel_min_temp=g_test_func,
+        rel_max_fuel_mass_in=g_test_func, rel_min_fuel_mass_in=g_test_func,
+        rel_max_torque_out=g_test_func, rel_min_torque_out=g_test_func,
+        rel_max_rpm_out=g_test_func, rel_min_rpm_out=g_test_func
+    )
+    consumption = return_combustion_engine_consumption(
+        fuel_consumption_func=lambda s: 1
+    )
+    dynamic_response = ForwardDynamicResponse(
+        forward_response=t_func
+    )
+    return GaseousInternalCombustionEngine(
+        name="Test Gaseous Combustion Engine",
+        mass=ice_defaults["mass"],
+        limits=limits,
+        consumption=consumption,
+        dynamic_response=dynamic_response,
+        inertia=ice_defaults["inertia"],
+        fuel=fuel
+    )
 
 #============================
 
-def test_create_biodiesel_engine() -> None:
-    ice = create_ice(fuel=Biodiesel())
-    assert isinstance(ice, InternalCombustionEngine)
+def test_create_liquid_combustion_engine() -> None:
+    for fuel in LIQUID_FUELS:
+        liquid_ice = create_liquid_combustion_engine(fuel=fuel)
+        assert isinstance(liquid_ice, LiquidInternalCombustionEngine)
 
-def test_create_diesel_engine() -> None:
-    ice = create_ice(fuel=Diesel())
-    assert isinstance(ice, InternalCombustionEngine)
-
-def test_create_ethanol_engine() -> None:
-    ice = create_ice(fuel=Ethanol())
-    assert isinstance(ice, InternalCombustionEngine)
-
-def test_create_gasoline_engine() -> None:
-    ice = create_ice(fuel=Gasoline())
-    assert isinstance(ice, InternalCombustionEngine)
-
-def test_create_hydrogen_gas_engine() -> None:
-    ice = create_ice(fuel=HydrogenGas())
-    assert isinstance(ice, InternalCombustionEngine)
-
-def test_create_hydrogen_liquid_engine() -> None:
-    ice = create_ice(fuel=HydrogenLiquid())
-    assert isinstance(ice, InternalCombustionEngine)
-
-def test_create_methane_engine() -> None:
-    ice = create_ice(fuel=Methane())
-    assert isinstance(ice, InternalCombustionEngine)
-
-def test_create_methanol_engine() -> None:
-    ice = create_ice(fuel=Methanol())
-    assert isinstance(ice, InternalCombustionEngine)
+def test_create_gaseous_combustion_engine() -> None:
+    for fuel in GASEOUS_FUELS:
+        gaseous_ice = create_gaseous_combustion_engine(fuel=fuel)
+        assert isinstance(gaseous_ice, GaseousInternalCombustionEngine)

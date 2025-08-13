@@ -377,8 +377,7 @@ class FullStateNoInput():
                     expected_type=InternalState,
                     allow_none=True)
         if self.internal is None:
-            self.internal = InternalState(temperature_kelvin=DEFAULT_TEMPERATURE,
-                                          on=True)
+            self.internal = zero_internal_state()
 
 
 @dataclass
@@ -448,12 +447,180 @@ class FullStateFuelStorageNoInput(FullStateNoInput):
 # COMPONENTS' STATES
 #=============================
 
+
+@dataclass
+class NonRechargeableBatteryState(FullStateElectricEnergyStorageNoInput):
+    """
+    """
+    output: ElectricIOState  # type: ignore[override]
+    internal: Optional[InternalState]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.output,
+                    expected_type=ElectricIOState)
+        assert_type(self.electric_energy_storage,
+                    expected_type=ElectricEnergyStorageState)
+        if self.internal is None:
+            self.internal = zero_internal_state()
+        else:
+            assert_type(self.internal,
+                        expected_type=InternalState)
+
+
+@dataclass
+class RechargeableBatteryState(NonRechargeableBatteryState):
+    """
+    """
+    input: ElectricIOState
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input,
+                    expected_type=ElectricIOState)
+
+
+@dataclass
+class ElectricGeneratorState(FullStateWithInput):
+    """
+    """
+    input: RotatingIOState  # type: ignore[override]
+    output: ElectricIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input,
+                    expected_type=RotatingIOState)
+        assert_type(self.output,
+                    expected_type=ElectricIOState)
+
+
+@dataclass
+class ElectricMotorState(FullStateWithInput):
+    """
+    """
+    input: ElectricIOState  # type: ignore[override]
+    output: RotatingIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input,
+                    expected_type=ElectricIOState)
+        assert_type(self.output,
+                    expected_type=RotatingIOState)
+
+
+@dataclass
+class LiquidCombustionEngineState(FullStateWithInput):
+    """
+    """
+    input: LiquidFuelIOState  # type: ignore[override]
+    output: RotatingIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input,
+                    expected_type=LiquidFuelIOState)
+        assert_type(self.output,
+                    expected_type=RotatingIOState)
+
+
+@dataclass
+class GaseousCombustionEngineState(FullStateWithInput):
+    """
+    """
+    input: GaseousFuelIOState  # type: ignore[override]
+    output: RotatingIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input,
+                    expected_type=GaseousFuelIOState)
+        assert_type(self.output,
+                    expected_type=RotatingIOState)
+
+
+@dataclass
+class FuelCellState(FullStateWithInput):
+    """
+    """
+    input: GaseousFuelIOState  # type: ignore[override]
+    output: ElectricIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input,
+                    expected_type=GaseousFuelIOState)
+        assert_type(self.output,
+                    expected_type=ElectricIOState)
+
+
+@dataclass
+class PureMechanicalState(FullStateWithInput):
+    """
+    """
+    input: RotatingIOState  # type: ignore[override]
+    output: RotatingIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input, self.output,
+                    expected_type=RotatingIOState)
+
+
+@dataclass
+class PureElectricState(FullStateWithInput):
+    """
+    """
+    input: ElectricIOState  # type: ignore[override]
+    output: ElectricIOState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.input, self.output,
+                    expected_type=ElectricIOState)
+
+
+@dataclass
+class LiquidFuelTankState(FullStateFuelStorageNoInput):
+    """
+    """
+    output: LiquidFuelIOState  # type: ignore[override]
+    fuel_storage: LiquidFuelStorageState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.output,
+                    expected_type=LiquidFuelIOState)
+        assert_type(self.fuel_storage,
+                    expected_type=LiquidFuelStorageState)
+
+
+@dataclass
+class GaseousFuelTankState(FullStateFuelStorageNoInput):
+    """
+    """
+    output: GaseousFuelIOState  # type: ignore[override]
+    fuel_storage: GaseousFuelStorageState  # type: ignore[override]
+
+    def __post_init__(self):
+        super().__post_init__()
+        assert_type(self.output,
+                    expected_type=GaseousFuelIOState)
+        assert_type(self.fuel_storage,
+                    expected_type=GaseousFuelStorageState)
+
+
+# =============================
+# FUNCTION RETURNS
+# =============================
+
 def return_rechargeable_battery_state(energy: float=0.0,
                                       voltage_in: float=0.0,
                                       current_in: float=0.0,
                                       voltage_out: float=0.0,
-                                      current_out: float=0.0) -> FullStateElectricEnergyStorageWithInput:
-    return FullStateElectricEnergyStorageWithInput(
+                                      current_out: float=0.0) -> RechargeableBatteryState:
+    return RechargeableBatteryState(
         input=ElectricIOState(signal_type=ElectricSignalType.DC,
                               voltage=voltage_in,
                               current=current_in),
@@ -466,8 +633,8 @@ def return_rechargeable_battery_state(energy: float=0.0,
 
 def return_non_rechargeable_battery_state(energy: float=0.0,
                                           voltage_out: float=0.0,
-                                          current_out: float=0.0) -> FullStateElectricEnergyStorageNoInput:
-    return FullStateElectricEnergyStorageNoInput(
+                                          current_out: float=0.0) -> NonRechargeableBatteryState:
+    return NonRechargeableBatteryState(
         output=ElectricIOState(signal_type=ElectricSignalType.DC,
                                voltage=voltage_out,
                                current=current_out),
@@ -478,8 +645,8 @@ def return_non_rechargeable_battery_state(energy: float=0.0,
 def return_electric_generator_state(torque_in: float=0.0,
                                     rpm_in: float=0.0,
                                     voltage_out: float=0.0,
-                                    current_out: float=0.0) -> FullStateWithInput:
-    return FullStateWithInput(
+                                    current_out: float=0.0) -> ElectricGeneratorState:
+    return ElectricGeneratorState(
         input=RotatingIOState(torque=torque_in,
                               rpm=rpm_in),
         output=ElectricIOState(signal_type=ElectricSignalType.AC,
@@ -492,8 +659,8 @@ def return_electric_motor_state(signal_type: ElectricSignalType,
                                 voltage_in: float=0.0,
                                 current_in: float=0.0,
                                 torque_out: float=0.0,
-                                rpm_out: float=0.0) -> FullStateWithInput:
-    return FullStateWithInput(
+                                rpm_out: float=0.0) -> ElectricMotorState:
+    return ElectricMotorState(
         input=ElectricIOState(signal_type=signal_type,
                               voltage=voltage_in,
                               current=current_in),
@@ -505,8 +672,8 @@ def return_electric_motor_state(signal_type: ElectricSignalType,
 def return_liquid_combustion_engine_state(fuel: LiquidFuel,
                                           fuel_liters_in: float=0.0,
                                           torque_out: float=0.0,
-                                          rpm_out: float=0.0) -> FullStateWithInput:
-    return FullStateWithInput(
+                                          rpm_out: float=0.0) -> LiquidCombustionEngineState:
+    return LiquidCombustionEngineState(
         input=LiquidFuelIOState(fuel=fuel,
                                 fuel_liters=fuel_liters_in),
         output=RotatingIOState(torque=torque_out,
@@ -517,8 +684,8 @@ def return_liquid_combustion_engine_state(fuel: LiquidFuel,
 def return_gaseous_combustion_engine_state(fuel: GaseousFuel,
                                            fuel_mass_in: float=0.0,
                                            torque_out: float=0.0,
-                                           rpm_out: float=0.0) -> FullStateWithInput:
-    return FullStateWithInput(
+                                           rpm_out: float=0.0) -> GaseousCombustionEngineState:
+    return GaseousCombustionEngineState(
         input=GaseousFuelIOState(fuel=fuel,
                                  fuel_mass=fuel_mass_in),
         output=RotatingIOState(torque=torque_out,
@@ -529,8 +696,8 @@ def return_gaseous_combustion_engine_state(fuel: GaseousFuel,
 def return_fuel_cell_state(fuel: GaseousFuel,
                            fuel_mass_in: float=0.0,
                            voltage_out: float=0.0,
-                           current_out: float=0.0) -> FullStateWithInput:
-    return FullStateWithInput(
+                           current_out: float=0.0) -> FuelCellState:
+    return FuelCellState(
         input=GaseousFuelIOState(fuel=fuel,
                                  fuel_mass=fuel_mass_in),
         output=ElectricIOState(signal_type=ElectricSignalType.DC,
@@ -542,8 +709,8 @@ def return_fuel_cell_state(fuel: GaseousFuel,
 def return_pure_mechanical_state(torque_in: float=0.0,
                                  rpm_in: float=0.0,
                                  torque_out: float=0.0,
-                                 rpm_out: float=0.0) -> FullStateWithInput:
-    return FullStateWithInput(
+                                 rpm_out: float=0.0) -> PureMechanicalState:
+    return PureMechanicalState(
         input=RotatingIOState(torque=torque_in,
                               rpm=rpm_in),
         output=RotatingIOState(torque=torque_out,
@@ -557,8 +724,8 @@ def return_pure_electric_state(signal_type_in: ElectricSignalType,
                                current_in: float=0.0,
                                voltage_out: float=0.0,
                                current_out: float=0.0
-                               ) -> FullStateWithInput:
-    return FullStateWithInput(
+                               ) -> PureElectricState:
+    return PureElectricState(
         input=ElectricIOState(signal_type=signal_type_in,
                               voltage=voltage_in,
                               current=current_in),
@@ -570,8 +737,9 @@ def return_pure_electric_state(signal_type_in: ElectricSignalType,
 
 def return_liquid_fuel_tank_state(fuel: LiquidFuel,
                                   fuel_liters_stored: float=0.0,
-                                  fuel_liters_out: float=0.0) -> FullStateFuelStorageNoInput:
-    return FullStateFuelStorageNoInput(
+                                  fuel_liters_out: float=0.0
+                                  ) -> LiquidFuelTankState:
+    return LiquidFuelTankState(
         output=LiquidFuelIOState(fuel=fuel,
                                  fuel_liters=fuel_liters_out),
         fuel_storage=LiquidFuelStorageState(fuel=fuel,
@@ -581,8 +749,9 @@ def return_liquid_fuel_tank_state(fuel: LiquidFuel,
 
 def return_gaseous_fuel_tank_state(fuel: GaseousFuel,
                                    fuel_mass_stored: float=0.0,
-                                   fuel_mass_out: float=0.0) -> FullStateFuelStorageNoInput:
-    return FullStateFuelStorageNoInput(
+                                   fuel_mass_out: float=0.0
+                                   ) -> GaseousFuelTankState:
+    return GaseousFuelTankState(
         output=GaseousFuelIOState(fuel=fuel,
                                   fuel_mass=fuel_mass_out),
         fuel_storage=GaseousFuelStorageState(fuel=fuel,

@@ -3,7 +3,7 @@ This module contains definitions for motors and engines.
 """
 
 from dataclasses import dataclass
-from components.fuel_type import Fuel
+from components.fuel_type import LiquidFuel, GaseousFuel
 from components.consumption import ElectricMotorConsumption, \
     CombustionEngineConsumption, ElectricGeneratorConsumption
 from components.converter import MechanicalConverter, \
@@ -65,7 +65,7 @@ class LiquidInternalCombustionEngine(MechanicalConverter, ForwardConverter):
                  consumption: CombustionEngineConsumption,
                  dynamic_response: ForwardDynamicResponse,
                  inertia: float,
-                 fuel: Fuel):
+                 fuel: LiquidFuel):
         super().__init__(inertia=inertia)
         ForwardConverter.__init__(self=self,
                                   name=name,
@@ -90,7 +90,7 @@ class GaseousInternalCombustionEngine(MechanicalConverter, ForwardConverter):
                  consumption: CombustionEngineConsumption,
                  dynamic_response: ForwardDynamicResponse,
                  inertia: float,
-                 fuel: Fuel):
+                 fuel: GaseousFuel):
         super().__init__(inertia=inertia)
         ForwardConverter.__init__(self=self,
                                   name=name,
