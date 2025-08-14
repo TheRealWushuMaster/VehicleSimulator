@@ -10,7 +10,7 @@ class BatteryEfficiencyCurves():
     """
     @staticmethod
     def constant(efficiency: float,
-                 max_current: float) -> Callable[[float], float]:
+                 max_power: float) -> Callable[[float], float]:
         """
         Returns a constant efficiency for all current values.
         """
@@ -18,11 +18,11 @@ class BatteryEfficiencyCurves():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        assert_type_and_range(max_current,
+        assert_type_and_range(max_power,
                               more_than=0.0,
                               include_more=False)
-        def constant_efficiency(current: float) -> float:
-            if 0.0 <= current <= max_current:
+        def constant_efficiency(power: float) -> float:
+            if 0.0 <= power <= max_power:
                 return efficiency
             return 0.0
         return constant_efficiency

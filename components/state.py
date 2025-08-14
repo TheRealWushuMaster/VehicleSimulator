@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from helpers.functions import assert_type, assert_type_and_range, assert_range, \
-    rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit, \
-    electric_power
+    rpm_to_ang_vel, torque_to_power, kelvin_to_celsius, kelvin_to_fahrenheit
 from helpers.types import ElectricSignalType
 from simulation.constants import DEFAULT_TEMPERATURE
 
@@ -237,11 +236,11 @@ class ElectricIOState(IOState):
     Represents the state of an electrical condition (voltage and current).
     """
     signal_type: ElectricSignalType
-    voltage: float=0.0
-    current: float=0.0
+    nominal_voltage: float=0.0
+    electric_power: float=0.0
 
     def __post_init__(self):
-        assert_range(self.power,
+        assert_range(self.nominal_voltage, self.electric_power,
                      more_than=0.0)
         assert_type(self.signal_type,
                     expected_type=ElectricSignalType)
@@ -250,16 +249,14 @@ class ElectricIOState(IOState):
     @property
     def power(self) -> float:
         """
-        Dynamically calculates the electric power being transfered.
+        Returns the electric power being transferred.
         """
-        return electric_power(voltage=self.voltage,
-                              current=self.current)
+        return self.electric_power
 
     def as_dict(self) -> dict[str, Any]:
         base = super().as_dict()
         base["power"] = self.power
-        base["voltage"] = self.voltage
-        base["current"] = self.current
+        base["nominal_voltage"] = self.nominal_voltage
         return base
 
 
@@ -616,54 +613,53 @@ class GaseousFuelTankState(FullStateFuelStorageNoInput):
 # =============================
 
 def return_rechargeable_battery_state(energy: float=0.0,
-                                      voltage_in: float=0.0,
-                                      current_in: float=0.0,
-                                      voltage_out: float=0.0,
-                                      current_out: float=0.0) -> RechargeableBatteryState:
+                                      nominal_voltage: float=0.0,
+                                      power_in: float=0.0,
+                                      power_out: float=0.0) -> RechargeableBatteryState:
     return RechargeableBatteryState(
         input=ElectricIOState(signal_type=ElectricSignalType.DC,
-                              voltage=voltage_in,
-                              current=current_in),
+                              nominal_voltage=nominal_voltage,
+                              electric_power=power_in),
         output=ElectricIOState(signal_type=ElectricSignalType.DC,
-                               voltage=voltage_out,
-                               current=current_out),
+                               nominal_voltage=nominal_voltage,
+                               electric_power=power_out),
         electric_energy_storage=ElectricEnergyStorageState(energy=energy),
         internal=zero_internal_state()
     )
 
 def return_non_rechargeable_battery_state(energy: float=0.0,
-                                          voltage_out: float=0.0,
-                                          current_out: float=0.0) -> NonRechargeableBatteryState:
+                                          nominal_voltage: float=0.0,
+                                          power_out: float=0.0) -> NonRechargeableBatteryState:
     return NonRechargeableBatteryState(
         output=ElectricIOState(signal_type=ElectricSignalType.DC,
-                               voltage=voltage_out,
-                               current=current_out),
+                               nominal_voltage=nominal_voltage,
+                               electric_power=power_out),
         electric_energy_storage=ElectricEnergyStorageState(energy=energy),
         internal=zero_internal_state()
     )
 
 def return_electric_generator_state(torque_in: float=0.0,
                                     rpm_in: float=0.0,
-                                    voltage_out: float=0.0,
-                                    current_out: float=0.0) -> ElectricGeneratorState:
+                                    nominal_voltage: float=0.0,
+                                    power_out: float=0.0) -> ElectricGeneratorState:
     return ElectricGeneratorState(
         input=RotatingIOState(torque=torque_in,
                               rpm=rpm_in),
         output=ElectricIOState(signal_type=ElectricSignalType.AC,
-                               voltage=voltage_out,
-                               current=current_out),
+                               nominal_voltage=nominal_voltage,
+                               electric_power=power_out),
         internal=zero_internal_state()
     )
 
 def return_electric_motor_state(signal_type: ElectricSignalType,
-                                voltage_in: float=0.0,
-                                current_in: float=0.0,
+                                nominal_voltage: float=0.0,
+                                power_in: float=0.0,
                                 torque_out: float=0.0,
                                 rpm_out: float=0.0) -> ElectricMotorState:
     return ElectricMotorState(
         input=ElectricIOState(signal_type=signal_type,
-                              voltage=voltage_in,
-                              current=current_in),
+                              nominal_voltage=nominal_voltage,
+                              electric_power=power_in),
         output=RotatingIOState(torque=torque_out,
                                rpm=rpm_out),
         internal=zero_internal_state()
@@ -695,14 +691,14 @@ def return_gaseous_combustion_engine_state(fuel: GaseousFuel,
 
 def return_fuel_cell_state(fuel: GaseousFuel,
                            fuel_mass_in: float=0.0,
-                           voltage_out: float=0.0,
-                           current_out: float=0.0) -> FuelCellState:
+                           nominal_voltage: float=0.0,
+                           power_out: float=0.0) -> FuelCellState:
     return FuelCellState(
         input=GaseousFuelIOState(fuel=fuel,
                                  fuel_mass=fuel_mass_in),
         output=ElectricIOState(signal_type=ElectricSignalType.DC,
-                               voltage=voltage_out,
-                               current=current_out),
+                               nominal_voltage=nominal_voltage,
+                               electric_power=power_out),
         internal=zero_internal_state()
     )
 
@@ -720,18 +716,18 @@ def return_pure_mechanical_state(torque_in: float=0.0,
 
 def return_pure_electric_state(signal_type_in: ElectricSignalType,
                                signal_type_out: ElectricSignalType,
-                               voltage_in: float=0.0,
-                               current_in: float=0.0,
-                               voltage_out: float=0.0,
-                               current_out: float=0.0
+                               nominal_voltage_in: float=0.0,
+                               nominal_voltage_out: float=0.0,
+                               power_in: float=0.0,
+                               power_out: float=0.0
                                ) -> PureElectricState:
     return PureElectricState(
         input=ElectricIOState(signal_type=signal_type_in,
-                              voltage=voltage_in,
-                              current=current_in),
+                              nominal_voltage=nominal_voltage_in,
+                              electric_power=power_in),
         output=ElectricIOState(signal_type=signal_type_out,
-                               voltage=voltage_out,
-                               current=current_out),
+                               nominal_voltage=nominal_voltage_out,
+                               electric_power=power_out),
         internal=zero_internal_state()
     )
 
@@ -773,8 +769,8 @@ def zero_electric_io_state(signal_type: ElectricSignalType) -> ElectricIOState:
     Returns an electric state with values set to zero.
     """
     return ElectricIOState(signal_type=signal_type,
-                           voltage=0.0,
-                           current=0.0)
+                           nominal_voltage=0.0,
+                           electric_power=0.0)
 
 def zero_liquid_fuel_io_state(fuel: Fuel) -> LiquidFuelIOState:
     """

@@ -12,38 +12,19 @@ from helpers.functions import assert_type, assert_type_and_range, \
 from helpers.types import ElectricSignalType
 
 
-@dataclass
-class DCElectricMotorParams():
-    """
-    Parameters that describe a first-order DC electric motor.
-    """
-    r: float    # Armature resistance, in Ohms
-    kt: float   # Torque constant, in N.m/A
-    ke: float   # Back EMF constant, in V.s/rad
-    j: float    # Rotor inertia, in kg.m²
-    limit: ElectricMotorLimits  # Maximum power at a defined state
-
-    def __post_init__(self):
-        assert_type_and_range(self.j, self.kt,
-                              self.ke, self.r,
-                              more_than=0.0)
-        assert_type(self.limit,
-                    expected_type=ElectricMotorLimits)
-
-
 class MechanicalToMechanical():
     """
     Contains generator methods for purely mechanical components.
     """
     @staticmethod
-    def gearbox_ideal_response(gear_ratio: float, efficiency: float=1.0
-                               ) -> Callable[[PureMechanicalState],
-                                             PureMechanicalState]:
+    def forward_gearbox_ideal_response(gear_ratio: float, efficiency: float=1.0
+                                       ) -> Callable[[PureMechanicalState, float, float],
+                                                     PureMechanicalState]:
         """
-        Generates a response for a stateless mechanical component.
-        Receives an input `torque` and `rpm` (in a `State` object)
-        and outputs `rpm` affected by `gear_ratio` and `torque` 
-        affected by `efficiency` (also in a `State` object).
+        Generates a forward response for a stateless pure
+        mechanical component.
+        Receives an input `torque` and `rpm` and outputs `rpm`
+        affected by `gear_ratio`, `torque`, and `efficiency`.
         """
         assert_type_and_range(gear_ratio,
                               more_than=0.0)
@@ -52,13 +33,40 @@ class MechanicalToMechanical():
                               less_than=1.0,
                               include_more=False)
         def response(state: PureMechanicalState,
-                     forward: bool=True) -> PureMechanicalState:
+                     delta_t: float,
+                     control_signal: float) -> PureMechanicalState:
             assert isinstance(state, PureMechanicalState)
-            inp = state.input if forward else state.output
-            output = RotatingIOState(torque=inp.torque * gear_ratio * efficiency,
-                                     rpm=inp.rpm / gear_ratio)
-            return PureMechanicalState(input=inp if forward else output,
-                                       output=output if forward else inp,
+            output = RotatingIOState(torque=state.input.torque * gear_ratio * efficiency,
+                                     rpm=state.input.rpm / gear_ratio)
+            return PureMechanicalState(input=state.input,
+                                       output=output,
+                                       internal=state.internal)
+        return response
+
+    @staticmethod
+    def reverse_gearbox_ideal_response(gear_ratio: float, efficiency: float=1.0
+                                       ) -> Callable[[PureMechanicalState, float, float],
+                                                     PureMechanicalState]:
+        """
+        Generates a reverse response for a stateless pure
+        mechanical component.
+        Receives an input `torque` and `rpm` and outputs `rpm`
+        affected by `gear_ratio`, `torque`, and `efficiency`.
+        """
+        assert_type_and_range(gear_ratio,
+                              more_than=0.0)
+        assert_type_and_range(efficiency,
+                              more_than=0.0,
+                              less_than=1.0,
+                              include_more=False)
+        def response(state: PureMechanicalState,
+                     delta_t: float,
+                     control_signal: float) -> PureMechanicalState:
+            assert isinstance(state, PureMechanicalState)
+            inp = RotatingIOState(torque=state.output.torque / gear_ratio * efficiency,
+                                  rpm=state.output.rpm * gear_ratio)
+            return PureMechanicalState(input=inp,
+                                       output=state.output,
                                        internal=state.internal)
         return response
 
@@ -67,6 +75,25 @@ class ElectricToMechanical():
     """
     Contains generator methods for electric motors.
     """
+    @staticmethod
+    def forward_driven_first_order(signal_type: ElectricSignalType
+                                   ) -> Callable[[ElectricMotorState, float,
+                                                  float, float, float, float],
+                                                 ElectricMotorState]:
+        """
+        """
+        def response(state: ElectricMotorState,
+                     load_torque: float,
+                     downstream_inertia: float,
+                     delta_t: float,
+                     control_signal: float,
+                     efficiency: float) -> ElectricMotorState:
+            assert_type(state,
+                        expected_type=ElectricMotorState)
+            
+        return response
+    
+    
     @staticmethod
     def voltage_controlled_first_order(motor_params: DCElectricMotorParams,
                                        signal_type: ElectricSignalType
@@ -91,11 +118,10 @@ class ElectricToMechanical():
             w_dot = (t - counter_torque) / j
             rpm = state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
             new_state = ElectricMotorState(input=ElectricIOState(signal_type=signal_type,
-                                                                    voltage=state.input.voltage,
-                                                                    current=i),
-                                            output=RotatingIOState(torque=t,
-                                                                    rpm=rpm),
-                                            internal=state.internal)
+                                                                 electric_power=i),
+                                           output=RotatingIOState(torque=t,
+                                                                  rpm=rpm),
+                                           internal=state.internal)
             new_state.input.set_delivering()
             new_state.output.set_receiving()
             return new_state

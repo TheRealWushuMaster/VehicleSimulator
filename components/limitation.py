@@ -83,11 +83,10 @@ class AbsoluteElectricLimitations():
     """
     Contains the electric variables subject to limitations.
     """
-    voltage: AbsoluteLimitValue
-    current: AbsoluteLimitValue
+    power: AbsoluteLimitValue
 
     def __post_init__(self):
-        assert_type(self.voltage, self.current,
+        assert_type(self.power,
                     expected_type=AbsoluteLimitValue)
 
 
@@ -96,11 +95,10 @@ class RelativeElectricLimitations():
     """
     Contains the electric variables subject to limitations.
     """
-    voltage: RelativeLimitValue
-    current: RelativeLimitValue
+    power: RelativeLimitValue
 
     def __post_init__(self):
-        assert_type(self.voltage, self.current,
+        assert_type(self.power,
                     expected_type=RelativeLimitValue)
 
 
@@ -588,87 +586,63 @@ class GaseousFuelTankLimits(EnergySourceLimits, AbsoluteGaseousFuelStorageLimita
 # ==================
 
 def return_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: float,
-                                       abs_max_voltage_in: float, abs_min_voltage_in: float,
-                                       abs_max_current_in: float, abs_min_current_in: float,
-                                       abs_max_voltage_out: float, abs_min_voltage_out: float,
-                                       abs_max_current_out: float, abs_min_current_out: float,
+                                       abs_max_power_in: float, abs_min_power_in: float,
+                                       abs_max_power_out: float, abs_min_power_out: float,
                                        rel_max_temp: Callable, rel_min_temp: Callable,
-                                       rel_max_voltage_in: Callable, rel_min_voltage_in: Callable,
-                                       rel_max_current_in: Callable, rel_min_current_in: Callable,
-                                       rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                                       rel_max_current_out: Callable, rel_min_current_out: Callable,
+                                       rel_max_power_in: Callable, rel_min_power_in: Callable,
+                                       rel_max_power_out: Callable, rel_min_power_out: Callable,
                                        electric_energy_capacity: float) -> RechargeableBatteryLimits:
     return RechargeableBatteryLimits(absolute_limits=RechargeableBatteryAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                            min=abs_min_temp)),
-                                                                                       input=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_in,
-                                                                                                                                                    min=abs_min_voltage_in),
-                                                                                                                         current=AbsoluteLimitValue(max=abs_max_current_in,
-                                                                                                                                                    min=abs_min_current_in)),
-                                                                                       output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
-                                                                                                                                                     min=abs_min_voltage_out),
-                                                                                                                          current=AbsoluteLimitValue(max=abs_max_current_out,
-                                                                                                                                                     min=abs_min_current_out))),
+                                                                                       input=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_in,
+                                                                                                                                                  min=abs_min_power_in)),
+                                                                                       output=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_out,
+                                                                                                                                                   min=abs_min_power_out))),
                                      relative_limits=RechargeableBatteryRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                            min=rel_min_temp)),
-                                                                                       input=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_in,
-                                                                                                                                                    min=rel_min_voltage_in),
-                                                                                                                         current=RelativeLimitValue(max=rel_max_current_in,
-                                                                                                                                                    min=rel_min_current_in)),
-                                                                                       output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
-                                                                                                                                                     min=rel_min_voltage_out),
-                                                                                                                          current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                                                     min=rel_min_current_out))),
+                                                                                       input=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_in,
+                                                                                                                                                  min=rel_min_power_in)),
+                                                                                       output=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_out,
+                                                                                                                                                   min=rel_min_power_out))),
                                      electric_energy_capacity=electric_energy_capacity
                                      )
 
 def return_non_rechargeable_battery_limits(abs_max_temp: float, abs_min_temp: float,
-                                           abs_max_voltage_out: float, abs_min_voltage_out: float,
-                                           abs_max_current_out: float, abs_min_current_out: float,
-                                           rel_max_temp: Callable, rel_min_temp: Callable,
-                                           rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                                           rel_max_current_out: Callable, rel_min_current_out: Callable,
-                                           electric_energy_capacity: float) -> NonRechargeableBatteryLimits:
+                                       abs_max_power_out: float, abs_min_power_out: float,
+                                       rel_max_temp: Callable, rel_min_temp: Callable,
+                                       rel_max_power_out: Callable, rel_min_power_out: Callable,
+                                       electric_energy_capacity: float) -> NonRechargeableBatteryLimits:
     return NonRechargeableBatteryLimits(absolute_limits=NonRechargeableBatteryAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                                  min=abs_min_temp)),
-                                                                                             output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
-                                                                                                                                                           min=abs_min_voltage_out),
-                                                                                                                                current=AbsoluteLimitValue(max=abs_max_current_out,
-                                                                                                                                                           min=abs_min_current_out))),
+                                                                                             output=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_out,
+                                                                                                                                                         min=abs_min_power_out))),
                                         relative_limits=NonRechargeableBatteryRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                                  min=rel_min_temp)),
-                                                                                             output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
-                                                                                                                                                           min=rel_min_voltage_out),
-                                                                                                                                current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                                                           min=rel_min_current_out))),
+                                                                                             output=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_out,
+                                                                                                                                                         min=rel_min_power_out))),
                                         electric_energy_capacity=electric_energy_capacity
                                         )
 
 def return_electric_motor_limits(abs_max_temp: float, abs_min_temp: float,
-                                 abs_max_voltage_in: float, abs_min_voltage_in: float,
-                                 abs_max_current_in: float, abs_min_current_in: float,
+                                 abs_max_power_in: float, abs_min_power_in: float,
                                  abs_max_torque_out: float, abs_min_torque_out: float,
                                  abs_max_rpm_out: float, abs_min_rpm_out: float,
                                  rel_max_temp: Callable, rel_min_temp: Callable,
-                                 rel_max_voltage_in: Callable, rel_min_voltage_in: Callable,
-                                 rel_max_current_in: Callable, rel_min_current_in: Callable,
+                                 rel_max_power_in: Callable, rel_min_power_in: Callable,
                                  rel_max_torque_out: Callable, rel_min_torque_out: Callable,
                                  rel_max_rpm_out: Callable, rel_min_rpm_out: Callable) -> ElectricMotorLimits:
     return ElectricMotorLimits(absolute_limits=ElectricMotorAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                min=abs_min_temp)),
-                                                                           input=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_in,
-                                                                                                                                        min=abs_min_voltage_in),
-                                                                                                             current=AbsoluteLimitValue(max=abs_max_current_in,
-                                                                                                                                        min=abs_min_current_in)),
+                                                                           input=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_in,
+                                                                                                                                      min=abs_min_power_in)),
                                                                            output=AbsoluteMechanicalLimitations(torque=AbsoluteLimitValue(max=abs_max_torque_out,
                                                                                                                                           min=abs_min_torque_out),
                                                                                                                 rpm=AbsoluteLimitValue(max=abs_max_rpm_out,
                                                                                                                                        min=abs_min_rpm_out))),
                                relative_limits=ElectricMotorRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                min=rel_min_temp)),
-                                                                           input=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_in,
-                                                                                                                                        min=rel_min_voltage_in),
-                                                                                                             current=RelativeLimitValue(max=rel_max_current_in,
-                                                                                                                                        min=rel_min_current_in)),
+                                                                           input=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_in,
+                                                                                                                                      min=rel_min_power_in)),
                                                                            output=RelativeMechanicalLimitations(torque=RelativeLimitValue(max=rel_max_torque_out,
                                                                                                                                           min=rel_min_torque_out),
                                                                                                                 rpm=RelativeLimitValue(max=rel_max_rpm_out,
@@ -729,60 +703,48 @@ def return_gaseous_combustion_engine_limits(abs_max_temp: float, abs_min_temp: f
 
 def return_fuel_cell_limits(abs_max_temp: float, abs_min_temp: float,
                             abs_max_fuel_mass_in: float, abs_min_fuel_mass_in: float,
-                            abs_max_voltage_out: float, abs_min_voltage_out: float,
-                            abs_max_current_out: float, abs_min_current_out: float,
+                            abs_max_power_out: float, abs_min_power_out: float,
                             rel_max_temp: Callable, rel_min_temp: Callable,
                             rel_max_fuel_mass_in: Callable, rel_min_fuel_mass_in: Callable,
-                            rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                            rel_max_current_out: Callable, rel_min_current_out: Callable) -> FuelCellLimits:
+                            rel_max_power_out: Callable, rel_min_power_out: Callable) -> FuelCellLimits:
     return FuelCellLimits(absolute_limits=FuelCellAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                      min=abs_min_temp)),
                                                                  input=AbsoluteGaseousFuelLimitations(fuel_mass_transfer=AbsoluteLimitValue(max=abs_max_fuel_mass_in,
                                                                                                                                    min=abs_min_fuel_mass_in)),
-                                                                 output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
-                                                                                                                               min=abs_min_voltage_out),
-                                                                                                    current=AbsoluteLimitValue(max=abs_max_current_out,
-                                                                                                                               min=abs_min_current_out))),
+                                                                 output=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_out,
+                                                                                                                             min=abs_min_power_out))),
                           relative_limits=FuelCellRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                      min=rel_min_temp)),
                                                                  input=RelativeGaseousFuelLimitations(fuel_mass_transfer=RelativeLimitValue(max=rel_max_fuel_mass_in,
                                                                                                                                    min=rel_min_fuel_mass_in)),
-                                                                 output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
-                                                                                                                               min=rel_min_voltage_out),
-                                                                                                    current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                               min=rel_min_current_out)))
+                                                                 output=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_out,
+                                                                                                                             min=rel_min_power_out)))
                           )
 
 def return_electric_generator_limits(abs_max_temp: float, abs_min_temp: float,
                                      abs_max_torque_in: float, abs_min_torque_in: float,
                                      abs_max_rpm_in: float, abs_min_rpm_in: float,
-                                     abs_max_voltage_out: float, abs_min_voltage_out: float,
-                                     abs_max_current_out: float, abs_min_current_out: float,
+                                     abs_max_power_out: float, abs_min_power_out: float,
                                      rel_max_temp: Callable, rel_min_temp: Callable,
                                      rel_max_torque_in: Callable, rel_min_torque_in: Callable,
                                      rel_max_rpm_in: Callable, rel_min_rpm_in: Callable,
-                                     rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                                     rel_max_current_out: Callable, rel_min_current_out: Callable) -> ElectricGeneratorLimits:
+                                     rel_max_power_out: Callable, rel_min_power_out: Callable) -> ElectricGeneratorLimits:
     return ElectricGeneratorLimits(absolute_limits=ElectricGeneratorAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                        min=abs_min_temp)),
                                                                                    input=AbsoluteMechanicalLimitations(torque=AbsoluteLimitValue(max=abs_max_torque_in,
                                                                                                                                                  min=abs_min_torque_in),
                                                                                                                        rpm=AbsoluteLimitValue(max=abs_max_rpm_in,
                                                                                                                                               min=abs_min_rpm_in)),
-                                                                                   output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
-                                                                                                                                                 min=abs_min_voltage_out),
-                                                                                                                      current=AbsoluteLimitValue(max=abs_max_current_out,
-                                                                                                                                                 min=abs_min_current_out))),
+                                                                                   output=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_out,
+                                                                                                                                               min=abs_min_power_out))),
                                    relative_limits=ElectricGeneratorRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                        min=rel_min_temp)),
                                                                                    input=RelativeMechanicalLimitations(torque=RelativeLimitValue(max=rel_max_torque_in,
                                                                                                                                                  min=rel_min_torque_in),
                                                                                                                        rpm=RelativeLimitValue(max=rel_max_rpm_in,
                                                                                                                                               min=rel_min_rpm_in)),
-                                                                                   output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
-                                                                                                                                                 min=rel_min_voltage_out),
-                                                                                                                      current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                                                 min=rel_min_current_out)))
+                                                                                   output=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_out,
+                                                                                                                                               min=rel_min_power_out)))
                                    )
 
 def return_mechanical_to_mechanical_limits(abs_max_temp: float, abs_min_temp: float,
@@ -818,35 +780,23 @@ def return_mechanical_to_mechanical_limits(abs_max_temp: float, abs_min_temp: fl
                                         )
 
 def return_electric_to_electric_limits(abs_max_temp: float, abs_min_temp: float,
-                                       abs_max_voltage_in: float, abs_min_voltage_in: float,
-                                       abs_max_current_in: float, abs_min_current_in: float,
-                                       abs_max_voltage_out: float, abs_min_voltage_out: float,
-                                       abs_max_current_out: float, abs_min_current_out: float,
+                                       abs_max_power_in: float, abs_min_power_in: float,
+                                       abs_max_power_out: float, abs_min_power_out: float,
                                        rel_max_temp: Callable, rel_min_temp: Callable,
-                                       rel_max_voltage_in: Callable, rel_min_voltage_in: Callable,
-                                       rel_max_current_in: Callable, rel_min_current_in: Callable,
-                                       rel_max_voltage_out: Callable, rel_min_voltage_out: Callable,
-                                       rel_max_current_out: Callable, rel_min_current_out: Callable) -> ElectricToElectricLimits:
+                                       rel_max_power_in: Callable, rel_min_power_in: Callable,
+                                       rel_max_power_out: Callable, rel_min_power_out: Callable) -> ElectricToElectricLimits:
     return ElectricToElectricLimits(absolute_limits=PureElectricAbsoluteLimits(internal=AbsoluteInternalLimitations(temperature=AbsoluteLimitValue(max=abs_max_temp,
                                                                                                                                                    min=abs_min_temp)),
-                                                                               input=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_in,
-                                                                                                                                            min=abs_min_voltage_in),
-                                                                                                                 current=AbsoluteLimitValue(max=abs_max_current_in,
-                                                                                                                                            min=abs_min_current_in)),
-                                                                               output=AbsoluteElectricLimitations(voltage=AbsoluteLimitValue(max=abs_max_voltage_out,
-                                                                                                                                             min=abs_min_voltage_out),
-                                                                                                                  current=AbsoluteLimitValue(max=abs_max_current_out,
-                                                                                                                                             min=abs_min_current_out))),
+                                                                               input=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_in,
+                                                                                                                                          min=abs_min_power_in)),
+                                                                               output=AbsoluteElectricLimitations(power=AbsoluteLimitValue(max=abs_max_power_out,
+                                                                                                                                           min=abs_min_power_out))),
                                     relative_limits=PureElectricRelativeLimits(internal=RelativeInternalLimitations(temperature=RelativeLimitValue(max=rel_max_temp,
                                                                                                                                                    min=rel_min_temp)),
-                                                                               input=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_in,
-                                                                                                                                            min=rel_min_voltage_in),
-                                                                                                                 current=RelativeLimitValue(max=rel_max_current_in,
-                                                                                                                                            min=rel_min_current_in)),
-                                                                               output=RelativeElectricLimitations(voltage=RelativeLimitValue(max=rel_max_voltage_out,
-                                                                                                                                             min=rel_min_voltage_out),
-                                                                                                                  current=RelativeLimitValue(max=rel_max_current_out,
-                                                                                                                                             min=rel_min_current_out)))
+                                                                               input=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_in,
+                                                                                                                                          min=rel_min_power_in)),
+                                                                               output=RelativeElectricLimitations(power=RelativeLimitValue(max=rel_max_power_out,
+                                                                                                                                           min=rel_min_power_out)))
                                     )
 
 def return_liquid_fuel_tank_limits(abs_max_temperature: float, abs_min_temperature: float,

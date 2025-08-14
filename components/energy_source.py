@@ -114,8 +114,7 @@ class Battery(EnergySource):
     """
     nominal_energy: float
     nominal_voltage: float
-    max_current: float
-    voltage_vs_current: Callable[[float], float]
+    max_power: float
     efficiency: Callable[[float], float]
     soh: float=BATTERY_DEFAULT_SOH
     signal_type: ElectricSignalType=field(init=False)
@@ -123,13 +122,12 @@ class Battery(EnergySource):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  battery_mass: float,
                  rechargeable: bool,
                  nominal_voltage: float,
                  efficiency: Callable[[float], float],
-                 voltage_vs_current: Callable[[float], float],
                  soh: float=BATTERY_DEFAULT_SOH):
         state: FullStateElectricEnergyStorageNoInput|FullStateElectricEnergyStorageWithInput
         if rechargeable:
@@ -139,19 +137,18 @@ class Battery(EnergySource):
             state = default_battery_non_rechargeable_state(nominal_voltage=nominal_voltage,
                                                            energy=energy)
         super().__init__(name=name,
-                         input=PortInput(exchange=PowerType.ELECTRIC) if rechargeable else None,
-                         output=PortOutput(exchange=PowerType.ELECTRIC),
+                         input=PortInput(exchange=PowerType.ELECTRIC_DC) if rechargeable else None,
+                         output=PortOutput(exchange=PowerType.ELECTRIC_DC),
                          system_mass=battery_mass,
                          state=state)
-        assert_type_and_range(nominal_voltage, max_current,
+        assert_type_and_range(nominal_voltage, max_power,
                               more_than=0.0)
         assert_type_and_range(soh,
                               more_than=0.0,
                               less_than=1.0)
         self.nominal_energy = nominal_energy
         self.nominal_voltage = nominal_voltage
-        self.max_current = max_current
-        self.voltage_vs_current = voltage_vs_current
+        self.max_power = max_power
         self.efficiency = efficiency
         self.soh = soh
         self.signal_type = ElectricSignalType.DC
@@ -195,7 +192,7 @@ class Battery(EnergySource):
         assert isinstance(self.state, (FullStateElectricEnergyStorageNoInput,
                                        FullStateElectricEnergyStorageWithInput))
         assert isinstance(self.state.output, ElectricIOState)
-        output_energy = min(abs(power) * delta_t / self.efficiency(self.state.output.current), # pylint: disable=no-member
+        output_energy = min(abs(power) * delta_t / self.efficiency(power), # pylint: disable=no-member
                             self.state.electric_energy_storage.energy)
         self.state.electric_energy_storage.energy = max(0.0, self.state.electric_energy_storage.energy - output_energy)
         return output_energy
@@ -209,23 +206,21 @@ class BatteryRechargeable(Battery):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  battery_mass: float,
                  soh: float,
                  efficiency: Callable[[float], float],
-                 nominal_voltage: float,
-                 voltage_vs_current: Callable[[float], float]):
+                 nominal_voltage: float):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=battery_mass,
                          soh=soh,
                          efficiency=efficiency,
                          rechargeable=True,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
     def recharge(self, power: float, delta_t: float) -> float:
         """
@@ -234,7 +229,7 @@ class BatteryRechargeable(Battery):
         """
         assert isinstance(self.state, FullStateElectricEnergyStorageWithInput)
         assert isinstance(self.state.input, ElectricIOState)
-        input_energy = abs(power) * delta_t * self.efficiency(self.state.input.current)
+        input_energy = abs(power) * delta_t * self.efficiency(power)
         self.state.electric_energy_storage.energy = min(self.max_energy,
                                                         self.state.electric_energy_storage.energy + input_energy)
         return input_energy
@@ -248,23 +243,21 @@ class BatteryNonRechargeable(Battery):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  battery_mass: float,
                  soh: float,
                  efficiency: Callable[[float], float],
-                 nominal_voltage: float,
-                 voltage_vs_current: Callable[[float], float]):
+                 nominal_voltage: float):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=battery_mass,
                          soh=soh,
                          efficiency=efficiency,
                          rechargeable=False,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -446,19 +439,19 @@ class GaseousFuelTank(FuelTank):
 def default_battery_rechargeable_state(nominal_voltage: float,
                                        energy: float) -> FullStateElectricEnergyStorageWithInput:
     return FullStateElectricEnergyStorageWithInput(input=ElectricIOState(signal_type=ElectricSignalType.DC,
-                                                                         voltage=nominal_voltage,
-                                                                         current=0.0),
+                                                                         nominal_voltage=nominal_voltage,
+                                                                         electric_power=0.0),
                                                    output=ElectricIOState(signal_type=ElectricSignalType.DC,
-                                                                          voltage=nominal_voltage,
-                                                                          current=0.0),
+                                                                          nominal_voltage=nominal_voltage,
+                                                                          electric_power=0.0),
                                                    internal=None,
                                                    electric_energy_storage=ElectricEnergyStorageState(energy=energy))
 
 def default_battery_non_rechargeable_state(nominal_voltage: float,
                                            energy: float) -> FullStateElectricEnergyStorageNoInput:
     return FullStateElectricEnergyStorageNoInput(output=ElectricIOState(signal_type=ElectricSignalType.DC,
-                                                                        voltage=nominal_voltage,
-                                                                        current=0.0),
+                                                                        nominal_voltage=nominal_voltage,
+                                                                        electric_power=0.0),
                                                  internal=None,
                                                  electric_energy_storage=ElectricEnergyStorageState(energy=energy))
 

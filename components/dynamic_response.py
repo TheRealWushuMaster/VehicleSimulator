@@ -14,14 +14,18 @@ class DynamicResponse(ABC):
     Base class for dynamic responses.
     Includes methods that must be overridden if applicable.
     """
-    forward_response: Callable[[FullStateWithInput, float], FullStateWithInput]
+    forward_response: Callable[[FullStateWithInput, float, float], FullStateWithInput]
 
     def __post_init__(self):
         assert_callable(self.forward_response)
 
     def compute_forward(self, state: FullStateWithInput,
-                        delta_t: float) -> FullStateWithInput:
-        return self.forward_response(state, delta_t)
+                        delta_t: float,
+                        control_signal: float=0.0) -> FullStateWithInput:
+        """
+        Computes the forward response of the component.
+        """
+        return self.forward_response(state, delta_t, control_signal)
 
     @property
     def reversible(self) -> bool:
@@ -43,15 +47,16 @@ class BidirectionalDynamicResponse(DynamicResponse):
     """
     Creates a reversible dynamic response.
     """
-    reverse_response: Callable[[FullStateWithInput, float], FullStateWithInput]
+    reverse_response: Callable[[FullStateWithInput, float, float], FullStateWithInput]
     
     def __post_init__(self):
         super().__post_init__()
         assert_callable(self.reverse_response)
 
     def compute_reverse(self, state: FullStateWithInput,
-                        delta_t: float) -> FullStateWithInput:
-        return self.reverse_response(state, delta_t)
+                        delta_t: float,
+                        control_signal: float=0.0) -> FullStateWithInput:
+        return self.reverse_response(state, delta_t, control_signal)
 
     @property
     def reversible(self) -> bool:

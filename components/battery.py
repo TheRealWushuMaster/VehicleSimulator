@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Callable, Optional
-from components.battery_curves import BatteryEfficiencyCurves, BatteryVoltageVSCurrent
+from components.battery_curves import BatteryEfficiencyCurves
 from components.energy_source import BatteryRechargeable
 from helpers.functions import assert_type_and_range
 from simulation.constants import BATTERY_DEFAULT_SOH, BATTERY_EFFICIENCY_DEFAULT, \
@@ -13,22 +13,16 @@ from simulation.constants import BATTERY_DEFAULT_SOH, BATTERY_EFFICIENCY_DEFAULT
 
 
 def default_callables(efficiency: Optional[Callable[[float], float]],
-                      voltage_vs_current: Optional[Callable[[float], float]],
-                      voltage: float, max_current: float) -> tuple[Callable[[float], float],
-                                                                   Callable[[float], float]]:
+                      max_power: float) -> Callable[[float], float]:
     """
-    Returns default callables for efficiency and voltage vs current.
-    It uses constant values for each.
+    Returns default callables for efficiency.
     """
-    assert_type_and_range(voltage, max_current,
+    assert_type_and_range(max_power,
                           more_than=0.0)
     if efficiency is None:
         efficiency = BatteryEfficiencyCurves.constant(efficiency=BATTERY_EFFICIENCY_DEFAULT,
-                                                      max_current=max_current)
-    if voltage_vs_current is None:
-        voltage_vs_current = BatteryVoltageVSCurrent.constant_voltage(voltage=voltage,
-                                                                      max_current=max_current)
-    return efficiency, voltage_vs_current
+                                                      max_power=max_power)
+    return efficiency
 
 
 @dataclass
@@ -37,25 +31,21 @@ class AlAirBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_Al_AIR_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -64,25 +54,21 @@ class PbAcidBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_Pb_ACID_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -91,25 +77,21 @@ class LiCoBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiCo_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -118,25 +100,21 @@ class LiMnBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiMn_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -145,25 +123,21 @@ class LiPhBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiPh_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -172,25 +146,21 @@ class LiPoBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_LiPo_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -199,25 +169,21 @@ class NiCdBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_NiCd_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -226,25 +192,21 @@ class NiMHBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_NiMH_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
 
 
 @dataclass
@@ -253,22 +215,18 @@ class SolidStateBattery(BatteryRechargeable):
     def __init__(self,
                  name: str,
                  nominal_energy: float,
-                 max_current: float,
+                 max_power: float,
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None,
-                 voltage_vs_current: Optional[Callable[[float], float]]=None):
-        efficiency, voltage_vs_current = default_callables(efficiency=efficiency,
-                                                           voltage_vs_current=voltage_vs_current,
-                                                           voltage=nominal_voltage,
-                                                           max_current=max_current)
+                 efficiency: Optional[Callable[[float], float]]=None):
+        efficiency = default_callables(efficiency=efficiency,
+                                       max_power=max_power)
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
-                         max_current=max_current,
+                         max_power=max_power,
                          energy=energy,
                          battery_mass=nominal_energy/BATTERY_SOLID_STATE_ENERGY_DENSITY,
                          soh=soh,
                          efficiency=efficiency,
-                         nominal_voltage=nominal_voltage,
-                         voltage_vs_current=voltage_vs_current)
+                         nominal_voltage=nominal_voltage)
