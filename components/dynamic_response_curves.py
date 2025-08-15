@@ -273,7 +273,7 @@ class FuelToMechanical():
                                                                            rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)),
                                                     internal=state.internal)
             fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state)
-            new_state.input.fuel_liters = fuel_consumption_value
+            new_state.input.fuel_liters = fuel_consumption_value * delta_t
             return new_state
         return response
 
@@ -316,6 +316,6 @@ class FuelToMechanical():
                                                                             rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)),
                                                      internal=state.internal)
             fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state)
-            new_state.input.fuel_mass = fuel_consumption_value
+            new_state.input.fuel_mass = fuel_consumption_value * delta_t
             return new_state
         return response
