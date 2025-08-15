@@ -1,12 +1,15 @@
 """This module contains several dynamic response curves for different components."""
 
-from dataclasses import dataclass
 from typing import Callable
+from components.consumption import ElectricMotorConsumption, ElectricGeneratorConsumption, \
+    CombustionEngineConsumption
 from components.limitation import ElectricGeneratorLimits, \
     ElectricMotorLimits, LiquidCombustionEngineLimits, GaseousCombustionEngineLimits
 from components.state import ElectricIOState, RotatingIOState, \
     PureMechanicalState, ElectricMotorState, ElectricGeneratorState, \
-    return_electric_motor_state
+    LiquidCombustionEngineState, GaseousCombustionEngineState, \
+    LiquidFuelIOState, GaseousFuelIOState, \
+    PureElectricState
 from helpers.functions import assert_type, assert_type_and_range, \
     ang_vel_to_rpm
 from helpers.types import ElectricSignalType
@@ -17,9 +20,9 @@ class MechanicalToMechanical():
     Contains generator methods for purely mechanical components.
     """
     @staticmethod
-    def forward_gearbox_ideal_response(gear_ratio: float, efficiency: float=1.0
-                                       ) -> Callable[[PureMechanicalState, float, float],
-                                                     PureMechanicalState]:
+    def forward_gearbox(gear_ratio: float, efficiency: float
+                        ) -> Callable[[PureMechanicalState],
+                                      PureMechanicalState]:
         """
         Generates a forward response for a stateless pure
         mechanical component.
@@ -32,9 +35,7 @@ class MechanicalToMechanical():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        def response(state: PureMechanicalState,
-                     delta_t: float,
-                     control_signal: float) -> PureMechanicalState:
+        def response(state: PureMechanicalState) -> PureMechanicalState:
             assert isinstance(state, PureMechanicalState)
             output = RotatingIOState(torque=state.input.torque * gear_ratio * efficiency,
                                      rpm=state.input.rpm / gear_ratio)
@@ -44,9 +45,9 @@ class MechanicalToMechanical():
         return response
 
     @staticmethod
-    def reverse_gearbox_ideal_response(gear_ratio: float, efficiency: float=1.0
-                                       ) -> Callable[[PureMechanicalState, float, float],
-                                                     PureMechanicalState]:
+    def reverse_gearbox(gear_ratio: float, efficiency: float
+                        ) -> Callable[[PureMechanicalState],
+                                      PureMechanicalState]:
         """
         Generates a reverse response for a stateless pure
         mechanical component.
@@ -59,9 +60,7 @@ class MechanicalToMechanical():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        def response(state: PureMechanicalState,
-                     delta_t: float,
-                     control_signal: float) -> PureMechanicalState:
+        def response(state: PureMechanicalState) -> PureMechanicalState:
             assert isinstance(state, PureMechanicalState)
             inp = RotatingIOState(torque=state.output.torque / gear_ratio * efficiency,
                                   rpm=state.output.rpm * gear_ratio)
@@ -71,59 +70,100 @@ class MechanicalToMechanical():
         return response
 
 
+class ElectricToElectric():
+    """
+    Contains responses for electric to electric components.
+    """
+    @staticmethod
+    def rectifier_response(voltage_gain: float,
+                           efficiency: float
+                           ) -> Callable[[PureElectricState], PureElectricState]:
+        """
+        Returns a response for an electric
+        rectifier with constant efficiency.
+        """
+        def response(state: PureElectricState) -> PureElectricState:
+            assert_type(state,
+                        expected_type=PureElectricState)
+            assert state.input.signal_type==ElectricSignalType.AC
+            assert state.output.signal_type==ElectricSignalType.DC
+            return PureElectricState(input=ElectricIOState(signal_type=ElectricSignalType.AC,
+                                                           nominal_voltage=state.input.nominal_voltage,
+                                                           electric_power=state.input.electric_power),
+                                     output=ElectricIOState(signal_type=ElectricSignalType.DC,
+                                                            nominal_voltage=state.input.nominal_voltage*voltage_gain,
+                                                            electric_power=state.input.electric_power*efficiency),
+                                     internal=state.internal)
+        return response
+
+    @staticmethod
+    def inverter_response(voltage_gain: float,
+                          efficiency: float
+                          ) -> Callable[[PureElectricState], PureElectricState]:
+        """
+        Returns a response for an electric
+        inverter with constant efficiency.
+        """
+        def response(state: PureElectricState) -> PureElectricState:
+            assert_type(state,
+                        expected_type=PureElectricState)
+            assert state.input.signal_type == ElectricSignalType.DC
+            assert state.output.signal_type==ElectricSignalType.AC
+            return PureElectricState(input=ElectricIOState(signal_type=ElectricSignalType.DC,
+                                                           nominal_voltage=state.input.nominal_voltage,
+                                                           electric_power=state.input.electric_power),
+                                     output=ElectricIOState(signal_type=ElectricSignalType.AC,
+                                                            nominal_voltage=state.input.nominal_voltage*voltage_gain,
+                                                            electric_power=state.input.electric_power*efficiency),
+                                     internal=state.internal)
+        return response
+
+
 class ElectricToMechanical():
     """
     Contains generator methods for electric motors.
     """
     @staticmethod
-    def forward_driven_first_order(signal_type: ElectricSignalType
-                                   ) -> Callable[[ElectricMotorState, float,
-                                                  float, float, float, float],
+    def forward_driven_first_order() -> Callable[[ElectricMotorState, float,
+                                                  float, float, float,
+                                                  ElectricMotorConsumption,
+                                                  ElectricMotorLimits],
                                                  ElectricMotorState]:
         """
+        Returns a response for an electric generator
+        with a first-order lag response.
         """
         def response(state: ElectricMotorState,
                      load_torque: float,
                      downstream_inertia: float,
                      delta_t: float,
                      control_signal: float,
-                     efficiency: float) -> ElectricMotorState:
+                     efficiency: ElectricMotorConsumption,
+                     limits: ElectricMotorLimits) -> ElectricMotorState:
             assert_type(state,
                         expected_type=ElectricMotorState)
-            
-        return response
-    
-    
-    @staticmethod
-    def voltage_controlled_first_order(motor_params: DCElectricMotorParams,
-                                       signal_type: ElectricSignalType
-                                       ) -> Callable[[ElectricMotorState, float,
-                                                      float, float], ElectricMotorState]:
-        """
-        Returns a dynamic response for a voltage-controlled electric motor.
-        """
-        def response(state: ElectricMotorState,
-                     counter_torque: float,
-                     downstream_inertia: float,
-                     delta_t: float) -> ElectricMotorState:
-            assert_type_and_range(counter_torque, downstream_inertia, delta_t,
+            assert_type(efficiency,
+                        expected_type=ElectricMotorConsumption)
+            assert_type(limits,
+                        expected_type=ElectricMotorLimits)
+            assert_type_and_range(load_torque, downstream_inertia,
+                                  delta_t,
                                   more_than=0.0)
-            assert isinstance(state.input, ElectricIOState)
-            assert isinstance(state.output, RotatingIOState)
-            j = motor_params.j + downstream_inertia
-            v = state.input.voltage
-            v_m = state.output.ang_vel * motor_params.ke
-            i = (v - v_m) / motor_params.r
-            t = motor_params.kt * i
-            w_dot = (t - counter_torque) / j
-            rpm = state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
-            new_state = ElectricMotorState(input=ElectricIOState(signal_type=signal_type,
-                                                                 electric_power=i),
-                                           output=RotatingIOState(torque=t,
-                                                                  rpm=rpm),
+            assert_type_and_range(control_signal,
+                                  more_than=0.0,
+                                  less_than=1.0)
+            min_torque = limits.relative_limits.output.torque.min(state)
+            max_torque = limits.relative_limits.output.torque.max(state)
+            torque = (max_torque - min_torque) * control_signal + min_torque
+            w_dot = (torque - load_torque) / downstream_inertia
+            new_state = ElectricMotorState(input=ElectricIOState(signal_type=state.input.signal_type,
+                                                                 nominal_voltage=state.input.nominal_voltage,
+                                                                 electric_power=0.0),
+                                           output=RotatingIOState(torque=torque,
+                                                                  rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot*delta_t)),
                                            internal=state.internal)
-            new_state.input.set_delivering()
-            new_state.output.set_receiving()
+            efficiency_value = efficiency.in_to_out_efficiency_value(state=new_state)
+            new_state.input.electric_power = new_state.output.power / efficiency_value
             return new_state
         return response
 
@@ -133,45 +173,149 @@ class MechanicalToElectric():
     Contains generator methods for electric generators or reversed motors.
     """
     @staticmethod
-    def voltage_controlled_first_order(motor_params: DCElectricMotorParams,
-                                       signal_type: ElectricSignalType
-                                       ) -> Callable[[ElectricGeneratorState|ElectricMotorState,
-                                                      float, float, float],
-                                                     ElectricGeneratorState|ElectricMotorState]:
-        def response(state: ElectricGeneratorState|ElectricMotorState,
-                     counter_torque: float,
-                     downstream_inertia: float,
-                     delta_t: float) -> ElectricGeneratorState|ElectricMotorState:
-            assert_type_and_range(counter_torque, downstream_inertia, delta_t,
-                                  more_than=0.0)
+    def forward_generator() -> Callable[[ElectricGeneratorState,
+                                         ElectricGeneratorConsumption,
+                                         ElectricGeneratorLimits],
+                                        ElectricGeneratorState]:
+        """
+        Returns a response for an electric generator.
+        """
+        def response(state: ElectricGeneratorState,
+                     efficiency: ElectricGeneratorConsumption,
+                     limits: ElectricGeneratorLimits) -> ElectricGeneratorState:
             assert_type(state,
-                        expected_type=(ElectricGeneratorState, ElectricMotorState))
-            if isinstance(state, ElectricGeneratorState):
-                mech_state = state.input
-            else:
-                mech_state = state.output
-            j = motor_params.j + downstream_inertia
-            i = mech_state.torque / motor_params.kt
-            v_m = mech_state.ang_vel * motor_params.ke
-            v = v_m + motor_params.r * i
-            w_dot = (mech_state.torque - counter_torque) / j
-            rpm = mech_state.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
-            new_mech_state = RotatingIOState(torque=mech_state.torque,
-                                             rpm=rpm)
-            new_elec_state = ElectricIOState(signal_type=signal_type,
-                                             voltage=v,
-                                             current=i)
-            if isinstance(state, ElectricGeneratorState):
-                gen_state = ElectricGeneratorState(input=new_mech_state,
-                                                   output=new_elec_state,
-                                                   internal=state.internal)
-                gen_state.input.set_delivering()
-                gen_state.output.set_receiving()
-                return gen_state
-            mot_state = ElectricMotorState(input=new_elec_state,
-                                           output=new_mech_state,
+                        expected_type=ElectricGeneratorState)
+            assert_type(efficiency,
+                        expected_type=ElectricGeneratorConsumption)
+            assert_type(limits,
+                        expected_type=ElectricGeneratorLimits)
+            new_state = ElectricGeneratorState(input=RotatingIOState(torque=state.input.torque,
+                                                                     rpm=state.input.rpm),
+                                               output=ElectricIOState(signal_type=state.output.signal_type,
+                                                                      nominal_voltage=state.output.nominal_voltage,
+                                                                      electric_power=0.0),
+                                               internal=state.internal)
+            efficiency_value = efficiency.in_to_out_efficiency_value(state=new_state)
+            new_state.output.electric_power = new_state.input.power / efficiency_value
+            return new_state
+        return response
+
+    @staticmethod
+    def reversed_motor() -> Callable[[ElectricMotorState,
+                                      ElectricMotorConsumption,
+                                      ElectricMotorLimits],
+                                      ElectricMotorState]:
+        """
+        Returns a response for a reversed
+        electric motor acting as a generator.
+        """
+        def response(state: ElectricMotorState,
+                     efficiency: ElectricMotorConsumption,
+                     limits: ElectricMotorLimits) -> ElectricMotorState:
+            assert_type(state,
+                        expected_type=ElectricMotorState)
+            assert_type(efficiency,
+                        expected_type=ElectricMotorConsumption)
+            assert_type(limits,
+                        expected_type=ElectricMotorLimits)
+            new_state = ElectricMotorState(input=ElectricIOState(signal_type=state.input.signal_type,
+                                                                 nominal_voltage=state.input.nominal_voltage,
+                                                                 electric_power=0.0),
+                                           output=RotatingIOState(torque=state.output.torque,
+                                                                  rpm=state.output.rpm),
                                            internal=state.internal)
-            mot_state.input.set_receiving()
-            mot_state.output.set_delivering()
-            return mot_state
+            efficiency_value = efficiency.out_to_in_efficiency_value(state=new_state)
+            new_state.input.electric_power = new_state.output.power / efficiency_value
+            return new_state
+        return response
+
+
+class FuelToMechanical():
+    """
+    Contains combustion engines responses.
+    """
+    @staticmethod
+    def liquid_combustion_to_mechanical() -> Callable[[LiquidCombustionEngineState, float,
+                                                       float, float, float,
+                                                       CombustionEngineConsumption,
+                                                       LiquidCombustionEngineLimits],
+                                                      LiquidCombustionEngineState]:
+        """
+        Returns a response for a liquid combustion
+        engine with a first-order lag response.
+        """
+        def response(state: LiquidCombustionEngineState,
+                     load_torque: float,
+                     downstream_inertia: float,
+                     delta_t: float,
+                     control_signal: float,
+                     fuel_consumption: CombustionEngineConsumption,
+                     limits: LiquidCombustionEngineLimits) -> LiquidCombustionEngineState:
+            assert_type(state,
+                        expected_type=LiquidCombustionEngineState)
+            assert_type(fuel_consumption,
+                        expected_type=CombustionEngineConsumption)
+            assert_type(limits,
+                        expected_type=LiquidCombustionEngineLimits)
+            assert_type_and_range(load_torque, downstream_inertia,
+                                  delta_t,
+                                  more_than=0.0)
+            assert_type_and_range(control_signal,
+                                  more_than=0.0,
+                                  less_than=1.0)
+            min_torque = limits.relative_limits.output.torque.min(state)
+            max_torque = limits.relative_limits.output.torque.max(state)
+            torque = (max_torque - min_torque) * control_signal + min_torque
+            w_dot = (torque - load_torque) / downstream_inertia
+            new_state = LiquidCombustionEngineState(input=LiquidFuelIOState(fuel=state.input.fuel,
+                                                                            fuel_liters=0.0),
+                                                    output=RotatingIOState(torque=torque,
+                                                                           rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)),
+                                                    internal=state.internal)
+            fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state)
+            new_state.input.fuel_liters = fuel_consumption_value
+            return new_state
+        return response
+
+    @staticmethod
+    def gaseous_combustion_to_mechanical() -> Callable[[GaseousCombustionEngineState, float,
+                                                       float, float, float,
+                                                       CombustionEngineConsumption,
+                                                       GaseousCombustionEngineLimits],
+                                                       GaseousCombustionEngineState]:
+        """
+        Returns a response for a gaseous combustion
+        engine with a first-order lag response.
+        """
+        def response(state: GaseousCombustionEngineState,
+                     load_torque: float,
+                     downstream_inertia: float,
+                     delta_t: float,
+                     control_signal: float,
+                     fuel_consumption: CombustionEngineConsumption,
+                     limits: GaseousCombustionEngineLimits) -> GaseousCombustionEngineState:
+            assert_type(state,
+                        expected_type=GaseousCombustionEngineState)
+            assert_type(fuel_consumption,
+                        expected_type=CombustionEngineConsumption)
+            assert_type(limits,
+                        expected_type=GaseousCombustionEngineLimits)
+            assert_type_and_range(load_torque, downstream_inertia,
+                                  delta_t,
+                                  more_than=0.0)
+            assert_type_and_range(control_signal,
+                                  more_than=0.0,
+                                  less_than=1.0)
+            min_torque = limits.relative_limits.output.torque.min(state)
+            max_torque = limits.relative_limits.output.torque.max(state)
+            torque = (max_torque - min_torque) * control_signal + min_torque
+            w_dot = (torque - load_torque) / downstream_inertia
+            new_state = GaseousCombustionEngineState(input=GaseousFuelIOState(fuel=state.input.fuel,
+                                                                              fuel_mass=0.0),
+                                                     output=RotatingIOState(torque=torque,
+                                                                            rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)),
+                                                     internal=state.internal)
+            fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state)
+            new_state.input.fuel_mass = fuel_consumption_value
+            return new_state
         return response
