@@ -5,14 +5,16 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Callable
 from components.consumption import ElectricMotorConsumption, \
-    ElectricGeneratorConsumption, CombustionEngineConsumption
+    ElectricGeneratorConsumption, CombustionEngineConsumption, \
+    FuelCellConsumption
 from components.limitation import ElectricMotorLimits, \
     ElectricGeneratorLimits, \
-    LiquidCombustionEngineLimits, GaseousCombustionEngineLimits
+    LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
+    FuelCellLimits
 from components.state import FullStateWithInput, \
     ElectricMotorState, ElectricGeneratorState, \
     LiquidCombustionEngineState, GaseousCombustionEngineState, \
-    PureElectricState, PureMechanicalState
+    PureElectricState, PureMechanicalState, FuelCellState
 from helpers.functions import assert_callable, assert_type, assert_type_and_range
 
 
@@ -325,6 +327,40 @@ class PureMechanicalDynamicResponse():
     @property
     def reversible(self) -> bool:
         return True
+
+
+@dataclass
+class FuelCellDynamicResponse():
+    """
+    Creates the dynamic response
+    of a gaseous fuel cell.
+    """
+    forward_response: Callable[[FuelCellState, float, float,
+                                FuelCellConsumption, FuelCellLimits],
+                               FuelCellState]
+
+    def __post_init__(self):
+        assert_callable(self.forward_response)
+
+    def compute_forward(self, state: FuelCellState,
+                        delta_t: float,
+                        control_signal: float,
+                        fuel_consumption: FuelCellConsumption,
+                        limits: FuelCellLimits
+                        ) -> FuelCellState:
+        """
+        Computes the output of the fuel cell.
+        """
+        assert isinstance(state, FuelCellState)
+        return self.forward_response(state,
+                                     delta_t,
+                                     control_signal,
+                                     fuel_consumption,
+                                     limits)
+
+    @property
+    def reversible(self) -> bool:
+        return False
 
 
 @dataclass

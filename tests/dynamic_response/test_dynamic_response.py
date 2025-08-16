@@ -1,19 +1,24 @@
 """This module contains test routines for the dynamic response classes."""
 
 from components.consumption import ElectricMotorConsumption, \
-    ElectricGeneratorConsumption, CombustionEngineConsumption
+    ElectricGeneratorConsumption, CombustionEngineConsumption, \
+    PureMechanicalConsumption, PureElectricConsumption, FuelCellConsumption
 from components.dynamic_response import ElectricMotorDynamicResponse, \
     ElectricGeneratorDynamicResponse, LiquidCombustionDynamicResponse, \
     GaseousCombustionDynamicResponse, PureMechanicalDynamicResponse, \
-    RectifierDynamicResponse, InverterDynamicResponse
+    RectifierDynamicResponse, InverterDynamicResponse, FuelCellDynamicResponse
 from components.dynamic_response_curves import MechanicalToMechanical, \
     ElectricToElectric, ElectricToMechanical, MechanicalToElectric, \
-    FuelToMechanical
+    FuelToMechanical, FuelToElectric
 from components.fuel_type import LIQUID_FUELS, GASEOUS_FUELS
 from components.limitation import return_electric_motor_limits, \
-    return_electric_generator_limits, return_liquid_combustion_engine_limits
+    return_electric_generator_limits, return_liquid_combustion_engine_limits, \
+    return_gaseous_combustion_engine_limits, return_mechanical_to_mechanical_limits, \
+    return_electric_to_electric_limits, return_fuel_cell_limits
 from components.state import return_electric_motor_state, \
-    return_electric_generator_state, return_liquid_combustion_engine_state
+    return_electric_generator_state, return_liquid_combustion_engine_state, \
+    return_gaseous_combustion_engine_state, return_pure_mechanical_state, \
+    return_pure_electric_state, return_fuel_cell_state
 from helpers.functions import ang_vel_to_rpm, torque_to_power
 from helpers.types import ElectricSignalType
 
@@ -27,7 +32,8 @@ rpm_out: float = 2_500.0
 delta_t: float = 0.1
 voltage_gain: float = 2.0
 efficiency: float = 0.92
-gear_ratio: float = 2.32
+efficiency2: float = 0.93
+gear_ratio: float = 2.3
 load_torque: float = 4.03
 inertia: float = 6.2
 control_signal: float = 0.68
@@ -49,22 +55,26 @@ abs_max_rpm_out: float = 6_000.0
 abs_min_rpm_out: float = 0.0
 abs_max_fuel_liters_in: float = 0.45
 abs_min_fuel_liters_in: float = 0.0
-rel_max_temp = lambda s: abs_max_temp
-rel_min_temp = lambda s: abs_min_temp
-rel_max_power_in = lambda s: abs_max_power_in
-rel_min_power_in = lambda s: abs_min_power_in
-rel_max_power_out = lambda s: abs_max_power_out
-rel_min_power_out = lambda s: abs_min_power_out
-rel_max_torque_in = lambda s: abs_max_torque_in
-rel_min_torque_in = lambda s: abs_min_torque_in
-rel_max_torque_out = lambda s: abs_max_torque_out
-rel_min_torque_out = lambda s: abs_min_torque_out
-rel_max_rpm_in = lambda s: abs_max_rpm_in
-rel_min_rpm_in = lambda s: abs_min_rpm_in
-rel_max_rpm_out = lambda s: abs_max_rpm_out
-rel_min_rpm_out = lambda s: abs_min_rpm_out
-rel_max_fuel_liters_in = lambda s: abs_max_fuel_liters_in
-rel_min_fuel_liters_in = lambda s: abs_min_fuel_liters_in
+abs_max_fuel_mass_in: float = 0.36
+abs_min_fuel_mass_in: float = 0.0
+def rel_max_temp(s): return abs_max_temp
+def rel_min_temp(s): return abs_min_temp
+def rel_max_power_in(s): return abs_max_power_in
+def rel_min_power_in(s): return abs_min_power_in
+def rel_max_power_out(s): return abs_max_power_out
+def rel_min_power_out(s): return abs_min_power_out
+def rel_max_torque_in(s): return abs_max_torque_in
+def rel_max_torque_out(s): return abs_max_torque_out
+def rel_min_torque_in(s): return abs_min_torque_in
+def rel_min_torque_out(s): return abs_min_torque_out
+def rel_max_rpm_in(s): return abs_max_rpm_in
+def rel_min_rpm_in(s): return abs_min_rpm_in
+def rel_max_rpm_out(s): return abs_max_rpm_out
+def rel_min_rpm_out(s): return abs_min_rpm_out
+def rel_max_fuel_liters_in(s): return abs_max_fuel_liters_in
+def rel_min_fuel_liters_in(s): return abs_min_fuel_liters_in
+def rel_max_fuel_mass_in(s): return abs_max_fuel_mass_in
+def rel_min_fuel_mass_in(s): return abs_min_fuel_mass_in
 
 def test_create_electric_motor_response() -> None:
     response = ElectricMotorDynamicResponse(forward_response=ElectricToMechanical.forward_driven_first_order(),
@@ -153,22 +163,128 @@ def test_create_liquid_combustion_response() -> None:
         assert forward_conversion_state.input.fuel_liters == result
 
 def test_create_gaseous_combustion_response() -> None:
-    response = GaseousCombustionDynamicResponse(forward_response=FuelToMechanical.gaseous_combustion_to_mechanical())
-    assert isinstance(response, GaseousCombustionDynamicResponse)
+    for fuel in GASEOUS_FUELS:
+        response = GaseousCombustionDynamicResponse(forward_response=FuelToMechanical.gaseous_combustion_to_mechanical())
+        assert isinstance(response, GaseousCombustionDynamicResponse)
+        gc_consumption = CombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_mass_in)
+        gc_limits = return_gaseous_combustion_engine_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
+                                                            abs_max_fuel_mass_in=abs_max_fuel_mass_in, abs_min_fuel_mass_in=abs_min_fuel_mass_in,
+                                                            abs_max_torque_out=abs_max_torque_out, abs_min_torque_out=abs_min_torque_out,
+                                                            abs_max_rpm_out=abs_max_rpm_out, abs_min_rpm_out=abs_min_rpm_out,
+                                                            rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
+                                                            rel_max_fuel_mass_in=rel_max_fuel_mass_in, rel_min_fuel_mass_in=rel_min_fuel_mass_in,
+                                                            rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
+                                                            rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
+        initial_state = return_gaseous_combustion_engine_state(fuel=fuel,
+                                                               fuel_mass_in=fuel_mass_in,
+                                                               torque_out=torque_out,
+                                                               rpm_out=rpm_out)
+        forward_conversion_state = response.compute_forward(state=initial_state,
+                                                            load_torque=load_torque,
+                                                            downstream_inertia=inertia,
+                                                            delta_t=delta_t,
+                                                            control_signal=control_signal,
+                                                            fuel_consumption=gc_consumption,
+                                                            limits=gc_limits)
+        result = fuel_mass_in * delta_t
+        assert forward_conversion_state.input.fuel_mass == result
+
+def test_create_fuel_cell_response() -> None:
+    for fuel in GASEOUS_FUELS:
+        response = FuelCellDynamicResponse(forward_response=FuelToElectric.gaseous_fuel_to_electric())
+        assert isinstance(response, FuelCellDynamicResponse)
+        fc_consumption = FuelCellConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_mass_in)
+        fc_limits = return_fuel_cell_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
+                                            abs_max_fuel_mass_in=abs_max_fuel_mass_in, abs_min_fuel_mass_in=abs_min_fuel_mass_in,
+                                            abs_max_power_out=abs_max_power_out, abs_min_power_out=abs_min_power_out,
+                                            rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
+                                            rel_max_fuel_mass_in=rel_max_fuel_mass_in, rel_min_fuel_mass_in=rel_min_fuel_mass_in,
+                                            rel_max_power_out=rel_max_power_out, rel_min_power_out=rel_min_power_out,)
+        initial_state = return_fuel_cell_state(fuel=fuel,
+                                               fuel_mass_in=fuel_mass_in,
+                                               nominal_voltage=nominal_voltage,
+                                               power_out=power_out)
+        forward_conversion_state = response.compute_forward(state=initial_state,
+                                                            delta_t=delta_t,
+                                                            control_signal=control_signal,
+                                                            fuel_consumption=fc_consumption,
+                                                            limits=fc_limits)
+        result = fuel_mass_in * delta_t
+        assert forward_conversion_state.input.fuel_mass == result
 
 def test_create_mechanical_to_mechanical_response() -> None:
     response = PureMechanicalDynamicResponse(forward_response=MechanicalToMechanical.forward_gearbox(gear_ratio=gear_ratio,
                                                                                                      efficiency=efficiency),
                                              reverse_response=MechanicalToMechanical.reverse_gearbox(gear_ratio=gear_ratio,
-                                                                                                     efficiency=efficiency))
+                                                                                                     efficiency=efficiency2))
     assert isinstance(response, PureMechanicalDynamicResponse)
+    mm_consumption = PureMechanicalConsumption(in_to_out_efficiency_func=lambda s: efficiency,
+                                               out_to_in_efficiency_func=lambda s: efficiency2)
+    mm_limits = return_mechanical_to_mechanical_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
+                                                       abs_max_torque_in=abs_max_torque_in, abs_min_torque_in=abs_min_torque_in,
+                                                       abs_max_rpm_in=abs_max_rpm_in, abs_min_rpm_in=abs_min_rpm_in,
+                                                       abs_max_torque_out=abs_max_torque_out, abs_min_torque_out=abs_min_torque_out,
+                                                       abs_max_rpm_out=abs_max_rpm_out, abs_min_rpm_out=abs_min_rpm_out,
+                                                       rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
+                                                       rel_max_torque_in=rel_max_torque_in, rel_min_torque_in=rel_min_torque_in,
+                                                       rel_max_rpm_in=rel_max_rpm_in, rel_min_rpm_in=rel_min_rpm_in,
+                                                       rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
+                                                       rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
+    initial_state = return_pure_mechanical_state(torque_in=torque_in,
+                                                 rpm_in=rpm_in,
+                                                 torque_out=torque_out,
+                                                 rpm_out=rpm_out)
+    forward_conversion_state = response.compute_forward(state=initial_state)
+    assert forward_conversion_state.output.torque == initial_state.input.torque * \
+        gear_ratio * mm_consumption.in_to_out_efficiency_value(state=forward_conversion_state)
+    assert forward_conversion_state.output.rpm == initial_state.output.rpm / gear_ratio
+    assert round(forward_conversion_state.output.power, 5) == round(forward_conversion_state.input.power * \
+                                                                    mm_consumption.in_to_out_efficiency_value(state=initial_state), 5)
+    reverse_conversion_state = response.compute_reverse(state=initial_state)
+    assert round(reverse_conversion_state.output.torque, 5) == round(reverse_conversion_state.input.torque * \
+        gear_ratio / mm_consumption.out_to_in_efficiency_value(state=reverse_conversion_state), 5)
+    assert reverse_conversion_state.input.rpm == initial_state.output.rpm * gear_ratio
+    assert round(reverse_conversion_state.output.power, 5) == round(reverse_conversion_state.input.power / \
+                                                                    mm_consumption.out_to_in_efficiency_value(state=initial_state), 5)
 
 def test_create_rectifier_response() -> None:
     response = RectifierDynamicResponse(forward_response=ElectricToElectric.rectifier_response(voltage_gain=voltage_gain,
                                                                                                efficiency=efficiency))
     assert isinstance(response, RectifierDynamicResponse)
+    er_consumption = PureElectricConsumption(in_to_out_efficiency_func=lambda s: efficiency)
+    er_limits = return_electric_to_electric_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
+                                                   abs_max_power_in=abs_max_power_in, abs_min_power_in=abs_min_power_in,
+                                                   abs_max_power_out=abs_max_power_in, abs_min_power_out=abs_min_power_in,
+                                                   rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
+                                                   rel_max_power_in=rel_max_power_in, rel_min_power_in=rel_min_power_in,
+                                                   rel_max_power_out=rel_max_power_in, rel_min_power_out=rel_min_power_in)
+    initial_state = return_pure_electric_state(signal_type_in=ElectricSignalType.AC,
+                                               signal_type_out=ElectricSignalType.DC,
+                                               nominal_voltage_in=nominal_voltage,
+                                               nominal_voltage_out=nominal_voltage,
+                                               power_in=power_in,
+                                               power_out=power_out)
+    forward_conversion_state = response.compute_forward(state=initial_state)
+    assert forward_conversion_state.output.power == initial_state.input.power * \
+        er_consumption.in_to_out_efficiency_value(state=forward_conversion_state)
 
 def test_create_inverter_response() -> None:
     response = InverterDynamicResponse(forward_response=ElectricToElectric.inverter_response(voltage_gain=voltage_gain,
                                                                                              efficiency=efficiency))
     assert isinstance(response, InverterDynamicResponse)
+    ir_consumption = PureElectricConsumption(in_to_out_efficiency_func=lambda s: efficiency)
+    ir_limits = return_electric_to_electric_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
+                                                   abs_max_power_in=abs_max_power_in, abs_min_power_in=abs_min_power_in,
+                                                   abs_max_power_out=abs_max_power_in, abs_min_power_out=abs_min_power_in,
+                                                   rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
+                                                   rel_max_power_in=rel_max_power_in, rel_min_power_in=rel_min_power_in,
+                                                   rel_max_power_out=rel_max_power_in, rel_min_power_out=rel_min_power_in)
+    initial_state = return_pure_electric_state(signal_type_in=ElectricSignalType.DC,
+                                               signal_type_out=ElectricSignalType.AC,
+                                               nominal_voltage_in=nominal_voltage,
+                                               nominal_voltage_out=nominal_voltage,
+                                               power_in=power_in,
+                                               power_out=power_out)
+    forward_conversion_state = response.compute_forward(state=initial_state)
+    assert forward_conversion_state.output.power == initial_state.input.power * \
+        ir_consumption.in_to_out_efficiency_value(state=forward_conversion_state)

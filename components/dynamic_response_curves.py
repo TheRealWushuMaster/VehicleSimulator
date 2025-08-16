@@ -2,14 +2,15 @@
 
 from typing import Callable
 from components.consumption import ElectricMotorConsumption, ElectricGeneratorConsumption, \
-    CombustionEngineConsumption
+    CombustionEngineConsumption, FuelCellConsumption
 from components.limitation import ElectricGeneratorLimits, \
-    ElectricMotorLimits, LiquidCombustionEngineLimits, GaseousCombustionEngineLimits
+    ElectricMotorLimits, LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
+        FuelCellLimits
 from components.state import ElectricIOState, RotatingIOState, \
     PureMechanicalState, ElectricMotorState, ElectricGeneratorState, \
     LiquidCombustionEngineState, GaseousCombustionEngineState, \
     LiquidFuelIOState, GaseousFuelIOState, \
-    PureElectricState
+    PureElectricState, FuelCellState
 from helpers.functions import assert_type, assert_type_and_range, \
     ang_vel_to_rpm
 from helpers.types import ElectricSignalType
@@ -315,7 +316,50 @@ class FuelToMechanical():
                                                      output=RotatingIOState(torque=torque,
                                                                             rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)),
                                                      internal=state.internal)
-            fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state)
-            new_state.input.fuel_mass = fuel_consumption_value * delta_t
+            fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state) * delta_t
+            new_state.input.fuel_mass = fuel_consumption_value
+            return new_state
+        return response
+
+
+class FuelToElectric():
+    """
+    Contains fuel cell responses.
+    """
+    @staticmethod
+    def gaseous_fuel_to_electric() -> Callable[[FuelCellState, float, float,
+                                                FuelCellConsumption, FuelCellLimits],
+                                               FuelCellState]:
+        """
+        Returns the response of a gaseous fuel cell.
+        """
+        def response(state: FuelCellState,
+                     delta_t: float,
+                     control_signal: float,
+                     fuel_consumption: FuelCellConsumption,
+                     limits: FuelCellLimits) -> FuelCellState:
+            assert_type(state,
+                        expected_type=FuelCellState)
+            assert_type_and_range(control_signal,
+                                  more_than=0.0,
+                                  less_than=1.0)
+            assert_type_and_range(delta_t,
+                                  more_than=0.0,
+                                  include_more=False)
+            assert_type(fuel_consumption,
+                        expected_type=FuelCellConsumption)
+            assert_type(limits,
+                        expected_type=FuelCellLimits)
+            power = (limits.relative_limits.output.power.max(state) - \
+                     limits.relative_limits.output.power.min(state)) * control_signal + \
+                    limits.relative_limits.output.power.min(state)
+            new_state = FuelCellState(input=GaseousFuelIOState(fuel=state.input.fuel,
+                                                               fuel_mass=0.0),
+                                      output=ElectricIOState(signal_type=state.output.signal_type,
+                                                             nominal_voltage=state.output.nominal_voltage,
+                                                             electric_power=power),
+                                      internal=state.internal)
+            fuel_mass = fuel_consumption.in_to_out_fuel_consumption_value(state=new_state) * delta_t
+            new_state.input.fuel_mass = fuel_mass
             return new_state
         return response
