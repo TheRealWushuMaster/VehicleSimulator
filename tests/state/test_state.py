@@ -12,6 +12,7 @@ from helpers.types import ElectricSignalType
 
 voltage: float = 10.0
 current: float = 3.0
+power: float = 30.0
 torque: float = 10.0
 rpm: float = 200.0
 electric_energy: float = 10.0
@@ -24,15 +25,13 @@ fuel_liters: float = 8.0
 
 def test_create_ac_electric_io_state() -> ElectricIOState:
     state = ElectricIOState(signal_type=ElectricSignalType.AC,
-                            voltage=voltage,
-                            current=current)
+                            electric_power=power)
     assert isinstance(state, ElectricIOState)
     return state
 
 def test_create_dc_electric_io_state() -> ElectricIOState:
     state = ElectricIOState(signal_type=ElectricSignalType.DC,
-                            voltage=voltage,
-                            current=current)
+                            electric_power=power)
     assert isinstance(state, ElectricIOState)
     return state
 

@@ -54,13 +54,23 @@ def test_create_gasoline_delivery() -> DeliveryMessage:
                                        delivery=100.0)
     return delivery_message
 
-def test_create_electric_request() -> RequestMessage:
-    request_message = create_request(exchange=PowerType.ELECTRIC,
+def test_create_ac_electric_request() -> RequestMessage:
+    request_message = create_request(exchange=PowerType.ELECTRIC_AC,
                                      requested=80.0)
     return request_message
 
-def test_create_electric_delivery() -> DeliveryMessage:
-    delivery_message = create_delivery(exchange=PowerType.ELECTRIC,
+def test_create_dc_electric_request() -> RequestMessage:
+    request_message = create_request(exchange=PowerType.ELECTRIC_DC,
+                                     requested=80.0)
+    return request_message
+
+def test_create_ac_electric_delivery() -> DeliveryMessage:
+    delivery_message = create_delivery(exchange=PowerType.ELECTRIC_AC,
+                                       delivery=80.0)
+    return delivery_message
+
+def test_create_dc_electric_delivery() -> DeliveryMessage:
+    delivery_message = create_delivery(exchange=PowerType.ELECTRIC_DC,
                                        delivery=80.0)
     return delivery_message
 
@@ -90,14 +100,25 @@ def test_add_gasoline_delivery_to_request() -> None:
     add_delivery_to_request(message_stack=message_stack,
                             delivery_message=delivery_message)
 
-def test_add_electric_request_to_stack() -> MessageStack:
-    request_message = test_create_electric_request()
+def test_add_ac_electric_request_to_stack() -> MessageStack:
+    request_message = test_create_ac_electric_request()
     message_stack = add_request_to_stack(message=request_message)
     return message_stack
 
-def test_add_electric_delivery_to_request() -> None:
-    message_stack = test_add_electric_request_to_stack()
-    delivery_message = test_create_electric_delivery()
+def test_add_dc_electric_request_to_stack() -> MessageStack:
+    request_message = test_create_dc_electric_request()
+    message_stack = add_request_to_stack(message=request_message)
+    return message_stack
+
+def test_add_ac_electric_delivery_to_request() -> None:
+    message_stack = test_add_ac_electric_request_to_stack()
+    delivery_message = test_create_ac_electric_delivery()
+    add_delivery_to_request(message_stack=message_stack,
+                            delivery_message=delivery_message)
+
+def test_add_dc_electric_delivery_to_request() -> None:
+    message_stack = test_add_dc_electric_request_to_stack()
+    delivery_message = test_create_dc_electric_delivery()
     add_delivery_to_request(message_stack=message_stack,
                             delivery_message=delivery_message)
 
