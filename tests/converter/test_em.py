@@ -3,10 +3,11 @@
 from typing import TypedDict
 from components.consumption import return_electric_generator_consumption, \
     return_electric_motor_consumption
-from components.dynamic_response import ForwardDynamicResponse, BidirectionalDynamicResponse
 from components.limitation import  \
     return_electric_generator_limits, return_electric_motor_limits
 from components.motor import ElectricMotor, ElectricGenerator
+from tests.dynamic_response.test_dynamic_response import create_electric_motor_response, \
+    create_electric_generator_response
 from helpers.types import ElectricSignalType
 
 
@@ -47,13 +48,11 @@ em_defaults: TestEMParams = {"mass": 50.0,
 def create_electric_motor() -> ElectricMotor:
     limits = return_electric_motor_limits(
         abs_max_temp=em_defaults["max_temp"], abs_min_temp=em_defaults["min_temp"],
-        abs_max_voltage_in=em_defaults["max_voltage_in"], abs_min_voltage_in=em_defaults["min_voltage_in"],
-        abs_max_current_in=em_defaults["max_current_in"], abs_min_current_in=em_defaults["min_current_in"],
+        abs_max_power_in=em_defaults["max_voltage_in"], abs_min_power_in=em_defaults["min_voltage_in"],
         abs_max_torque_out=em_defaults["max_torque_out"], abs_min_torque_out=em_defaults["min_torque_out"],
         abs_max_rpm_out=em_defaults["max_rpm_out"], abs_min_rpm_out=em_defaults["min_rpm_out"],
         rel_max_temp=lambda s: em_defaults["max_temp"], rel_min_temp=lambda s: em_defaults["min_temp"],
-        rel_max_voltage_in=lambda s: em_defaults["max_voltage_in"], rel_min_voltage_in=lambda s: em_defaults["min_voltage_in"],
-        rel_max_current_in=lambda s: em_defaults["max_current_in"], rel_min_current_in=lambda s: em_defaults["min_current_in"],
+        rel_max_power_in=lambda s: em_defaults["max_voltage_in"], rel_min_power_in=lambda s: em_defaults["min_voltage_in"],
         rel_max_torque_out=lambda s: em_defaults["max_torque_out"], rel_min_torque_out=lambda s: em_defaults["min_torque_out"],
         rel_max_rpm_out=lambda s: em_defaults["max_rpm_out"], rel_min_rpm_out=lambda s: em_defaults["min_rpm_out"]
     )
@@ -61,8 +60,7 @@ def create_electric_motor() -> ElectricMotor:
         motor_efficiency_func=lambda s: em_defaults["motor_eff"],
         generator_efficiency_func=lambda s: em_defaults["gen_eff"]
     )
-    dynamic_response = BidirectionalDynamicResponse(forward_response=lambda s, t: 1.0,
-                                                    reverse_response=lambda s, t: 1.0)
+    dynamic_response = create_electric_motor_response()
     return ElectricMotor(name="Test Electric Motor",
                          mass=em_defaults["mass"],
                          limits=limits,
@@ -74,26 +72,23 @@ def create_electric_motor() -> ElectricMotor:
 def create_electric_generator() -> ElectricGenerator:
     limits = return_electric_generator_limits(
         abs_max_temp=em_defaults["max_temp"], abs_min_temp=em_defaults["min_temp"],
-        abs_max_voltage_out=em_defaults["max_voltage_in"], abs_min_voltage_out=em_defaults["min_voltage_in"],
-        abs_max_current_out=em_defaults["max_current_in"], abs_min_current_out=em_defaults["min_current_in"],
+        abs_max_power_out=em_defaults["max_voltage_in"], abs_min_power_out=em_defaults["min_voltage_in"],
         abs_max_torque_in=em_defaults["max_torque_out"], abs_min_torque_in=em_defaults["min_torque_out"],
         abs_max_rpm_in=em_defaults["max_rpm_out"], abs_min_rpm_in=em_defaults["min_rpm_out"],
         rel_max_temp=lambda s: em_defaults["max_temp"], rel_min_temp=lambda s: em_defaults["min_temp"],
-        rel_max_voltage_out=lambda s: em_defaults["max_voltage_in"], rel_min_voltage_out=lambda s: em_defaults["min_voltage_in"],
-        rel_max_current_out=lambda s: em_defaults["max_current_in"], rel_min_current_out=lambda s: em_defaults["min_current_in"],
+        rel_max_power_out=lambda s: em_defaults["max_voltage_in"], rel_min_power_out=lambda s: em_defaults["min_voltage_in"],
         rel_max_torque_in=lambda s: em_defaults["max_torque_out"], rel_min_torque_in=lambda s: em_defaults["min_torque_out"],
         rel_max_rpm_in=lambda s: em_defaults["max_rpm_out"], rel_min_rpm_in=lambda s: em_defaults["min_rpm_out"]
     )
     consumption = return_electric_generator_consumption(
         generator_efficiency_func=lambda s: em_defaults["gen_eff"]
     )
-    dynamic_response = ForwardDynamicResponse(forward_response=lambda s, t: 1.0)
+    dynamic_response = create_electric_generator_response()
     return ElectricGenerator(name="Test Electric Generator",
                              mass=em_defaults["mass"],
                              limits=limits,
                              consumption=consumption,
                              dynamic_response=dynamic_response,
-                             electric_type=ElectricSignalType.AC,
                              inertia=em_defaults["inertia"])
 
 # ============================

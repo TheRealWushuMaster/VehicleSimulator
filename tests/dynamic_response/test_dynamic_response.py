@@ -76,10 +76,54 @@ def rel_min_fuel_liters_in(s): return abs_min_fuel_liters_in
 def rel_max_fuel_mass_in(s): return abs_max_fuel_mass_in
 def rel_min_fuel_mass_in(s): return abs_min_fuel_mass_in
 
-def test_create_electric_motor_response() -> None:
+def create_electric_motor_response() -> ElectricMotorDynamicResponse:
     response = ElectricMotorDynamicResponse(forward_response=ElectricToMechanical.forward_driven_first_order(),
                                             reverse_response=MechanicalToElectric.reversed_motor())
     assert isinstance(response, ElectricMotorDynamicResponse)
+    return response
+
+def create_electric_generator_response() -> ElectricGeneratorDynamicResponse:
+    response = ElectricGeneratorDynamicResponse(forward_response=MechanicalToElectric.forward_generator())
+    assert isinstance(response, ElectricGeneratorDynamicResponse)
+    return response
+
+def create_liquid_combustion_response() -> LiquidCombustionDynamicResponse:
+    response = LiquidCombustionDynamicResponse(forward_response=FuelToMechanical.liquid_combustion_to_mechanical())
+    assert isinstance(response, LiquidCombustionDynamicResponse)
+    return response
+
+def create_gaseous_combustion_response() -> GaseousCombustionDynamicResponse:
+    response = GaseousCombustionDynamicResponse(forward_response=FuelToMechanical.gaseous_combustion_to_mechanical())
+    assert isinstance(response, GaseousCombustionDynamicResponse)
+    return response
+
+def create_fuel_cell_response() -> FuelCellDynamicResponse:
+    response = FuelCellDynamicResponse(forward_response=FuelToElectric.gaseous_fuel_to_electric())
+    assert isinstance(response, FuelCellDynamicResponse)
+    return response
+
+def create_pure_mechanical_response() -> PureMechanicalDynamicResponse:
+    response = PureMechanicalDynamicResponse(forward_response=MechanicalToMechanical.forward_gearbox(gear_ratio=gear_ratio,
+                                                                                                     efficiency=efficiency),
+                                             reverse_response=MechanicalToMechanical.reverse_gearbox(gear_ratio=gear_ratio,
+                                                                                                     efficiency=efficiency2))
+    assert isinstance(response, PureMechanicalDynamicResponse)
+    return response
+
+def create_rectifier_response() -> RectifierDynamicResponse:
+    response = RectifierDynamicResponse(forward_response=ElectricToElectric.rectifier_response(voltage_gain=voltage_gain,
+                                                                                               efficiency=efficiency))
+    assert isinstance(response, RectifierDynamicResponse)
+    return response
+
+def create_inverter_response() -> InverterDynamicResponse:
+    response = InverterDynamicResponse(forward_response=ElectricToElectric.inverter_response(voltage_gain=voltage_gain,
+                                                                                             efficiency=efficiency))
+    assert isinstance(response, InverterDynamicResponse)
+    return response
+
+def test_create_electric_motor_response() -> None:
+    response = create_electric_motor_response()
     em_consumption = ElectricMotorConsumption(in_to_out_efficiency_func=lambda s: efficiency,
                                               out_to_in_efficiency_func=lambda s: efficiency)
     em_limits = return_electric_motor_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
@@ -112,9 +156,8 @@ def test_create_electric_motor_response() -> None:
                                                         limits=em_limits)
     assert reverse_conversion_state.input.electric_power == initial_state.output.power / em_consumption.out_to_in_efficiency_value(state=initial_state)
 
-def test_create_electric_generator_response() -> None:
-    response = ElectricGeneratorDynamicResponse(forward_response=MechanicalToElectric.forward_generator())
-    assert isinstance(response, ElectricGeneratorDynamicResponse)
+def test_create_electric_generator_response() -> ElectricGeneratorDynamicResponse:
+    response = create_electric_generator_response()
     eg_consumption = ElectricGeneratorConsumption(in_to_out_efficiency_func=lambda s: efficiency)
     eg_limits = return_electric_generator_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                  abs_max_torque_in=abs_max_torque_out, abs_min_torque_in=abs_min_torque_out,
@@ -134,11 +177,11 @@ def test_create_electric_generator_response() -> None:
     result = torque_to_power(torque=torque_in,
                              rpm=rpm_in) / efficiency
     assert forward_conversion_state.output.power == result
+    return response
 
 def test_create_liquid_combustion_response() -> None:
     for fuel in LIQUID_FUELS:
-        response = LiquidCombustionDynamicResponse(forward_response=FuelToMechanical.liquid_combustion_to_mechanical())
-        assert isinstance(response, LiquidCombustionDynamicResponse)
+        response = create_liquid_combustion_response()
         lc_consumption = CombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_liters_in)
         lc_limits = return_liquid_combustion_engine_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                            abs_max_fuel_liters_in=abs_max_fuel_liters_in, abs_min_fuel_liters_in=abs_min_fuel_liters_in,
@@ -164,8 +207,7 @@ def test_create_liquid_combustion_response() -> None:
 
 def test_create_gaseous_combustion_response() -> None:
     for fuel in GASEOUS_FUELS:
-        response = GaseousCombustionDynamicResponse(forward_response=FuelToMechanical.gaseous_combustion_to_mechanical())
-        assert isinstance(response, GaseousCombustionDynamicResponse)
+        response = create_gaseous_combustion_response()
         gc_consumption = CombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_mass_in)
         gc_limits = return_gaseous_combustion_engine_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                             abs_max_fuel_mass_in=abs_max_fuel_mass_in, abs_min_fuel_mass_in=abs_min_fuel_mass_in,
@@ -191,8 +233,7 @@ def test_create_gaseous_combustion_response() -> None:
 
 def test_create_fuel_cell_response() -> None:
     for fuel in GASEOUS_FUELS:
-        response = FuelCellDynamicResponse(forward_response=FuelToElectric.gaseous_fuel_to_electric())
-        assert isinstance(response, FuelCellDynamicResponse)
+        response = create_fuel_cell_response()
         fc_consumption = FuelCellConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_mass_in)
         fc_limits = return_fuel_cell_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                             abs_max_fuel_mass_in=abs_max_fuel_mass_in, abs_min_fuel_mass_in=abs_min_fuel_mass_in,
@@ -213,11 +254,7 @@ def test_create_fuel_cell_response() -> None:
         assert forward_conversion_state.input.fuel_mass == result
 
 def test_create_mechanical_to_mechanical_response() -> None:
-    response = PureMechanicalDynamicResponse(forward_response=MechanicalToMechanical.forward_gearbox(gear_ratio=gear_ratio,
-                                                                                                     efficiency=efficiency),
-                                             reverse_response=MechanicalToMechanical.reverse_gearbox(gear_ratio=gear_ratio,
-                                                                                                     efficiency=efficiency2))
-    assert isinstance(response, PureMechanicalDynamicResponse)
+    response = create_pure_mechanical_response()
     mm_consumption = PureMechanicalConsumption(in_to_out_efficiency_func=lambda s: efficiency,
                                                out_to_in_efficiency_func=lambda s: efficiency2)
     mm_limits = return_mechanical_to_mechanical_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
@@ -248,9 +285,7 @@ def test_create_mechanical_to_mechanical_response() -> None:
                                                                     mm_consumption.out_to_in_efficiency_value(state=initial_state), 5)
 
 def test_create_rectifier_response() -> None:
-    response = RectifierDynamicResponse(forward_response=ElectricToElectric.rectifier_response(voltage_gain=voltage_gain,
-                                                                                               efficiency=efficiency))
-    assert isinstance(response, RectifierDynamicResponse)
+    response = create_rectifier_response()
     er_consumption = PureElectricConsumption(in_to_out_efficiency_func=lambda s: efficiency)
     er_limits = return_electric_to_electric_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                    abs_max_power_in=abs_max_power_in, abs_min_power_in=abs_min_power_in,
@@ -269,9 +304,7 @@ def test_create_rectifier_response() -> None:
         er_consumption.in_to_out_efficiency_value(state=forward_conversion_state)
 
 def test_create_inverter_response() -> None:
-    response = InverterDynamicResponse(forward_response=ElectricToElectric.inverter_response(voltage_gain=voltage_gain,
-                                                                                             efficiency=efficiency))
-    assert isinstance(response, InverterDynamicResponse)
+    response = create_inverter_response()
     ir_consumption = PureElectricConsumption(in_to_out_efficiency_func=lambda s: efficiency)
     ir_limits = return_electric_to_electric_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                    abs_max_power_in=abs_max_power_in, abs_min_power_in=abs_min_power_in,
