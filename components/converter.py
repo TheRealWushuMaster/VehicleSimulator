@@ -1,7 +1,7 @@
 """This module contains definitions for energy conversion modules."""
 
 from dataclasses import dataclass, field
-from typing import Literal, Optional
+from typing import Literal, Generic, TypeVar
 from uuid import uuid4
 from components.consumption import ConverterConsumption
 from components.dynamic_response import ForwardDynamicResponse, BidirectionalDynamicResponse
@@ -14,9 +14,10 @@ from components.state import IOState, FullStateWithInput, \
 from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import ElectricSignalType, PowerType
 
+state_type = TypeVar('StateType', bound=FullStateWithInput)
 
 @dataclass
-class Converter():
+class Converter(Generic[state_type]):
     """
     Base class for modules that convert energy between types.
     Includes engines, motors, and fuel cells.
@@ -42,7 +43,7 @@ class Converter():
     mass: float
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
-    state: FullStateWithInput=field(init=False)
+    state: state_type  #FullStateWithInput=field(init=False)
     limits: ConverterLimits
     consumption: ConverterConsumption
     dynamic_response: ForwardDynamicResponse|BidirectionalDynamicResponse
@@ -84,50 +85,16 @@ class Converter():
     @property
     def input_power(self) -> float:
         """
-        Dynamically calculates the power at the input, if applicable.
+        Returns the power at the input.
         """
         return self.state.input.power
 
     @property
     def output_power(self) -> float:
         """
-        Dynamically calculates the power at the output.
+        Returns the power at the output.
         """
         return self.state.output.power
-
-    def _compute_conversion(self, delta_t: float,
-                            state: Optional[IOState]=None,
-                            reverse: bool=False) -> Optional[IOState]:
-        """
-        Returns the result of a conversion or recovery.
-        """
-        if reverse and not self.reversible:
-            return None
-        if state is None:
-            state = self.state.input if not reverse else self.state.output
-        assert self.state.internal is not None
-        if not reverse:
-            return self.dynamic_response.forward_response(state, self.state.internal, delta_t)
-        assert isinstance(self.dynamic_response, BidirectionalDynamicResponse)
-        return self.dynamic_response.reverse_response(state, self.state.internal, delta_t)
-
-    def convert(self, delta_t: float,
-                state: Optional[IOState]=None,
-                update_state: bool=True) -> Optional[IOState]:
-        """
-        Calculates the forward conversion.
-        """
-        if state is None:
-            state = self.state.input
-        conv = self._compute_conversion(delta_t=delta_t,
-                                        state=state,
-                                        reverse=False)
-        if not update_state:
-            return conv
-        if conv is not None:
-            self.update_io_state(new_state=conv,
-                                 which="out")
-        return None
 
     def update_io_state(self, new_state: IOState,
                      which: Literal["in", "out"]="out") -> None:
@@ -154,75 +121,7 @@ class Converter():
 
 
 @dataclass
-class ReversibleConverter(Converter):
-    """
-    Base class for reversible converters.
-    """
-    def __init__(self, name: str,
-                 mass: float,
-                 input_port: PortBidirectional,
-                 output_port: PortBidirectional,
-                 limits: ConverterLimits,
-                 consumption: ConverterConsumption,
-                 dynamic_response: BidirectionalDynamicResponse):
-        super().__init__(name=name,
-                         mass=mass,
-                         input=input_port,
-                         output=output_port,
-                         limits=limits,
-                         consumption=consumption,
-                         dynamic_response=dynamic_response)
-
-    @property
-    def reversible(self) -> bool:
-        return True
-
-    def recover(self, delta_t: float,
-                state: Optional[IOState]=None,
-                update_state: bool=True) -> Optional[IOState]:
-        """
-        Calculates the reverse conversion.
-        """
-        if state is None:
-            state = self.state.output
-        conv = self._compute_conversion(delta_t=delta_t,
-                                        state=state,
-                                        reverse=True)
-        if not update_state:
-            return conv
-        if conv is not None:
-            self.update_io_state(new_state=conv,
-                                 which="in")
-        return None
-
-
-@dataclass
-class ForwardConverter(Converter):
-    """
-    Base class for non-reversible converters.
-    """
-    def __init__(self, name: str,
-                 mass: float,
-                 input_port: PortInput,
-                 output_port: PortOutput,
-                 limits: ConverterLimits,
-                 consumption: ConverterConsumption,
-                 dynamic_response: ForwardDynamicResponse):
-        super().__init__(name=name,
-                         mass=mass,
-                         input=input_port,
-                         output=output_port,
-                         limits=limits,
-                         consumption=consumption,
-                         dynamic_response=dynamic_response)
-
-    @property
-    def reversible(self) -> bool:
-        return False
-
-
-@dataclass
-class MechanicalConverter():
+class MechanicalConverter(GenericConverter):
     """
     Models a mechanical converter, which involves movement.
     Adds inertia to the `Converter` base class.
@@ -233,61 +132,12 @@ class MechanicalConverter():
         assert_type_and_range(self.inertia,
                               more_than=0.0)
 
-
-@dataclass
-class ForwardVoltageConverter(ForwardConverter):
-    """
-    Models a non-reversible electrical converter.
-    """
-    nominal_voltage_in: float
-    nominal_voltage_out: float
-
-    def __init__(self,
-                 name: str,
-                 mass: float,
-                 limits: ConverterLimits,
-                 consumption: ConverterConsumption,
-                 dynamic_response: ForwardDynamicResponse,
-                 in_type: ElectricSignalType,
-                 out_type: ElectricSignalType,
-                 nominal_voltage_in: float,
-                 nominal_voltage_out: float):
-        assert_type(in_type, out_type,
-                    expected_type=ElectricSignalType)
-        assert_type_and_range(nominal_voltage_in, nominal_voltage_out,
-                              more_than=0.0,
-                              include_more=False)
-        super().__init__(name=name,
-                         mass=mass,
-                         input_port=PortInput(exchange=PowerType.ELECTRIC_AC
-                                              if in_type==ElectricSignalType.AC
-                                              else PowerType.ELECTRIC_DC),
-                         output_port=PortOutput(exchange=PowerType.ELECTRIC_AC
-                                                if out_type==ElectricSignalType.AC
-                                                else PowerType.ELECTRIC_DC),
-                         limits=limits,
-                         consumption=consumption,
-                         dynamic_response=dynamic_response)
-        self.nominal_voltage_in = nominal_voltage_in
-        self.nominal_voltage_out = nominal_voltage_out
-
     @property
-    def in_type(self) -> ElectricSignalType:
+    def reversible(self) -> bool:
         """
-        Returns the type of input electric signal.
+        Returns if the converter is reversible.
         """
-        return (ElectricSignalType.AC
-                if self.input.exchange == PowerType.ELECTRIC_AC
-                else ElectricSignalType.DC)
-
-    @property
-    def out_type(self) -> ElectricSignalType:
-        """
-        Returns the type of output electric signal.
-        """
-        return (ElectricSignalType.AC
-                if self.output.exchange==PowerType.ELECTRIC_AC
-                else ElectricSignalType.DC)
+        raise NotImplementedError
 
 
 def default_full_state(obj: Converter) -> FullStateWithInput:
