@@ -1,21 +1,21 @@
 """This module contains methods for testing consumption classes."""
 
-from collections.abc import Callable
 from components.consumption import \
     RechargeableBatteryConsumption, NonRechargeableBatteryConsumption, \
     ElectricGeneratorConsumption, ElectricMotorConsumption, \
-    CombustionEngineConsumption, FuelCellConsumption, \
+    LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
+    FuelCellConsumption, \
     PureElectricConsumption, PureMechanicalConsumption, \
     return_rechargeable_battery_consumption, return_non_rechargeable_battery_consumption, \
     return_electric_generator_consumption, return_electric_motor_consumption, \
-    return_combustion_engine_consumption, return_fuel_cell_consumption, \
+    return_liquid_combustion_engine_consumption, return_gaseous_combustion_engine_consumption, \
+    return_fuel_cell_consumption, \
     return_pure_electric_consumption, return_pure_mechanical_consumption
 from components.fuel_type import LIQUID_FUELS, GASEOUS_FUELS
 from components.state import return_rechargeable_battery_state, return_non_rechargeable_battery_state, \
     return_electric_generator_state, return_electric_motor_state, \
     return_liquid_combustion_engine_state, return_gaseous_combustion_engine_state, \
-    return_fuel_cell_state, return_pure_electric_state, return_pure_mechanical_state, \
-    FullStateWithInput
+    return_fuel_cell_state, return_pure_electric_state, return_pure_mechanical_state
 from helpers.functions import torque_to_power
 from helpers.types import ElectricSignalType
 
@@ -73,18 +73,27 @@ def create_electric_motor_consumption(motor_eff: float,
     assert isinstance(consumption, ElectricMotorConsumption)
     return consumption
 
-def create_combustion_engine_consumption(fuel_cons: float
-                                         ) -> CombustionEngineConsumption:
-    func: Callable[[FullStateWithInput], float] = lambda s: fuel_cons * s.output.power
-    consumption = return_combustion_engine_consumption(
+def create_liquid_combustion_engine_consumption(fuel_cons: float
+                                                ) -> LiquidCombustionEngineConsumption:
+    func = lambda s: fuel_cons * s.output.power
+    consumption = return_liquid_combustion_engine_consumption(
         fuel_consumption_func=func
     )
-    assert isinstance(consumption, CombustionEngineConsumption)
+    assert isinstance(consumption, LiquidCombustionEngineConsumption)
+    return consumption
+
+def create_gaseous_combustion_engine_consumption(fuel_cons: float
+                                                 ) -> GaseousCombustionEngineConsumption:
+    func = lambda s: fuel_cons * s.output.power
+    consumption = return_gaseous_combustion_engine_consumption(
+        fuel_consumption_func=func
+    )
+    assert isinstance(consumption, GaseousCombustionEngineConsumption)
     return consumption
 
 def create_fuel_cell_consumption(fuel_cons: float
                                  ) -> FuelCellConsumption:
-    func: Callable[[FullStateWithInput], float] = lambda s: fuel_cons * s.output.power
+    func = lambda s: fuel_cons * s.output.power
     consumption = return_fuel_cell_consumption(
         fuel_consumption_func=func
     )
@@ -142,31 +151,28 @@ def test_rechargeable_battery_consumption() -> None:
 def test_non_rechargeable_battery_consumption() -> None:
     consumption = create_non_rechargeable_battery_consumption(discharge_eff=eff1)
     state = return_non_rechargeable_battery_state(energy=electric_energy_stored,
-                                                  voltage_out=voltage_out,
-                                                  current_out=current_out)
+                                                  power_out=power_out)
     # Discharge to output
     energy_consumption = consumption.compute_internal_to_out(state=state,
                                                              delta_t=delta_t)
-    result = voltage_out * current_out * delta_t / eff1
+    result = power_out * delta_t / eff1
     assert energy_consumption == result
 
 def test_electric_generator_consumption() -> None:
     consumption = create_electric_generator_consumption(gen_eff=eff1)
     state = return_electric_generator_state(torque_in=torque_in,
                                             rpm_in=rpm_in,
-                                            voltage_out=voltage_out,
-                                            current_out=current_out)
+                                            power_out=power_out)
     energy_consumption = consumption.compute_in_to_out(state=state,
                                                        delta_t=delta_t)
-    result = voltage_out * current_out * delta_t / eff1
+    result = power_out * delta_t / eff1
     assert energy_consumption == result
 
 def test_electric_motor_consumption() -> None:
     consumption = create_electric_motor_consumption(motor_eff=eff1,
                                                     gen_eff=eff2)
     state = return_electric_motor_state(signal_type=ElectricSignalType.AC,
-                                        voltage_in=voltage_in,
-                                        current_in=current_in,
+                                        power_in=power_in,
                                         torque_out=torque_out,
                                         rpm_out=rpm_out)
     # Acting as motor
@@ -178,11 +184,11 @@ def test_electric_motor_consumption() -> None:
     # Acting as generator
     energy_consumption = consumption.compute_out_to_in(state=state,
                                                        delta_t=delta_t)
-    result = voltage_in * current_in * delta_t / eff2
+    result = power_in * delta_t / eff2
     assert energy_consumption == result
 
 def test_create_liquid_combustion_engine_consumption() -> None:
-    consumption = create_combustion_engine_consumption(fuel_cons=fuel_cons_per_sec)
+    consumption = create_liquid_combustion_engine_consumption(fuel_cons=fuel_cons_per_sec)
     for fuel in LIQUID_FUELS:
         state = return_liquid_combustion_engine_state(fuel=fuel,
                                                       fuel_liters_in=fuel_liters_in,
@@ -194,7 +200,7 @@ def test_create_liquid_combustion_engine_consumption() -> None:
         assert fuel_consumption == result
 
 def test_create_gaseous_combustion_engine_consumption() -> None:
-    consumption = create_combustion_engine_consumption(fuel_cons=fuel_cons_per_sec)
+    consumption = create_gaseous_combustion_engine_consumption(fuel_cons=fuel_cons_per_sec)
     for fuel in GASEOUS_FUELS:
         state = return_gaseous_combustion_engine_state(fuel=fuel,
                                                        fuel_mass_in=fuel_mass_in,
@@ -210,8 +216,7 @@ def test_create_fuel_cell_consumption() -> None:
     for fuel in GASEOUS_FUELS:
         state = return_fuel_cell_state(fuel=fuel,
                                        fuel_mass_in=fuel_mass_in,
-                                       voltage_out=voltage_out,
-                                       current_out=current_out)
+                                       power_out=power_out)
         fuel_consumption = consumption.compute_in_to_out(state=state,
                                                          delta_t=delta_t)
         result = state.output.power * fuel_cons_per_sec * delta_t
@@ -221,13 +226,11 @@ def test_create_pure_electric_consumption() -> None:
     consumption = create_pure_electric_consumption(eff=eff1)
     state = return_pure_electric_state(signal_type_in=ElectricSignalType.DC,
                                        signal_type_out=ElectricSignalType.DC,
-                                       voltage_in=voltage_in,
-                                       current_in=current_in,
-                                       voltage_out=voltage_out,
-                                       current_out=current_out)
+                                       power_in=power_in,
+                                       power_out=power_out)
     energy_consumption = consumption.compute_in_to_out(state=state,
                                                        delta_t=delta_t)
-    result = voltage_out * current_out * delta_t / eff1
+    result = power_out * delta_t / eff1
     assert energy_consumption == result
 
 def test_create_pure_mechanical_consumption() -> None:
