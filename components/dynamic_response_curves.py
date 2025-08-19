@@ -2,7 +2,8 @@
 
 from typing import Callable
 from components.consumption import ElectricMotorConsumption, ElectricGeneratorConsumption, \
-    CombustionEngineConsumption, FuelCellConsumption
+    LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
+    FuelCellConsumption
 from components.limitation import ElectricGeneratorLimits, \
     ElectricMotorLimits, LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
         FuelCellLimits
@@ -238,7 +239,7 @@ class FuelToMechanical():
     @staticmethod
     def liquid_combustion_to_mechanical() -> Callable[[LiquidCombustionEngineState, float,
                                                        float, float, float,
-                                                       CombustionEngineConsumption,
+                                                       LiquidCombustionEngineConsumption,
                                                        LiquidCombustionEngineLimits],
                                                       LiquidCombustionEngineState]:
         """
@@ -250,12 +251,12 @@ class FuelToMechanical():
                      downstream_inertia: float,
                      delta_t: float,
                      control_signal: float,
-                     fuel_consumption: CombustionEngineConsumption,
+                     fuel_consumption: LiquidCombustionEngineConsumption,
                      limits: LiquidCombustionEngineLimits) -> LiquidCombustionEngineState:
             assert_type(state,
                         expected_type=LiquidCombustionEngineState)
             assert_type(fuel_consumption,
-                        expected_type=CombustionEngineConsumption)
+                        expected_type=LiquidCombustionEngineConsumption)
             assert_type(limits,
                         expected_type=LiquidCombustionEngineLimits)
             assert_type_and_range(load_torque, downstream_inertia,
@@ -281,7 +282,7 @@ class FuelToMechanical():
     @staticmethod
     def gaseous_combustion_to_mechanical() -> Callable[[GaseousCombustionEngineState, float,
                                                        float, float, float,
-                                                       CombustionEngineConsumption,
+                                                       GaseousCombustionEngineConsumption,
                                                        GaseousCombustionEngineLimits],
                                                        GaseousCombustionEngineState]:
         """
@@ -293,12 +294,12 @@ class FuelToMechanical():
                      downstream_inertia: float,
                      delta_t: float,
                      control_signal: float,
-                     fuel_consumption: CombustionEngineConsumption,
+                     fuel_consumption: GaseousCombustionEngineConsumption,
                      limits: GaseousCombustionEngineLimits) -> GaseousCombustionEngineState:
             assert_type(state,
                         expected_type=GaseousCombustionEngineState)
             assert_type(fuel_consumption,
-                        expected_type=CombustionEngineConsumption)
+                        expected_type=GaseousCombustionEngineConsumption)
             assert_type(limits,
                         expected_type=GaseousCombustionEngineLimits)
             assert_type_and_range(load_torque, downstream_inertia,

@@ -1,7 +1,8 @@
 """This module contains test routines for the dynamic response classes."""
 
 from components.consumption import ElectricMotorConsumption, \
-    ElectricGeneratorConsumption, CombustionEngineConsumption, \
+    ElectricGeneratorConsumption, \
+    LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
     PureMechanicalConsumption, PureElectricConsumption, FuelCellConsumption
 from components.dynamic_response import ElectricMotorDynamicResponse, \
     ElectricGeneratorDynamicResponse, LiquidCombustionDynamicResponse, \
@@ -182,7 +183,7 @@ def test_create_electric_generator_response() -> ElectricGeneratorDynamicRespons
 def test_create_liquid_combustion_response() -> None:
     for fuel in LIQUID_FUELS:
         response = create_liquid_combustion_response()
-        lc_consumption = CombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_liters_in)
+        lc_consumption = LiquidCombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_liters_in)
         lc_limits = return_liquid_combustion_engine_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                            abs_max_fuel_liters_in=abs_max_fuel_liters_in, abs_min_fuel_liters_in=abs_min_fuel_liters_in,
                                                            abs_max_torque_out=abs_max_torque_out, abs_min_torque_out=abs_min_torque_out,
@@ -208,7 +209,7 @@ def test_create_liquid_combustion_response() -> None:
 def test_create_gaseous_combustion_response() -> None:
     for fuel in GASEOUS_FUELS:
         response = create_gaseous_combustion_response()
-        gc_consumption = CombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_mass_in)
+        gc_consumption = GaseousCombustionEngineConsumption(in_to_out_fuel_consumption_func=lambda s: fuel_mass_in)
         gc_limits = return_gaseous_combustion_engine_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                             abs_max_fuel_mass_in=abs_max_fuel_mass_in, abs_min_fuel_mass_in=abs_min_fuel_mass_in,
                                                             abs_max_torque_out=abs_max_torque_out, abs_min_torque_out=abs_min_torque_out,

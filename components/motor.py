@@ -5,7 +5,8 @@ This module contains definitions for motors and engines.
 from dataclasses import dataclass
 from components.fuel_type import LiquidFuel, GaseousFuel
 from components.consumption import ElectricMotorConsumption, \
-    CombustionEngineConsumption, ElectricGeneratorConsumption
+    LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
+    ElectricGeneratorConsumption
 from components.converter import MechanicalConverter
 from components.dynamic_response import ElectricMotorDynamicResponse, \
     ElectricGeneratorDynamicResponse, \
@@ -84,21 +85,21 @@ class LiquidInternalCombustionEngine(MechanicalConverter):
     """
     state: LiquidCombustionEngineState  # type: ignore
     limits: LiquidCombustionEngineLimits  # type: ignore
-    consumption: CombustionEngineConsumption  # type: ignore
+    consumption: LiquidCombustionEngineConsumption  # type: ignore
     dynamic_response: LiquidCombustionDynamicResponse  # type: ignore
 
     def __init__(self,
                  name: str,
                  mass: float,
                  limits: LiquidCombustionEngineLimits,
-                 consumption: CombustionEngineConsumption,
+                 consumption: LiquidCombustionEngineConsumption,
                  dynamic_response: LiquidCombustionDynamicResponse,
                  inertia: float,
                  fuel: LiquidFuel):
         assert_type(limits,
                     expected_type=LiquidCombustionEngineLimits)
         assert_type(consumption,
-                    expected_type=CombustionEngineConsumption)
+                    expected_type=LiquidCombustionEngineConsumption)
         assert_type(dynamic_response,
                     expected_type=LiquidCombustionDynamicResponse)
         assert_type_and_range(inertia,
@@ -126,21 +127,21 @@ class GaseousInternalCombustionEngine(MechanicalConverter):
     """
     state: GaseousCombustionEngineState  # type: ignore
     limits: GaseousCombustionEngineLimits  # type: ignore
-    consumption: CombustionEngineConsumption  # type: ignore
+    consumption: GaseousCombustionEngineConsumption  # type: ignore
     dynamic_response: GaseousCombustionDynamicResponse  # type: ignore
 
     def __init__(self,
                  name: str,
                  mass: float,
                  limits: GaseousCombustionEngineLimits,
-                 consumption: CombustionEngineConsumption,
+                 consumption: GaseousCombustionEngineConsumption,
                  dynamic_response: GaseousCombustionDynamicResponse,
                  inertia: float,
                  fuel: GaseousFuel):
         assert_type(limits,
                     expected_type=GaseousCombustionEngineLimits)
         assert_type(consumption,
-                    expected_type=CombustionEngineConsumption)
+                    expected_type=GaseousCombustionEngineConsumption)
         assert_type(dynamic_response,
                     expected_type=GaseousCombustionDynamicResponse)
         assert_type_and_range(inertia,

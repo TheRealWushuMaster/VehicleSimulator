@@ -1,7 +1,8 @@
 """This module contains routines for testing ICE creation."""
 
 from typing import TypedDict
-from components.consumption import return_combustion_engine_consumption
+from components.consumption import return_liquid_combustion_engine_consumption, \
+    return_gaseous_combustion_engine_consumption
 from components.dynamic_response import LiquidCombustionDynamicResponse, \
     GaseousCombustionDynamicResponse
 from components.dynamic_response_curves import FuelToMechanical
@@ -32,7 +33,7 @@ class TestICEParams(TypedDict):
     max_rpm_out: float
     min_rpm_out: float
 
-def t_func(s: FullStateWithInput, t: float) -> FullStateWithInput:
+def t_func(s: LiquidCombustionEngineState, t: float) -> FullStateWithInput:
     return return_liquid_combustion_engine_state(fuel=LIQUID_FUELS[0])
 
 def l_test_func(s: LiquidCombustionEngineState) -> float:
@@ -67,7 +68,7 @@ def create_liquid_combustion_engine(fuel: LiquidFuel) -> LiquidInternalCombustio
         rel_max_torque_out=l_test_func, rel_min_torque_out=l_test_func,
         rel_max_rpm_out=l_test_func, rel_min_rpm_out=l_test_func
     )
-    consumption = return_combustion_engine_consumption(
+    consumption = return_liquid_combustion_engine_consumption(
         fuel_consumption_func=lambda s: 1.0
     )
     dynamic_response = LiquidCombustionDynamicResponse(
@@ -93,8 +94,8 @@ def create_gaseous_combustion_engine(fuel: GaseousFuel) -> GaseousInternalCombus
         rel_max_torque_out=g_test_func, rel_min_torque_out=g_test_func,
         rel_max_rpm_out=g_test_func, rel_min_rpm_out=g_test_func
     )
-    consumption = return_combustion_engine_consumption(
-        fuel_consumption_func=lambda s: 1
+    consumption = return_gaseous_combustion_engine_consumption(
+        fuel_consumption_func=lambda s: 1.0
     )
     dynamic_response = GaseousCombustionDynamicResponse(
         forward_response=FuelToMechanical.gaseous_combustion_to_mechanical()

@@ -4,8 +4,8 @@ the dynamic responses of components."""
 from dataclasses import dataclass
 from typing import Callable
 from components.consumption import ElectricMotorConsumption, \
-    ElectricGeneratorConsumption, CombustionEngineConsumption, \
-    FuelCellConsumption
+    ElectricGeneratorConsumption, LiquidCombustionEngineConsumption, \
+    GaseousCombustionEngineConsumption, FuelCellConsumption
 from components.limitation import ElectricMotorLimits, \
     ElectricGeneratorLimits, \
     LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
@@ -150,7 +150,7 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
     """
     forward_response: Callable[[LiquidCombustionEngineState, float,
                                 float, float, float,
-                                CombustionEngineConsumption,
+                                LiquidCombustionEngineConsumption,
                                 LiquidCombustionEngineLimits],
                                LiquidCombustionEngineState]
 
@@ -162,7 +162,7 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
                         downstream_inertia: float,
                         delta_t: float,
                         control_signal: float,
-                        fuel_consumption: CombustionEngineConsumption,
+                        fuel_consumption: LiquidCombustionEngineConsumption,
                         limits: LiquidCombustionEngineLimits
                         ) -> LiquidCombustionEngineState:
         """
@@ -172,7 +172,7 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
         assert_type(state,
                     expected_type=LiquidCombustionEngineState)
         assert_type(fuel_consumption,
-                    expected_type=CombustionEngineConsumption)
+                    expected_type=LiquidCombustionEngineConsumption)
         assert_type(limits,
                     expected_type=LiquidCombustionEngineLimits)
         assert_type_and_range(load_torque, control_signal,
@@ -204,7 +204,7 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
     """
     forward_response: Callable[[GaseousCombustionEngineState, float,
                                 float, float, float,
-                                CombustionEngineConsumption,
+                                GaseousCombustionEngineConsumption,
                                 GaseousCombustionEngineLimits],
                                GaseousCombustionEngineState]
 
@@ -216,7 +216,7 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
                         downstream_inertia: float,
                         delta_t: float,
                         control_signal: float,
-                        fuel_consumption: CombustionEngineConsumption,
+                        fuel_consumption: GaseousCombustionEngineConsumption,
                         limits: GaseousCombustionEngineLimits
                         ) -> GaseousCombustionEngineState:
         """
@@ -226,7 +226,7 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
         assert_type(state,
                     expected_type=GaseousCombustionEngineState)
         assert_type(fuel_consumption,
-                    expected_type=CombustionEngineConsumption)
+                    expected_type=GaseousCombustionEngineConsumption)
         assert_type(limits,
                     expected_type=GaseousCombustionEngineLimits)
         assert_type_and_range(load_torque, control_signal,
