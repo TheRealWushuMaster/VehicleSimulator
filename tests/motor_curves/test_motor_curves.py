@@ -26,14 +26,14 @@ def test_motor_curves():
                                                             min_eff=min_effi,
                                                             falloff_rpm=0.0000001,
                                                             falloff_power=0.0000002,
-                                                            max_power_vs_rpm=ice_power_func,
+                                                            max_power_vs_rpm=ice_power_func, # type: ignore
                                                             min_rpm=min_rpms,
                                                             max_rpm=max_rpms)
     plot_power_curve_and_efficiency(min_rpm=min_rpms,
                                     max_rpm=max_rpms,
                                     num_points=300,
                                     power_max=power_max,
-                                    power_func=ice_power_func,
+                                    power_func=ice_power_func, # type: ignore
                                     eff_func=ice_eff_func)
 
     min_effi = 0.70
@@ -47,14 +47,14 @@ def test_motor_curves():
                                                            min_eff=min_effi,
                                                            falloff_rpm=0.0000001,
                                                            falloff_power=0.0000002,
-                                                           max_power_vs_rpm=em_power_func,
+                                                           max_power_vs_rpm=em_power_func, # type: ignore
                                                            min_rpm=0.0,
                                                            max_rpm=5_000.0)
     plot_power_curve_and_efficiency(min_rpm=0.0,
                                     max_rpm=5_000.0,
                                     num_points=300,
                                     power_max=2_200.0,
-                                    power_func=em_power_func,
+                                    power_func=em_power_func, # type: ignore
                                     eff_func=em_eff_func)
 
 if __name__ == "__main__":

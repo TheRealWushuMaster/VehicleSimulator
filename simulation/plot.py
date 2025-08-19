@@ -3,32 +3,48 @@
 from typing import Callable
 import matplotlib.pyplot as plt
 import numpy as np
-from components.state import MechanicalState
+from components.state import ElectricMotorState, \
+    LiquidCombustionEngineState, GaseousCombustionEngineState, \
+    return_electric_motor_state, RotatingIOState
+from helpers.types import ElectricSignalType
 
 def plot_power_curve_and_efficiency(min_rpm: float,
                                     max_rpm: float,
                                     num_points: int,
                                     power_max: float,
-                                    power_func: Callable[[MechanicalState], float],
-                                    eff_func: Callable[[MechanicalState], float]
+                                    power_func: Callable[[ElectricMotorState|
+                                                          LiquidCombustionEngineState|
+                                                          GaseousCombustionEngineState], float],
+                                    eff_func: Callable[[ElectricMotorState|
+                                                        LiquidCombustionEngineState|
+                                                        GaseousCombustionEngineState], float]
                                     ) -> None:
     rpm_vals = np.linspace(min_rpm, max_rpm, num_points)
-    power_vals = np.array([power_func(MechanicalState(power=0.0,
-                                                      delivering=False,
-                                                      receiving=False,
-                                                      rpm=rpm,
-                                                      on=True)) for rpm in rpm_vals])
+    st = return_electric_motor_state(signal_type=ElectricSignalType.AC)
+    power_vals = np.array([power_func(ElectricMotorState(input=st.input,
+                                                         output=RotatingIOState(torque=0.0,
+                                                                                rpm=rpm),
+                                                         internal=st.internal)) for rpm in rpm_vals])
+    # power_vals = np.array([power_func(MechanicalState(power=0.0,
+    #                                                   delivering=False,
+    #                                                   receiving=False,
+    #                                                   rpm=rpm,
+    #                                                   on=True)) for rpm in rpm_vals])
     power_grid = np.linspace(0, power_max, num_points)
     power_mesh, rpm_mesh = np.meshgrid(power_grid, rpm_vals)
     eff_grid = np.zeros_like(rpm_mesh)
     for i, p in enumerate(power_grid):
         for j, r in enumerate(rpm_vals):
             if p <= power_vals[j]:
-                state = MechanicalState(power=p,
-                                        delivering=False,
-                                        receiving=False,
-                                        rpm=r,
-                                        on=True)
+                state = ElectricMotorState(input=st.input,
+                                           output=RotatingIOState(torque=p,
+                                                                  rpm=r),
+                                           internal=st.internal)
+                # state = MechanicalState(power=p,
+                #                         delivering=False,
+                #                         receiving=False,
+                #                         rpm=r,
+                #                         on=True)
                 eff_grid[j, i] = eff_func(state)
             else:
                 eff_grid[j, i] = None
