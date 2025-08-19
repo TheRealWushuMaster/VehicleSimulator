@@ -63,6 +63,7 @@ def create_electric_motor() -> ElectricMotor:
     dynamic_response = create_electric_motor_response()
     return ElectricMotor(name="Test Electric Motor",
                          mass=em_defaults["mass"],
+                         nominal_voltage=em_defaults["max_voltage_in"],
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,
@@ -86,6 +87,7 @@ def create_electric_generator() -> ElectricGenerator:
     dynamic_response = create_electric_generator_response()
     return ElectricGenerator(name="Test Electric Generator",
                              mass=em_defaults["mass"],
+                             nominal_voltage=em_defaults["max_voltage_in"],
                              limits=limits,
                              consumption=consumption,
                              dynamic_response=dynamic_response,

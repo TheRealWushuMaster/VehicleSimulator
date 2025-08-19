@@ -1,10 +1,11 @@
 """This module contains definitions for energy conversion modules."""
 
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import Literal, Generic, TypeVar
+from typing import Literal
 from uuid import uuid4
 from components.consumption import ConverterConsumption
-from components.dynamic_response import ForwardDynamicResponse, BidirectionalDynamicResponse
+from components.dynamic_response import BaseDynamicResponse
 from components.fuel_type import LiquidFuel, GaseousFuel
 from components.limitation import ConverterLimits
 from components.port import Port, PortInput, PortOutput, \
@@ -14,10 +15,9 @@ from components.state import IOState, FullStateWithInput, \
 from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import ElectricSignalType, PowerType
 
-state_type = TypeVar('StateType', bound=FullStateWithInput)
 
 @dataclass
-class Converter(Generic[state_type]):
+class Converter(ABC):
     """
     Base class for modules that convert energy between types.
     Includes engines, motors, and fuel cells.
@@ -43,10 +43,10 @@ class Converter(Generic[state_type]):
     mass: float
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
-    state: state_type  #FullStateWithInput=field(init=False)
+    state: FullStateWithInput
     limits: ConverterLimits
     consumption: ConverterConsumption
-    dynamic_response: ForwardDynamicResponse|BidirectionalDynamicResponse
+    dynamic_response: BaseDynamicResponse
 
     def __post_init__(self):
         assert_type(self.name,
@@ -66,9 +66,8 @@ class Converter(Generic[state_type]):
             self.input.direction!=self.output.direction or \
             self.input.direction==PortDirection.BIDIRECTIONAL==self.output.direction
         assert_type(self.dynamic_response,
-                    expected_type=(ForwardDynamicResponse, BidirectionalDynamicResponse))
+                    expected_type=BaseDynamicResponse)
         self.id = f"Converter-{uuid4()}"
-        self.state = default_full_state(obj=self)
 
     @property
     def efficiency(self) -> float:
@@ -121,7 +120,7 @@ class Converter(Generic[state_type]):
 
 
 @dataclass
-class MechanicalConverter(GenericConverter):
+class MechanicalConverter(Converter):
     """
     Models a mechanical converter, which involves movement.
     Adds inertia to the `Converter` base class.
@@ -129,6 +128,7 @@ class MechanicalConverter(GenericConverter):
     inertia: float
 
     def __post_init__(self):
+        super().__post_init__()
         assert_type_and_range(self.inertia,
                               more_than=0.0)
 
@@ -139,16 +139,6 @@ class MechanicalConverter(GenericConverter):
         """
         raise NotImplementedError
 
-
-def default_full_state(obj: Converter) -> FullStateWithInput:
-    """
-    Returns a default full state for the `Converter` class.
-    """
-    input_state = return_io_state(port=obj.input)
-    output_state = return_io_state(port=obj.output)
-    return FullStateWithInput(input=input_state,
-                              output=output_state,
-                              internal=None)
 
 def return_io_state(port: Port) -> IOState:
     """

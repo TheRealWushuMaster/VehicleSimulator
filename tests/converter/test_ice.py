@@ -2,7 +2,9 @@
 
 from typing import TypedDict
 from components.consumption import return_combustion_engine_consumption
-from components.dynamic_response import ForwardDynamicResponse
+from components.dynamic_response import LiquidCombustionDynamicResponse, \
+    GaseousCombustionDynamicResponse
+from components.dynamic_response_curves import FuelToMechanical
 from components.fuel_type import LiquidFuel, GaseousFuel, \
     LIQUID_FUELS, GASEOUS_FUELS
 from components.limitation import return_liquid_combustion_engine_limits, \
@@ -68,9 +70,8 @@ def create_liquid_combustion_engine(fuel: LiquidFuel) -> LiquidInternalCombustio
     consumption = return_combustion_engine_consumption(
         fuel_consumption_func=lambda s: 1.0
     )
-    dynamic_response = ForwardDynamicResponse(
-        forward_response=t_func
-    )
+    dynamic_response = LiquidCombustionDynamicResponse(
+        forward_response=FuelToMechanical.liquid_combustion_to_mechanical())
     return LiquidInternalCombustionEngine(
         name="Test Liquid Combustion Engine",
         mass=ice_defaults["mass"],
@@ -95,8 +96,8 @@ def create_gaseous_combustion_engine(fuel: GaseousFuel) -> GaseousInternalCombus
     consumption = return_combustion_engine_consumption(
         fuel_consumption_func=lambda s: 1
     )
-    dynamic_response = ForwardDynamicResponse(
-        forward_response=t_func
+    dynamic_response = GaseousCombustionDynamicResponse(
+        forward_response=FuelToMechanical.gaseous_combustion_to_mechanical()
     )
     return GaseousInternalCombustionEngine(
         name="Test Gaseous Combustion Engine",

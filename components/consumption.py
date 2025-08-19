@@ -290,6 +290,12 @@ class ConverterConsumption():
 
 
 @dataclass
+class BaseBattery():
+    """
+    """
+    
+
+@dataclass
 class RechargeableBatteryConsumption(EnergySourceConsumption, InternalToOutEnergyConsumption, OutToInternalEnergyConsumption,
                                      InternalToInEnergyConsumption, InToInternalEnergyConsumption):
     """

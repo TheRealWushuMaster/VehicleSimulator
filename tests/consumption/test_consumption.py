@@ -28,9 +28,9 @@ fuel_liters_in: float = 0.15
 fuel_mass_in: float = 0.12
 electric_energy_stored: float = 1_000
 voltage_in: float = 300.0
-current_in: float = 100.0
 voltage_out: float = 250.0
-current_out: float = 80.0
+power_in: float = 3_000.0
+power_out: float = 2_750.0
 torque_in: float = 2.0
 rpm_in: float = 100.0
 torque_out: float = 4.0
@@ -115,29 +115,28 @@ def test_rechargeable_battery_consumption() -> None:
     consumption = create_rechargeable_battery_consumption(discharge_eff=eff1,
                                                           recharge_eff=eff2)
     state = return_rechargeable_battery_state(energy=electric_energy_stored,
-                                              voltage_in=voltage_in,
-                                              current_in=current_in,
-                                              voltage_out=voltage_out,
-                                              current_out=current_out)
+                                              nominal_voltage=voltage_in,
+                                              power_in=power_in,
+                                              power_out=power_out)
     # Discharge to output
     energy_consumption = consumption.compute_internal_to_out(state=state,
                                                              delta_t=delta_t)
-    result = voltage_out * current_out * delta_t / eff1
+    result = power_out * delta_t / eff1
     assert energy_consumption == result
     # Discharge to input
     energy_consumption = consumption.compute_internal_to_in(state=state,
                                                             delta_t=delta_t)
-    result = voltage_in * current_in * delta_t / eff1
+    result = power_in * delta_t / eff1
     assert energy_consumption == result
     # Recharge from output
     energy_recovered = consumption.compute_out_to_internal(state=state,
                                                            delta_t=delta_t)
-    result = voltage_out * current_out * delta_t * eff2
+    result = power_out * delta_t * eff2
     assert energy_recovered == result
     # Recharge from input
     energy_recovered = consumption.compute_in_to_internal(state=state,
                                                           delta_t=delta_t)
-    result = voltage_in * current_in * delta_t * eff2
+    result = power_in * delta_t * eff2
     assert energy_recovered == result
 
 def test_non_rechargeable_battery_consumption() -> None:

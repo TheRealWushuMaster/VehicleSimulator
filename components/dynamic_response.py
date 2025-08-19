@@ -1,7 +1,6 @@
 """This module contains classes for representing
 the dynamic responses of components."""
 
-from abc import ABC
 from dataclasses import dataclass
 from typing import Callable
 from components.consumption import ElectricMotorConsumption, \
@@ -11,73 +10,20 @@ from components.limitation import ElectricMotorLimits, \
     ElectricGeneratorLimits, \
     LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
     FuelCellLimits
-from components.state import FullStateWithInput, \
+from components.state import \
     ElectricMotorState, ElectricGeneratorState, \
     LiquidCombustionEngineState, GaseousCombustionEngineState, \
     PureElectricState, PureMechanicalState, FuelCellState
 from helpers.functions import assert_callable, assert_type, assert_type_and_range
 
-
-@dataclass
-class DynamicResponse(ABC):
+class BaseDynamicResponse():
     """
-    Base class for dynamic responses.
-    Includes methods that must be overridden if applicable.
+    Base class for categorizing dynamic responses.
     """
-    forward_response: Callable[[FullStateWithInput, float, float], FullStateWithInput]
-
-    def __post_init__(self):
-        assert_callable(self.forward_response)
-
-    def compute_forward(self, state: FullStateWithInput,
-                        delta_t: float,
-                        control_signal: float=0.0) -> FullStateWithInput:
-        """
-        Computes the forward response of the component.
-        """
-        return self.forward_response(state, delta_t, control_signal)
-
-    @property
-    def reversible(self) -> bool:
-        raise NotImplementedError
 
 
 @dataclass
-class ForwardDynamicResponse(DynamicResponse):
-    """
-    Creates a non-reversible dynamic response.
-    """
-    @property
-    def reversible(self) -> bool:
-        return False
-
-
-@dataclass
-class BidirectionalDynamicResponse(DynamicResponse):
-    """
-    Creates a reversible dynamic response.
-    """
-    reverse_response: Callable[[FullStateWithInput, float, float], FullStateWithInput]
-    
-    def __post_init__(self):
-        super().__post_init__()
-        assert_callable(self.reverse_response)
-
-    def compute_reverse(self, state: FullStateWithInput,
-                        delta_t: float,
-                        control_signal: float=0.0) -> FullStateWithInput:
-        return self.reverse_response(state, delta_t, control_signal)
-
-    @property
-    def reversible(self) -> bool:
-        return True
-
-
-
-
-
-@dataclass
-class ElectricMotorDynamicResponse():
+class ElectricMotorDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response of
     a reversible electric motor.
@@ -119,13 +65,16 @@ class ElectricMotorDynamicResponse():
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
                               include_more=False)
-        return self.forward_response(state,
-                                     load_torque,
-                                     downstream_inertia,
-                                     delta_t,
-                                     control_signal,
-                                     efficiency,
-                                     limits)
+        new_state = self.forward_response(state,
+                                          load_torque,
+                                          downstream_inertia,
+                                          delta_t,
+                                          control_signal,
+                                          efficiency,
+                                          limits)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     def compute_reverse(self, state: ElectricMotorState,
                         efficiency: ElectricMotorConsumption,
@@ -141,9 +90,12 @@ class ElectricMotorDynamicResponse():
                     expected_type=ElectricMotorConsumption)
         assert_type(limits,
                     expected_type=ElectricMotorLimits)
-        return self.reverse_response(state,
-                                     efficiency,
-                                     limits)
+        new_state = self.reverse_response(state,
+                                          efficiency,
+                                          limits)
+        new_state.input.set_receiving()
+        new_state.output.set_delivering()
+        return new_state
 
     @property
     def reversible(self) -> bool:
@@ -151,7 +103,7 @@ class ElectricMotorDynamicResponse():
 
 
 @dataclass
-class ElectricGeneratorDynamicResponse():
+class ElectricGeneratorDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response
     of an electric generator.
@@ -178,9 +130,12 @@ class ElectricGeneratorDynamicResponse():
                     expected_type=ElectricGeneratorConsumption)
         assert_type(limits,
                     expected_type=ElectricGeneratorLimits)
-        return self.forward_response(state,
-                                     efficiency,
-                                     limits)
+        new_state = self.forward_response(state,
+                                          efficiency,
+                                          limits)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     @property
     def reversible(self) -> bool:
@@ -188,7 +143,7 @@ class ElectricGeneratorDynamicResponse():
 
 
 @dataclass
-class LiquidCombustionDynamicResponse():
+class LiquidCombustionDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response
     of a liquid combustion engine.
@@ -225,13 +180,16 @@ class LiquidCombustionDynamicResponse():
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
                               include_more=False)
-        return self.forward_response(state,
-                                     load_torque,
-                                     downstream_inertia,
-                                     delta_t,
-                                     control_signal,
-                                     fuel_consumption,
-                                     limits)
+        new_state = self.forward_response(state,
+                                          load_torque,
+                                          downstream_inertia,
+                                          delta_t,
+                                          control_signal,
+                                          fuel_consumption,
+                                          limits)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     @property
     def reversible(self) -> bool:
@@ -239,7 +197,7 @@ class LiquidCombustionDynamicResponse():
 
 
 @dataclass
-class GaseousCombustionDynamicResponse():
+class GaseousCombustionDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response
     of a gaseous combustion engine.
@@ -276,13 +234,16 @@ class GaseousCombustionDynamicResponse():
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
                               include_more=False)
-        return self.forward_response(state,
-                                     load_torque,
-                                     downstream_inertia,
-                                     delta_t,
-                                     control_signal,
-                                     fuel_consumption,
-                                     limits)
+        new_state = self.forward_response(state,
+                                          load_torque,
+                                          downstream_inertia,
+                                          delta_t,
+                                          control_signal,
+                                          fuel_consumption,
+                                          limits)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     @property
     def reversible(self) -> bool:
@@ -290,7 +251,7 @@ class GaseousCombustionDynamicResponse():
 
 
 @dataclass
-class PureMechanicalDynamicResponse():
+class PureMechanicalDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response of a reversible
     mechanical to mechanical component.
@@ -312,7 +273,10 @@ class PureMechanicalDynamicResponse():
         """
         assert_type(state,
                     expected_type=PureMechanicalState)
-        return self.forward_response(state)
+        new_state = self.forward_response(state)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     def compute_reverse(self, state: PureMechanicalState
                         ) -> PureMechanicalState:
@@ -322,7 +286,10 @@ class PureMechanicalDynamicResponse():
         """
         assert_type(state,
                     expected_type=PureMechanicalState)
-        return self.reverse_response(state)
+        new_state = self.reverse_response(state)
+        new_state.input.set_receiving()
+        new_state.output.set_delivering()
+        return new_state
 
     @property
     def reversible(self) -> bool:
@@ -330,7 +297,7 @@ class PureMechanicalDynamicResponse():
 
 
 @dataclass
-class FuelCellDynamicResponse():
+class FuelCellDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response
     of a gaseous fuel cell.
@@ -352,11 +319,14 @@ class FuelCellDynamicResponse():
         Computes the output of the fuel cell.
         """
         assert isinstance(state, FuelCellState)
-        return self.forward_response(state,
-                                     delta_t,
-                                     control_signal,
-                                     fuel_consumption,
-                                     limits)
+        new_state = self.forward_response(state,
+                                          delta_t,
+                                          control_signal,
+                                          fuel_consumption,
+                                          limits)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     @property
     def reversible(self) -> bool:
@@ -364,7 +334,7 @@ class FuelCellDynamicResponse():
 
 
 @dataclass
-class RectifierDynamicResponse():
+class RectifierDynamicResponse(BaseDynamicResponse):
     """
     Creates the dynamic response
     of an electric rectifier.
@@ -383,7 +353,10 @@ class RectifierDynamicResponse():
         """
         assert_type(state,
                     expected_type=PureElectricState)
-        return self.forward_response(state)
+        new_state = self.forward_response(state)
+        new_state.input.set_delivering()
+        new_state.output.set_receiving()
+        return new_state
 
     @property
     def reversible(self) -> bool:

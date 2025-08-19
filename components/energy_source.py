@@ -1,8 +1,11 @@
 """This module contains a base class for all power sources for the vehicle."""
 
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import Optional, Callable
+from typing import Optional
 from uuid import uuid4
+from components.consumption import RechargeableBatteryConsumption, \
+    NonRechargeableBatteryConsumption
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
 from components.state import \
@@ -16,7 +19,7 @@ from simulation.constants import BATTERY_DEFAULT_SOH
 
 
 @dataclass
-class EnergySource():
+class EnergySource(ABC):
     """
     Base class for modules that only store and deliver energy.
     
@@ -115,7 +118,7 @@ class Battery(EnergySource):
     nominal_energy: float
     nominal_voltage: float
     max_power: float
-    efficiency: Callable[[float], float]
+    efficiency: RechargeableBatteryConsumption|NonRechargeableBatteryConsumption
     soh: float=BATTERY_DEFAULT_SOH
     signal_type: ElectricSignalType=field(init=False)
 
@@ -127,7 +130,7 @@ class Battery(EnergySource):
                  battery_mass: float,
                  rechargeable: bool,
                  nominal_voltage: float,
-                 efficiency: Callable[[float], float],
+                 efficiency: RechargeableBatteryConsumption | NonRechargeableBatteryConsumption,
                  soh: float=BATTERY_DEFAULT_SOH):
         state: FullStateElectricEnergyStorageNoInput|FullStateElectricEnergyStorageWithInput
         if rechargeable:
@@ -183,26 +186,14 @@ class Battery(EnergySource):
     def total_mass(self):
         return self.system_mass
 
-    def discharge(self, power: float, delta_t: float) -> float:
-        """
-        Discharges the battery at a defined power over a delta_t duration,
-        capping the output to the energy stored at the moment.
-        Returns actual energy spent.
-        """
-        assert isinstance(self.state, (FullStateElectricEnergyStorageNoInput,
-                                       FullStateElectricEnergyStorageWithInput))
-        assert isinstance(self.state.output, ElectricIOState)
-        output_energy = min(abs(power) * delta_t / self.efficiency(power), # pylint: disable=no-member
-                            self.state.electric_energy_storage.energy)
-        self.state.electric_energy_storage.energy = max(0.0, self.state.electric_energy_storage.energy - output_energy)
-        return output_energy
-
 
 @dataclass
 class BatteryRechargeable(Battery):
     """
     Models a generic, rechargeable battery.
     """
+    efficiency: RechargeableBatteryConsumption  # type: ignore
+
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -210,7 +201,7 @@ class BatteryRechargeable(Battery):
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: Callable[[float], float],
+                 efficiency: RechargeableBatteryConsumption,
                  nominal_voltage: float):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
@@ -222,24 +213,14 @@ class BatteryRechargeable(Battery):
                          rechargeable=True,
                          nominal_voltage=nominal_voltage)
 
-    def recharge(self, power: float, delta_t: float) -> float:
-        """
-        Recharges the battery with the given power (W) over delta_t (s).
-        Returns actual energy stored.
-        """
-        assert isinstance(self.state, FullStateElectricEnergyStorageWithInput)
-        assert isinstance(self.state.input, ElectricIOState)
-        input_energy = abs(power) * delta_t * self.efficiency(power)
-        self.state.electric_energy_storage.energy = min(self.max_energy,
-                                                        self.state.electric_energy_storage.energy + input_energy)
-        return input_energy
-
 
 @dataclass
 class BatteryNonRechargeable(Battery):
     """
     Models a generic, non rechargeable battery type.
     """
+    efficiency: NonRechargeableBatteryConsumption  # type: ignore
+
     def __init__(self,
                  name: str,
                  nominal_energy: float,
@@ -247,7 +228,7 @@ class BatteryNonRechargeable(Battery):
                  energy: float,
                  battery_mass: float,
                  soh: float,
-                 efficiency: Callable[[float], float],
+                 efficiency: NonRechargeableBatteryConsumption,
                  nominal_voltage: float):
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
