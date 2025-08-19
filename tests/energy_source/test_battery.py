@@ -1,9 +1,11 @@
 """This module contains test routines for the Battery class."""
 
-from typing import Callable, TypedDict
+from typing import TypedDict
 from components.battery import AlAirBattery, LiCoBattery, LiPoBattery, LiMnBattery, \
     LiPhBattery, NiCdBattery, NiMHBattery, PbAcidBattery, SolidStateBattery
-from components.battery_curves import BatteryEfficiencyCurves, BatteryVoltageVSCurrent
+from components.consumption import RechargeableBatteryConsumption, \
+    NonRechargeableBatteryConsumption, \
+    return_rechargeable_battery_consumption, return_non_rechargeable_battery_consumption
 from components.energy_source import BatteryRechargeable, BatteryNonRechargeable
 
 
@@ -13,51 +15,49 @@ class TestBatteryParams(TypedDict):
     """
     name: str
     nominal_energy: float
-    max_current: float
+    max_power: float
     energy: float
     battery_mass: float
     soh: float
-    efficiency: Callable[[float], float]
+    rech_eff: RechargeableBatteryConsumption
+    non_rech_eff: NonRechargeableBatteryConsumption
     nominal_voltage: float
-    voltage_vs_current: Callable[[float], float]
 
 voltage: float = 400.0
-current: float = 200.0
-efficiency: float = 0.96
+power: float = 200.0
+efficiency_rech: float = 0.96
+efficiency_disch: float = 0.94
 battery_dict: TestBatteryParams = {"name": "Test battery",
                                    "nominal_energy": 1_000.0,
-                                   "max_current": 200.0,
+                                   "max_power": power,
                                    "energy": 500.0,
                                    "battery_mass": 50.0,
                                    "soh": 1.0,
-                                   "efficiency": BatteryEfficiencyCurves.constant(efficiency=efficiency,
-                                                                                  max_current=current),
-                                   "nominal_voltage": voltage,
-                                   "voltage_vs_current": BatteryVoltageVSCurrent.constant_voltage(voltage=voltage,
-                                                                                                  max_current=current)}
+                                   "rech_eff": return_rechargeable_battery_consumption(discharge_efficiency_func=lambda s: efficiency_disch,
+                                                                                       recharge_efficiency_func=lambda s: efficiency_rech),
+                                   "non_rech_eff": return_non_rechargeable_battery_consumption(discharge_efficiency_func=lambda s: efficiency_disch),
+                                   "nominal_voltage": voltage}
 
 def create_rechargeable_battery() -> BatteryRechargeable:
     battery = BatteryRechargeable(name=battery_dict["name"],
                                   nominal_energy=battery_dict["nominal_energy"],
-                                  max_current=battery_dict["max_current"],
+                                  max_power=battery_dict["max_power"],
                                   energy=battery_dict["energy"],
                                   battery_mass=battery_dict["battery_mass"],
                                   soh=battery_dict["soh"],
-                                  efficiency=battery_dict["efficiency"],
-                                  nominal_voltage=battery_dict["nominal_voltage"],
-                                  voltage_vs_current=battery_dict["voltage_vs_current"])
+                                  efficiency=battery_dict["rech_eff"],
+                                  nominal_voltage=battery_dict["nominal_voltage"])
     return battery
 
 def create_non_rechargeable_battery() -> BatteryNonRechargeable:
     battery = BatteryNonRechargeable(name=battery_dict["name"],
                                      nominal_energy=battery_dict["nominal_energy"],
-                                     max_current=battery_dict["max_current"],
+                                     max_power=battery_dict["max_power"],
                                      energy=battery_dict["energy"],
                                      battery_mass=battery_dict["battery_mass"],
                                      soh=battery_dict["soh"],
-                                     efficiency=battery_dict["efficiency"],
-                                     nominal_voltage=battery_dict["nominal_voltage"],
-                                     voltage_vs_current=battery_dict["voltage_vs_current"])
+                                     efficiency=battery_dict["non_rech_eff"],
+                                     nominal_voltage=battery_dict["nominal_voltage"])
     return battery
 
 def create_battery_type(battery_type) -> BatteryRechargeable|BatteryNonRechargeable:
@@ -66,12 +66,11 @@ def create_battery_type(battery_type) -> BatteryRechargeable|BatteryNonRechargea
                             NiCdBattery, NiMHBattery, PbAcidBattery, SolidStateBattery)
     battery = battery_type(name=battery_dict["name"],
                            nominal_energy=battery_dict["nominal_energy"],
-                           max_current=battery_dict["max_current"],
+                           max_power=battery_dict["max_power"],
                            energy=battery_dict["energy"],
                            soh=battery_dict["soh"],
-                           efficiency=battery_dict["efficiency"],
-                           nominal_voltage=battery_dict["nominal_voltage"],
-                           voltage_vs_current=battery_dict["voltage_vs_current"])
+                           efficiency=battery_dict["rech_eff"],
+                           nominal_voltage=battery_dict["nominal_voltage"])
     return battery
 
 # ===============================

@@ -1,28 +1,18 @@
 """This module contains definitions for different types of batteries."""
 
 from dataclasses import dataclass
-from typing import Callable, Optional
-from components.battery_curves import BatteryEfficiencyCurves
+from typing import Optional
+from components.consumption import RechargeableBatteryConsumption, \
+    return_rechargeable_battery_consumption
 from components.energy_source import BatteryRechargeable
-from helpers.functions import assert_type_and_range
 from simulation.constants import BATTERY_DEFAULT_SOH, BATTERY_EFFICIENCY_DEFAULT, \
     BATTERY_Al_AIR_ENERGY_DENSITY, BATTERY_Pb_ACID_ENERGY_DENSITY, \
     BATTERY_LiCo_ENERGY_DENSITY, BATTERY_LiMn_ENERGY_DENSITY, BATTERY_LiPh_ENERGY_DENSITY, \
     BATTERY_LiPo_ENERGY_DENSITY, BATTERY_NiCd_ENERGY_DENSITY, BATTERY_NiMH_ENERGY_DENSITY, \
     BATTERY_SOLID_STATE_ENERGY_DENSITY
 
-
-def default_callables(efficiency: Optional[Callable[[float], float]],
-                      max_power: float) -> Callable[[float], float]:
-    """
-    Returns default callables for efficiency.
-    """
-    assert_type_and_range(max_power,
-                          more_than=0.0)
-    if efficiency is None:
-        efficiency = BatteryEfficiencyCurves.constant(efficiency=BATTERY_EFFICIENCY_DEFAULT,
-                                                      max_power=max_power)
-    return efficiency
+efficiency_default = return_rechargeable_battery_consumption(discharge_efficiency_func=lambda s: BATTERY_EFFICIENCY_DEFAULT,
+                                                             recharge_efficiency_func=lambda s: BATTERY_EFFICIENCY_DEFAULT)
 
 
 @dataclass
@@ -35,9 +25,9 @@ class AlAirBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -58,9 +48,9 @@ class PbAcidBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -81,9 +71,9 @@ class LiCoBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -104,9 +94,9 @@ class LiMnBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -127,9 +117,9 @@ class LiPhBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -150,9 +140,9 @@ class LiPoBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -173,9 +163,9 @@ class NiCdBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -196,9 +186,9 @@ class NiMHBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
@@ -219,9 +209,9 @@ class SolidStateBattery(BatteryRechargeable):
                  energy: float,
                  nominal_voltage: float,
                  soh: float=BATTERY_DEFAULT_SOH,
-                 efficiency: Optional[Callable[[float], float]]=None):
-        efficiency = default_callables(efficiency=efficiency,
-                                       max_power=max_power)
+                 efficiency: Optional[RechargeableBatteryConsumption]=None):
+        if efficiency is None:
+            efficiency = efficiency_default
         super().__init__(name=name,
                          nominal_energy=nominal_energy,
                          max_power=max_power,
