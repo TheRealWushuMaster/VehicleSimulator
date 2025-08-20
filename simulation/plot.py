@@ -6,6 +6,7 @@ import numpy as np
 from components.state import ElectricMotorState, \
     LiquidCombustionEngineState, GaseousCombustionEngineState, \
     return_electric_motor_state, RotatingIOState
+from helpers.functions import power_to_torque
 from helpers.types import ElectricSignalType
 
 def plot_power_curve_and_efficiency(min_rpm: float,
@@ -37,7 +38,8 @@ def plot_power_curve_and_efficiency(min_rpm: float,
         for j, r in enumerate(rpm_vals):
             if p <= power_vals[j]:
                 state = ElectricMotorState(input=st.input,
-                                           output=RotatingIOState(torque=p,
+                                           output=RotatingIOState(torque=power_to_torque(power=p,
+                                                                                         rpm=r),
                                                                   rpm=r),
                                            internal=st.internal)
                 # state = MechanicalState(power=p,
