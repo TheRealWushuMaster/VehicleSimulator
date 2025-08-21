@@ -157,6 +157,7 @@ class LiquidFuelStorageState(FuelStorageState):
     """
     Represents the liquid fuel storage of a fuel tank.
     """
+    fuel: LiquidFuel # type: ignore
     fuel_liters: float
 
     def __post_init__(self):
@@ -175,6 +176,7 @@ class GaseousFuelStorageState(FuelStorageState):
     """
     Represents the gaseous fuel storage of a fuel tank.
     """
+    fuel: GaseousFuel # type: ignore
     fuel_mass: float
 
     def __post_init__(self):

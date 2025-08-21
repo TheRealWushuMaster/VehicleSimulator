@@ -11,6 +11,7 @@ from components.fuel_type import Biodiesel, Ethanol, Diesel, Gasoline, \
 # LIQUID FUEL TANKS
 # =================
 
+
 @dataclass
 class GasolineTank(LiquidFuelTank):
     """
@@ -18,13 +19,13 @@ class GasolineTank(LiquidFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_litres: float,
-                 litres: float,
+                 capacity_liters: float,
+                 liters: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=Gasoline(),
-                         capacity_litres=capacity_litres,
-                         litres=litres,
+                         capacity_liters=capacity_liters,
+                         liters=liters,
                          tank_mass=tank_mass)
 
 
@@ -35,13 +36,13 @@ class DieselTank(LiquidFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_litres: float,
-                 litres: float,
+                 capacity_liters: float,
+                 liters: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=Diesel(),
-                         capacity_litres=capacity_litres,
-                         litres=litres,
+                         capacity_liters=capacity_liters,
+                         liters=liters,
                          tank_mass=tank_mass)
 
 
@@ -52,13 +53,13 @@ class HydrogenLiquidTank(LiquidFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_litres: float,
-                 litres: float,
+                 capacity_liters: float,
+                 liters: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=HydrogenLiquid(),
-                         capacity_litres=capacity_litres,
-                         litres=litres,
+                         capacity_liters=capacity_liters,
+                         liters=liters,
                          tank_mass=tank_mass)
 
 
@@ -69,13 +70,13 @@ class EthanolTank(LiquidFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_litres: float,
-                 litres: float,
+                 capacity_liters: float,
+                 liters: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=Ethanol(),
-                         capacity_litres=capacity_litres,
-                         litres=litres,
+                         capacity_liters=capacity_liters,
+                         liters=liters,
                          tank_mass=tank_mass)
 
 
@@ -86,13 +87,13 @@ class MethanolTank(LiquidFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_litres: float,
-                 litres: float,
+                 capacity_liters: float,
+                 liters: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=Methanol(),
-                         capacity_litres=capacity_litres,
-                         litres=litres,
+                         capacity_liters=capacity_liters,
+                         liters=liters,
                          tank_mass=tank_mass)
 
 
@@ -103,18 +104,20 @@ class BiodieselTank(LiquidFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_litres: float,
-                 litres: float,
+                 capacity_liters: float,
+                 liters: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=Biodiesel(),
-                         capacity_litres=capacity_litres,
-                         litres=litres,
+                         capacity_liters=capacity_liters,
+                         liters=liters,
                          tank_mass=tank_mass)
+
 
 # ==================
 # GASEOUS FUEL TANKS
 # ==================
+
 
 @dataclass
 class HydrogenGasTank(GaseousFuelTank):
@@ -123,13 +126,13 @@ class HydrogenGasTank(GaseousFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_kg: float,
-                 kg: float,
+                 capacity_mass: float,
+                 fuel_mass: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=HydrogenGas(),
-                         capacity_kg=capacity_kg,
-                         kg=kg,
+                         capacity_mass=capacity_mass,
+                         fuel_mass=fuel_mass,
                          tank_mass=tank_mass)
 
 
@@ -140,11 +143,15 @@ class MethaneTank(GaseousFuelTank):
     """
     def __init__(self,
                  name: str,
-                 capacity_kg: float,
-                 kg: float,
+                 capacity_mass: float,
+                 fuel_mass: float,
                  tank_mass: float):
         super().__init__(name=name,
                          fuel=Methane(),
-                         capacity_kg=capacity_kg,
-                         kg=kg,
+                         capacity_mass=capacity_mass,
+                         fuel_mass=fuel_mass,
                          tank_mass=tank_mass)
+
+LIQUID_FUEL_TANKS = [GasolineTank, DieselTank, HydrogenLiquidTank,
+                     EthanolTank, MethanolTank, BiodieselTank]
+GASEOUS_FUEL_TANKS = [HydrogenGasTank, MethaneTank]
