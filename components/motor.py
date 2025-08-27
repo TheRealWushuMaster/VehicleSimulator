@@ -66,6 +66,7 @@ class ElectricMotor(MechanicalConverter):
                          consumption=consumption,
                          dynamic_response=dynamic_response,
                          inertia=inertia)
+        self.nominal_voltage = nominal_voltage
 
     @property
     def electric_type(self) -> ElectricSignalType:

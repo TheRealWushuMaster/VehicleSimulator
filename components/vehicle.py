@@ -5,11 +5,11 @@ for the simulation.
 
 from dataclasses import dataclass, field
 from typing import Optional
-from components.body import Body
-from components.brake import Brake
+#from components.body import Body
+#from components.brake import Brake
 from components.converter import Converter
-from components.drive_train import DriveTrain
-from components.ecu import ECU
+#from components.drive_train import DriveTrain
+#from components.ecu import ECU
 from components.energy_source import EnergySource
 from components.link import Link
 from components.message import MessageStack
@@ -23,26 +23,26 @@ class Vehicle():
     """
     energy_sources: list[EnergySource]
     converters: list[Converter]
-    body: Body
-    brake: Brake
-    drive_train: DriveTrain
+    #body: Body
+    #brake: Brake
+    #drive_train: DriveTrain
     links: list[Link]
-    ecu: Optional[ECU]=field(default=None)
+    #ecu: Optional[ECU]=field(default=None)
     request_stack: MessageStack=field(init=False)
 
     def __post_init__(self):
         self.request_stack = MessageStack()
 
-    def add_ecu(self, ecu: ECU) -> bool:
-        """
-        Adds an ECU to the vehicle, which needs
-        access to all vehicle components.
-        """
-        if isinstance(ecu, ECU):
-            self.ecu = ecu
-            ecu.vehicle = self
-            return True
-        return False
+    # def add_ecu(self, ecu: ECU) -> bool:
+    #     """
+    #     Adds an ECU to the vehicle, which needs
+    #     access to all vehicle components.
+    #     """
+    #     if isinstance(ecu, ECU):
+    #         self.ecu = ecu
+    #         ecu.vehicle = self
+    #         return True
+    #     return False
 
     def add_component(self, component: EnergySource|Converter) -> None:
         """
