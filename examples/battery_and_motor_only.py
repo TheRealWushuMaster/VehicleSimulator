@@ -13,7 +13,7 @@ from components.dynamic_response_curves import ElectricToMechanical, \
 from components.limitation import return_electric_motor_limits
 from components.link import create_link, PortType
 from components.motor import ElectricMotor
-from components.motor_curves import MechanicalMaxPowerVsRPMCurves, \
+from components.motor_curves import \
     MechanicalPowerEfficiencyCurves, MechanicalMaxTorqueVsRPMCurves
 from helpers.functions import power_to_torque
 from helpers.types import ElectricSignalType
