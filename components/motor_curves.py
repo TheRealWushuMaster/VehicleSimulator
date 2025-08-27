@@ -5,7 +5,7 @@ from typing import Callable
 from components.state import \
     ElectricMotorState, LiquidCombustionEngineState, GaseousCombustionEngineState
 from helpers.functions import assert_type, assert_range, assert_type_and_range, \
-    assert_numeric, assert_callable
+    assert_numeric, assert_callable, power_to_torque, torque_to_power
 from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
 
 
@@ -104,6 +104,35 @@ class MechanicalMaxPowerVsRPMCurves():
         return power_func
 
 
+class MechanicalMaxTorqueVsRPMCurves():
+    """
+    Generates maximum torque vs RPM curves.
+    Only applies to mechanical components.
+    """
+    @staticmethod
+    def em(base_rpm: float,
+           max_rpm: float,
+           max_torque: float) -> Callable[[ElectricMotorState], float]:
+        """
+        Generates a sample power vs RPM curve for an electric motor.
+        Maximum power increases linearly up to base_rpm, then remains constant.
+        """
+        assert_type_and_range(base_rpm, max_torque,
+                              more_than=0.0)
+        assert_type_and_range(max_rpm,
+                              more_than=base_rpm)
+        def torque_func(state: ElectricMotorState) -> float:
+            if not 0.0 <= state.output.rpm <= max_rpm:
+                return 0.0
+            if state.output.rpm <= base_rpm:
+                return max_torque
+            max_power = torque_to_power(torque=max_torque,
+                                        rpm=base_rpm)
+            return power_to_torque(power=max_power,
+                                   rpm=state.output.rpm)
+        return torque_func
+
+
 class MechanicalPowerEfficiencyCurves():
     """
     Generates efficiency vs power & RPM curves.
@@ -113,9 +142,9 @@ class MechanicalPowerEfficiencyCurves():
     def constant(efficiency: float,
                  max_rpm: float,
                  min_rpm: float,
-                 max_power_vs_rpm: Callable[[ElectricMotorState|
-                                             LiquidCombustionEngineState|
-                                             GaseousCombustionEngineState], float]
+                 max_torque_vs_rpm: Callable[[ElectricMotorState|
+                                              LiquidCombustionEngineState|
+                                              GaseousCombustionEngineState], float]
                  ) -> Callable[[ElectricMotorState|
                                 LiquidCombustionEngineState|
                                 GaseousCombustionEngineState], float]:
@@ -123,7 +152,7 @@ class MechanicalPowerEfficiencyCurves():
         Generates a constant maximum efficiency from min_rpm to max_rpm.
         """
         assert_numeric(efficiency, max_rpm, min_rpm)
-        assert_callable(max_power_vs_rpm)
+        assert_callable(max_torque_vs_rpm)
         assert_range(min_rpm,
                      more_than=0.0)
         assert_range(max_rpm,
@@ -136,9 +165,9 @@ class MechanicalPowerEfficiencyCurves():
                                    GaseousCombustionEngineState) -> float:
             if not min_rpm <= state.output.rpm <= max_rpm:
                 return 0.0
-            if not 0.0 <= state.output.power <= max_power_vs_rpm(state):
-                return 0.0
-            return efficiency
+            if 0.0 <= state.output.torque <= max_torque_vs_rpm(state):
+                return efficiency
+            return 0.0
         return efficiency_func
 
     @staticmethod
