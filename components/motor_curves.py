@@ -5,7 +5,7 @@ from typing import Callable
 from components.state import \
     ElectricMotorState, LiquidCombustionEngineState, GaseousCombustionEngineState
 from helpers.functions import assert_type, assert_range, assert_type_and_range, \
-    assert_numeric, assert_callable, power_to_torque, torque_to_power
+    assert_numeric, assert_callable, power_to_torque
 from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
 
 
@@ -110,11 +110,31 @@ class MechanicalMaxTorqueVsRPMCurves():
     Only applies to mechanical components.
     """
     @staticmethod
+    def ice(min_rpm: MotorOperationPoint,
+            max_rpm: MotorOperationPoint,
+            peak_rpm: MotorOperationPoint) -> Callable[[LiquidCombustionEngineState |
+                                                        GaseousCombustionEngineState], float]:
+        """
+        Generates a sample maximum torque vs RPM curve for an internal
+        combustion engine.
+        It is simulated with two Gaussian curves for the maximum power
+        and afterwards converting from power to torque.
+        """
+        power_func = MechanicalMaxPowerVsRPMCurves.ice(min_rpm=min_rpm,
+                                                       max_rpm=max_rpm,
+                                                       peak_rpm=peak_rpm)
+        def torque_func(state: LiquidCombustionEngineState|
+                               GaseousCombustionEngineState) -> float:
+            return power_to_torque(power=power_func(state),
+                                   rpm=state.output.rpm)
+        return torque_func
+
+    @staticmethod
     def em(base_rpm: float,
            max_rpm: float,
            max_torque: float) -> Callable[[ElectricMotorState], float]:
         """
-        Generates a sample power vs RPM curve for an electric motor.
+        Generates a sample torque vs RPM curve for an electric motor.
         Maximum power increases linearly up to base_rpm, then remains constant.
         """
         assert_type_and_range(base_rpm, max_torque,
