@@ -18,7 +18,7 @@ class Message():
     Base class for all message types.
     """
     sender_id: str
-    from_port: Port
+    from_port: PortInput|PortOutput|PortBidirectional
     message_id: str=field(init=False)
     resource: PowerType|Fuel=field(init=False)
 

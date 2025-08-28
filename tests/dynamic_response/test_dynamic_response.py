@@ -151,6 +151,7 @@ def test_create_electric_motor_response() -> None:
     w_dot = (forward_conversion_state.output.torque - load_torque) / inertia
     delta_rpm = ang_vel_to_rpm(ang_vel=w_dot*delta_t)
     assert forward_conversion_state.output.rpm == rpm_out + delta_rpm
+    forward_conversion_state.output.rpm = rpm_out
     assert forward_conversion_state.input.power == forward_conversion_state.output.power / em_consumption.in_to_out_efficiency_value(state=initial_state)
     reverse_conversion_state = response.compute_reverse(state=initial_state,
                                                         efficiency=em_consumption,

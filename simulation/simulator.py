@@ -5,6 +5,7 @@ component of a vehicle at each time step.
 
 from dataclasses import dataclass
 from typing import Any
+from components.message import RequestMessage
 from components.vehicle import Vehicle
 from helpers.functions import assert_type, assert_type_and_range
 
@@ -73,6 +74,23 @@ class Simulator():
                 converter.state.output.torque = new_state.output.torque  # type: ignore
                 energy = converter.consumption.compute_in_to_out(state=converter.state,  # type: ignore
                                                                  delta_t=self.delta_t)
-                new_state.input.electric_power = energy / self.delta_t
+                #new_state.input.electric_power = energy / self.delta_t
+                self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
+                                                                              from_port=converter.input,
+                                                                              requested=energy / self.delta_t))
+                self.resolve_stack()
                 self.history[converter.id]["states"].append(new_state)
                 converter.state = new_state
+
+    def resolve_stack(self):
+        for message in self.vehicle.request_stack.requests:
+            if not message.fulfilled:
+                requester = self.vehicle.find_component_with_id(component_id=message.sender_id)
+                assert requester is not None and requester.input is not None
+                which_port = requester.return_which_port(port=message.from_port)
+                assert which_port is not None
+                suppliers = self.vehicle.find_suppliers(requester=requester,
+                                                        which_port=which_port)
+                if suppliers is not None:
+                    pass
+                    

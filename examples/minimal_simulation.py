@@ -55,6 +55,7 @@ ax4.set_xlim(left=0.0, right=time_steps)
 ax4.set_ylim(bottom=0.0)
 ax4.set_title("Torque Out")
 ax4.set_xlabel("Time steps")
+ax4.set_ylabel("Torque (N.m)")
 for ax in axes:
     ax.grid()
 fig.tight_layout()

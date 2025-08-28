@@ -110,6 +110,16 @@ class EnergySource(ABC):
             return self.input
         return self.output
 
+    def return_which_port(self, port: PortInput|PortOutput|PortBidirectional) -> Optional[PortType]:
+        """
+        Returns whether the port is the source's input or output port.
+        """
+        if self.input == port:
+            return PortType.INPUT_PORT
+        if self.output == port:
+            return PortType.OUTPUT_PORT
+        return None
+
 
 @dataclass
 class Battery(EnergySource):
