@@ -162,10 +162,11 @@ class ElectricToMechanical():
                                                                  nominal_voltage=state.input.nominal_voltage,
                                                                  electric_power=0.0),
                                            output=RotatingIOState(torque=torque,
-                                                                  rpm=state.output.rpm + ang_vel_to_rpm(ang_vel=w_dot*delta_t)),
+                                                                  rpm=state.output.rpm),# + ang_vel_to_rpm(ang_vel=w_dot*delta_t)),
                                            internal=state.internal)
             efficiency_value = efficiency.in_to_out_efficiency_value(state=new_state)
             new_state.input.electric_power = new_state.output.power / efficiency_value
+            new_state.output.rpm += ang_vel_to_rpm(ang_vel=w_dot*delta_t)
             return new_state
         return response
 

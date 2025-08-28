@@ -126,10 +126,7 @@ class MechanicalMaxTorqueVsRPMCurves():
                 return 0.0
             if state.output.rpm <= base_rpm:
                 return max_torque
-            max_power = torque_to_power(torque=max_torque,
-                                        rpm=base_rpm)
-            return power_to_torque(power=max_power,
-                                   rpm=state.output.rpm)
+            return max_torque * base_rpm / state.output.rpm
         return torque_func
 
 

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from simulation.simulator import Simulator
 from examples.battery_and_motor_only import minimalistic_em_vehicle
 
-time_steps: int = 120
+time_steps: int = 800
 control_signal: list[float] = [1.0] * time_steps
 
 simulation = Simulator(time_steps=time_steps,
@@ -15,7 +15,7 @@ simulation = Simulator(time_steps=time_steps,
                        control_signal=control_signal,
                        vehicle=minimalistic_em_vehicle)
 motor_id = minimalistic_em_vehicle.converters[0].id
-simulation.simulate(load_torque=0.0)
+simulation.simulate(load_torque=100.0)
 
 
 motor_hist = simulation.history[motor_id]
@@ -48,4 +48,5 @@ ax4.plot(motor_torque_out)
 ax4.set_title("Torque Out")
 for ax in axes:
     ax.grid()
+fig.tight_layout()
 plt.show()

@@ -70,7 +70,8 @@ class Simulator():
                                                                        control_signal=self.control_signal[n],
                                                                        efficiency=converter.consumption,
                                                                        limits=converter.limits)
-                energy = converter.consumption.compute_in_to_out(state=new_state,  # type: ignore
+                converter.state.output.torque = new_state.output.torque  # type: ignore
+                energy = converter.consumption.compute_in_to_out(state=converter.state,  # type: ignore
                                                                  delta_t=self.delta_t)
                 new_state.input.electric_power = energy / self.delta_t
                 self.history[converter.id]["states"].append(new_state)
