@@ -69,7 +69,7 @@ class Vehicle():
                 self.links.append(link)
 
     @property
-    def return_all_components(self):
+    def return_all_components(self) -> list[EnergySource|Converter]:
         """
         Returns a list of all components registered.
         """
@@ -81,9 +81,8 @@ class Vehicle():
         Returns the component with corresponding id.
         """
         all_components = self.return_all_components
-        if component_id in all_components:
-            return next(component.id for component in all_components)
-        return None
+        return next((component for component in all_components
+                     if component.id==component_id), None)
 
     def find_suppliers(self, requester: EnergySource|Converter,
                        which_port: PortType
