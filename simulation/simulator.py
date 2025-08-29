@@ -5,7 +5,7 @@ component of a vehicle at each time step.
 
 from dataclasses import dataclass
 from typing import Any
-from components.message import RequestMessage
+from components.message import RequestMessage, DeliveryMessage
 from components.vehicle import Vehicle
 from helpers.functions import assert_type, assert_type_and_range
 
@@ -75,9 +75,10 @@ class Simulator():
                 energy = converter.consumption.compute_in_to_out(state=converter.state,  # type: ignore
                                                                  delta_t=self.delta_t)
                 #new_state.input.electric_power = energy / self.delta_t
-                self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
-                                                                              from_port=converter.input,
-                                                                              requested=energy / self.delta_t))
+                if energy > 0.0:
+                    self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
+                                                                                  from_port=converter.input,
+                                                                                  requested=energy / self.delta_t))
                 self.resolve_stack()
                 self.history[converter.id]["states"].append(new_state)
                 converter.state = new_state
@@ -92,5 +93,8 @@ class Simulator():
                 suppliers = self.vehicle.find_suppliers(requester=requester,
                                                         which_port=which_port)
                 if suppliers is not None:
-                    pass
+                    suppliers[0].output.electric_power = message.requested  # type: ignore
+                    delivery = DeliveryMessage(sender_id=suppliers[0].id,
+                                               from_port=suppliers[0].output,
+                                               delivery=message.requested)
                     
