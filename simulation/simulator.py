@@ -88,8 +88,8 @@ class Simulator():
                         if self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
                                                                                          from_port=converter.input,
                                                                                          requested=power)):
-                               self.resolve_stack()
-                               self.history[converter.id]["states"].append(new_state)
+                            self.resolve_stack()
+                            self.history[converter.id]["states"].append(new_state)
                     converter.state.output.rpm = new_state.output.rpm
             for energy_source in self.vehicle.energy_sources:
                 if isinstance(energy_source, Battery):
