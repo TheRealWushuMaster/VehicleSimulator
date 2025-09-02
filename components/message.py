@@ -61,7 +61,8 @@ class RequestMessage(Message):
         assert_type(self.from_port,
                     expected_type=(PortInput, PortBidirectional))
         assert_type_and_range(self.requested,
-                              more_than=0.0)
+                              more_than=0.0,
+                              include_more=False)
         super().__post_init__()
         self.deliveries = []
 
@@ -74,11 +75,26 @@ class RequestMessage(Message):
         return min(amount_delivered, self.requested)
 
     @property
+    def remaining(self) -> float:
+        """
+        Returns the amount of requested resource that is unfulfilled.
+        """
+        return self.requested - self.delivered
+
+    @property
+    def fulfilled_percentage(self) -> float:
+        """
+        Returns the percentage of the
+        request that has been fulfilled.
+        """
+        return self.delivered / self.requested
+
+    @property
     def fulfilled(self) -> bool:
         """
         Returns if the request has been fulfilled by a component.
         """
-        return self.requested == self.delivered
+        return self.requested==self.delivered
 
     def add_delivery(self, delivery: DeliveryMessage) -> bool:
         """
@@ -105,6 +121,13 @@ class MessageStack():
     Stack for requests to be resolved.
     """
     requests: list[RequestMessage]=field(default_factory=list)
+
+    @property
+    def reset(self) -> None:
+        """
+        Removes all messages from the stack.
+        """
+        self.requests = []
 
     @property
     def count(self) -> int:

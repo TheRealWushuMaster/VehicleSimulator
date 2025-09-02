@@ -6,7 +6,8 @@ and an electric motor running free.
 
 from components.vehicle import Vehicle
 from components.battery import LiPoBattery
-from components.consumption import return_electric_motor_consumption
+from components.consumption import return_electric_motor_consumption, \
+    return_rechargeable_battery_consumption
 from components.dynamic_response import ElectricMotorDynamicResponse
 from components.dynamic_response_curves import ElectricToMechanical, \
     MechanicalToElectric
@@ -17,21 +18,23 @@ from components.motor_curves import \
     MechanicalPowerEfficiencyCurves, MechanicalMaxTorqueVsRPMCurves
 from helpers.functions import power_to_torque
 from helpers.types import ElectricSignalType
+from simulation.constants import BATTERY_EFFICIENCY_DEFAULT
 
-bat_nominal_energy: float = 30_000.0
-bat_max_power: float = 20_000.0
+bat_nominal_energy: float = 5_000_000.0
+bat_max_power: float = 250_000.0
 bat_initial_soc: float = 1.0
 bat_nominal_voltage: float = 200.0
 bat_soh: float = 1.0
+bat_efficiency: float = BATTERY_EFFICIENCY_DEFAULT
 
 em_mass: float = 150.0
 em_nominal_voltage: float = bat_nominal_voltage
 em_inertia: float = 20.0
-em_max_power: float = bat_max_power
+em_efficiency: float = 0.91
+em_max_power: float = bat_max_power * bat_efficiency * em_efficiency
 em_min_rpm: float = 0.0
 em_max_rpm: float = 6_000.0
 em_base_rpm: float = 1_000.0
-em_efficiency: float = 0.91
 em_abs_max_temp: float = 350.0
 em_abs_min_temp: float = 200.0
 em_abs_max_power_in: float = em_max_power / em_efficiency
@@ -64,12 +67,17 @@ em_dyn_resp = ElectricMotorDynamicResponse(
     forward_response=ElectricToMechanical.forward_driven_first_order(),
     reverse_response=MechanicalToElectric.reversed_motor()
 )
+bat_consumption = return_rechargeable_battery_consumption(
+    discharge_efficiency_func=lambda s: bat_efficiency,
+    recharge_efficiency_func=lambda s: bat_efficiency
+)
 battery = LiPoBattery(name="Test LiPo battery",
                       nominal_energy=bat_nominal_energy,
                       max_power=bat_max_power,
                       energy=bat_nominal_energy*bat_initial_soc,
                       nominal_voltage=bat_nominal_voltage,
-                      soh=bat_soh)
+                      soh=bat_soh,
+                      efficiency=bat_consumption)
 electric_motor = ElectricMotor(name="Test electric motor",
                                mass=em_mass,
                                nominal_voltage=em_nominal_voltage,

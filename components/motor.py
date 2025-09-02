@@ -13,7 +13,7 @@ from components.dynamic_response import ElectricMotorDynamicResponse, \
     LiquidCombustionDynamicResponse, GaseousCombustionDynamicResponse
 from components.limitation import ElectricMotorLimits, LiquidCombustionEngineLimits, \
     GaseousCombustionEngineLimits, ElectricGeneratorLimits
-from components.port import PortInput, PortOutput, PortBidirectional
+from components.port import PortInput, PortOutput, PortBidirectional, PortType
 from components.state import ElectricMotorState, LiquidCombustionEngineState, \
     GaseousCombustionEngineState, ElectricGeneratorState, \
     return_electric_motor_state, return_electric_generator_state, \
@@ -76,6 +76,28 @@ class ElectricMotor(MechanicalConverter):
         return (ElectricSignalType.AC
                 if self.input.exchange == PowerType.ELECTRIC_AC
                 else ElectricSignalType.DC)
+
+    def add_delivery(self, amount: float,
+                     which_port: PortType) -> float:
+        """
+        Sets the output according to a resource request.
+        """
+        if which_port==PortType.INPUT_PORT:
+            self.state.input.electric_power += amount
+            return self.state.input.electric_power
+        self.state.output.torque += amount
+        return self.state.output.torque
+
+    def add_request(self, amount: float,
+                    which_port: PortType) -> float:
+        """
+        Sets the request according to a resource delivery.
+        """
+        if which_port==PortType.INPUT_PORT:
+            self.state.input.electric_power += amount
+            return self.state.input.electric_power
+        self.state.output.torque += amount
+        return self.state.output.torque
 
 
 @dataclass

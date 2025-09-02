@@ -2,7 +2,7 @@
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TypeVar, Generic
 from uuid import uuid4
 from components.consumption import RechargeableBatteryConsumption, \
     NonRechargeableBatteryConsumption
@@ -12,11 +12,17 @@ from components.state import \
     FullStateElectricEnergyStorageNoInput, FullStateElectricEnergyStorageWithInput, \
     FullStateFuelStorageNoInput, \
     LiquidFuelTankState, GaseousFuelTankState, \
+    RechargeableBatteryState, NonRechargeableBatteryState, \
     return_rechargeable_battery_state, return_non_rechargeable_battery_state, \
     return_liquid_fuel_tank_state, return_gaseous_fuel_tank_state
-from helpers.functions import assert_type, assert_type_and_range, liters_to_cubic_meters
+from helpers.functions import assert_type, assert_type_and_range, liters_to_cubic_meters, clamp
 from helpers.types import PowerType, ElectricSignalType
 from simulation.constants import BATTERY_DEFAULT_SOH
+
+battery_state = TypeVar("battery_state",
+                        bound=RechargeableBatteryState|NonRechargeableBatteryState)
+battery_consumption = TypeVar("battery_consumption",
+                              bound=RechargeableBatteryConsumption|NonRechargeableBatteryConsumption)
 
 
 @dataclass
@@ -120,18 +126,33 @@ class EnergySource(ABC):
             return PortType.OUTPUT_PORT
         return None
 
+    def add_request(self, amount: float,
+                    which_port: PortType) -> float:
+        """
+        Sets the request according to a resource delivery.
+        """
+        raise NotImplementedError
+
+    def add_delivery(self, amount: float,
+                     which_port: PortType) -> float:
+        """
+        Sets the delivery according to a resource request.
+        """
+        raise NotImplementedError
+
 
 @dataclass
-class Battery(EnergySource):
+class Battery(EnergySource, Generic[battery_consumption, battery_state]):
     """
     Models a generic battery.
     """
     nominal_energy: float
     nominal_voltage: float
     max_power: float
-    efficiency: RechargeableBatteryConsumption|NonRechargeableBatteryConsumption
+    efficiency: battery_consumption #RechargeableBatteryConsumption|NonRechargeableBatteryConsumption
     soh: float=BATTERY_DEFAULT_SOH
     signal_type: ElectricSignalType=field(init=False)
+    state: battery_state=field(init=False)  #type: ignore
 
     def __init__(self,
                  name: str,
@@ -141,15 +162,15 @@ class Battery(EnergySource):
                  battery_mass: float,
                  rechargeable: bool,
                  nominal_voltage: float,
-                 efficiency: RechargeableBatteryConsumption | NonRechargeableBatteryConsumption,
+                 efficiency: battery_consumption, #RechargeableBatteryConsumption | NonRechargeableBatteryConsumption,
                  soh: float=BATTERY_DEFAULT_SOH):
-        state: FullStateElectricEnergyStorageNoInput|FullStateElectricEnergyStorageWithInput
+        state: battery_state #RechargeableBatteryState|NonRechargeableBatteryState
         if rechargeable:
             state = return_rechargeable_battery_state(energy=min(nominal_energy, energy),
-                                                      nominal_voltage=nominal_voltage)
+                                                      nominal_voltage=nominal_voltage)  # type: ignore
         else:
             state = return_non_rechargeable_battery_state(energy=min(nominal_energy, energy),
-                                                          nominal_voltage=nominal_voltage)
+                                                          nominal_voltage=nominal_voltage)  # type: ignore
         super().__init__(name=name,
                          input=PortInput(exchange=PowerType.ELECTRIC_DC) if rechargeable else None,
                          output=PortOutput(exchange=PowerType.ELECTRIC_DC),
@@ -183,23 +204,27 @@ class Battery(EnergySource):
 
     @property
     def is_empty(self):
-        assert isinstance(self.state, (FullStateElectricEnergyStorageNoInput,
-                                       FullStateElectricEnergyStorageWithInput))
+        assert isinstance(self.state, (RechargeableBatteryState,
+                                       NonRechargeableBatteryState))
         return self.state.electric_energy_storage.energy <= 0.0
 
     @property
     def is_full(self):
-        assert isinstance(self.state, (FullStateElectricEnergyStorageNoInput,
-                                       FullStateElectricEnergyStorageWithInput))
+        assert isinstance(self.state, (RechargeableBatteryState,
+                                       NonRechargeableBatteryState))
         return self.state.electric_energy_storage.energy == self.max_energy
 
     @property
     def total_mass(self):
         return self.system_mass
 
+    def update_charge(self, delta_t: float) -> None:
+        raise NotImplementedError
+
 
 @dataclass
-class BatteryRechargeable(Battery):
+class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
+                                  "RechargeableBatteryState"]):
     """
     Models a generic, rechargeable battery.
     """
@@ -224,9 +249,58 @@ class BatteryRechargeable(Battery):
                          rechargeable=True,
                          nominal_voltage=nominal_voltage)
 
+    def add_delivery(self, amount: float,
+                     which_port: PortType) -> float:
+        """
+        Sets the output according to a resource request.
+        """
+        assert_type_and_range(amount,
+                              more_than=0.0)
+        assert_type(which_port,
+                    expected_type=PortType)
+        if which_port==PortType.INPUT_PORT:
+            deliverable = self.max_power - self.state.input.electric_power
+            self.state.input.electric_power += min(deliverable, amount)
+            self.state.input.set_delivering()
+            return self.state.input.electric_power
+        deliverable = self.max_power - self.state.output.electric_power
+        self.state.output.electric_power += min(deliverable, amount)
+        self.state.output.set_delivering()
+        return self.state.output.electric_power
+
+    def add_request(self, amount: float,
+                    which_port: PortType) -> float:
+        """
+        Sets the request according to a resource delivery.
+        """
+        assert_type_and_range(amount,
+                              more_than=0.0)
+        assert_type(which_port,
+                    expected_type=PortType)
+        if which_port==PortType.INPUT_PORT:
+            self.state.input.electric_power += amount
+            self.state.input.set_receiving()
+            return self.state.input.electric_power
+        self.state.output.electric_power += amount
+        self.state.output.set_receiving()
+        return self.state.output.electric_power
+
+    def update_charge(self, delta_t: float) -> None:
+        power_in = (self.state.input.power if self.state.input.is_receiving else 0.0) + \
+            (self.state.output.power if self.state.output.is_receiving else 0.0)
+        power_out = (self.state.input.power if self.state.input.is_delivering else 0.0) + \
+            (self.state.output.power if self.state.output.is_delivering else 0.0)
+        energy_in = power_in * delta_t
+        energy_out = power_out * delta_t
+        self.state.electric_energy_storage.energy = clamp(
+            val=self.state.electric_energy_storage.energy + energy_in - energy_out,
+            min_val=0.0,
+            max_val=self.max_energy)
+
 
 @dataclass
-class BatteryNonRechargeable(Battery):
+class BatteryNonRechargeable(Battery["NonRechargeableBatteryConsumption",
+                                     "NonRechargeableBatteryState"]):
     """
     Models a generic, non rechargeable battery type.
     """
@@ -250,6 +324,18 @@ class BatteryNonRechargeable(Battery):
                          efficiency=efficiency,
                          rechargeable=False,
                          nominal_voltage=nominal_voltage)
+
+    def add_delivery(self, amount: float,
+                     which_port: PortType) -> float:
+        """
+        Sets the output according to a resource request.
+        """
+        assert_type_and_range(amount,
+                              more_than=0.0)
+        deliverable: float = self.max_power - self.state.output.electric_power
+        self.state.output.electric_power += min(deliverable, amount)
+        self.state.output.set_delivering()
+        return self.state.output.electric_power
 
 
 @dataclass

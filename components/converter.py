@@ -128,6 +128,20 @@ class Converter(ABC):
             return PortType.OUTPUT_PORT
         return None
 
+    def add_delivery(self, amount: float,
+                     which_port: PortType) -> float:
+        """
+        Sets the output according to a resource request.
+        """
+        raise NotImplementedError
+
+    def add_request(self, amount: float,
+                    which_port: PortType) -> float:
+        """
+        Sets the request according to a resource delivery.
+        """
+        raise NotImplementedError
+
 
 @dataclass
 class MechanicalConverter(Converter):
@@ -141,13 +155,6 @@ class MechanicalConverter(Converter):
         super().__post_init__()
         assert_type_and_range(self.inertia,
                               more_than=0.0)
-
-    @property
-    def reversible(self) -> bool:
-        """
-        Returns if the converter is reversible.
-        """
-        raise NotImplementedError
 
 
 def return_io_state(port: Port) -> IOState:
