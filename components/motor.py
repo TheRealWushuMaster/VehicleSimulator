@@ -4,9 +4,13 @@ This module contains definitions for motors and engines.
 
 from dataclasses import dataclass
 from components.fuel_type import LiquidFuel, GaseousFuel
-from components.component_io import return_electric_motor_io
+from components.component_io import return_electric_motor_io, ElectricMotorIO, \
+    return_liquid_ice_io, LiquidInternalCombustionEngineIO, \
+    return_gaseous_ice_io, GaseousInternalCombustionEngineIO, \
+    return_electric_generator_io, ElectricGeneratorIO
 from components.component_state import return_internal_combustion_engine_state, \
-    return_electric_motor_state, return_electric_generator_state
+    return_electric_motor_state, return_electric_generator_state, \
+    ElectricMotorState, InternalCombustionEngineState, ElectricGeneratorState
 from components.consumption import ElectricMotorConsumption, \
     LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
     ElectricGeneratorConsumption
@@ -32,6 +36,7 @@ class ElectricMotor(MechanicalConverter):
     """
     nominal_voltage: float
     state: ElectricMotorState  # type: ignore
+    io_values: ElectricMotorIO  # type: ignore
     limits: ElectricMotorLimits  # type: ignore
     consumption: ElectricMotorConsumption  # type: ignore
     dynamic_response: ElectricMotorDynamicResponse  # type: ignore
@@ -87,21 +92,10 @@ class ElectricMotor(MechanicalConverter):
         Sets the output according to a resource request.
         """
         if which_port==PortType.INPUT_PORT:
-            self.state.input.electric_power += amount
-            return self.state.input.electric_power
-        self.state.output.torque += amount
-        return self.state.output.torque
-
-    def add_request(self, amount: float,
-                    which_port: PortType) -> float:
-        """
-        Sets the request according to a resource delivery.
-        """
-        if which_port==PortType.INPUT_PORT:
-            self.state.input.electric_power += amount
-            return self.state.input.electric_power
-        self.state.output.torque += amount
-        return self.state.output.torque
+            self.io_values.input_port.electric_power += amount
+            return self.io_values.input_port.electric_power
+        self.io_values.output_port.torque += amount
+        return self.io_values.output_port.torque
 
 
 @dataclass
@@ -110,7 +104,8 @@ class LiquidInternalCombustionEngine(MechanicalConverter):
     Models an internal combustion engine
     (irreversible) that runs on a liquid fuel.
     """
-    state: LiquidCombustionEngineState  # type: ignore
+    state: InternalCombustionEngineState  # type: ignore
+    io_values: LiquidInternalCombustionEngineIO  # type: ignore
     limits: LiquidCombustionEngineLimits  # type: ignore
     consumption: LiquidCombustionEngineConsumption  # type: ignore
     dynamic_response: LiquidCombustionDynamicResponse  # type: ignore
@@ -134,12 +129,14 @@ class LiquidInternalCombustionEngine(MechanicalConverter):
                               include_more=False)
         assert_type(fuel,
                     expected_type=LiquidFuel)
-        state = return_liquid_combustion_engine_state(fuel=fuel)
+        state = return_internal_combustion_engine_state()
+        io_values = return_liquid_ice_io(fuel=fuel)
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=fuel),
                          output=PortOutput(exchange=PowerType.MECHANICAL),
                          state=state,
+                         io_values=io_values,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,
@@ -152,7 +149,8 @@ class GaseousInternalCombustionEngine(MechanicalConverter):
     Models an internal combustion engine
     (irreversible) that runs on a gaseous fuel.
     """
-    state: GaseousCombustionEngineState  # type: ignore
+    state: InternalCombustionEngineState  # type: ignore
+    io_values: GaseousInternalCombustionEngineIO  # type: ignore
     limits: GaseousCombustionEngineLimits  # type: ignore
     consumption: GaseousCombustionEngineConsumption  # type: ignore
     dynamic_response: GaseousCombustionDynamicResponse  # type: ignore
@@ -176,12 +174,14 @@ class GaseousInternalCombustionEngine(MechanicalConverter):
                               include_more=False)
         assert_type(fuel,
                     expected_type=GaseousFuel)
-        state = return_gaseous_combustion_engine_state(fuel=fuel)
+        state = return_internal_combustion_engine_state()
+        io_values = return_gaseous_ice_io(fuel=fuel)
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=fuel),
                          output=PortOutput(exchange=PowerType.MECHANICAL),
                          state=state,
+                         io_values=io_values,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,
@@ -195,6 +195,7 @@ class ElectricGenerator(MechanicalConverter):
     """
     nominal_voltage: float
     state: ElectricGeneratorState  # type: ignore
+    io_values: ElectricGeneratorIO  # type: ignore
     limits: ElectricGeneratorLimits  # type: ignore
     consumption: ElectricGeneratorConsumption  # type: ignore
     dynamic_response: ElectricGeneratorDynamicResponse  # type: ignore
@@ -216,12 +217,14 @@ class ElectricGenerator(MechanicalConverter):
                     expected_type=ElectricGeneratorConsumption)
         assert_type(dynamic_response,
                     expected_type=ElectricGeneratorDynamicResponse)
-        state = return_electric_generator_state(nominal_voltage=nominal_voltage)
+        state = return_electric_generator_state()
+        io_values = return_electric_generator_io()
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=PowerType.MECHANICAL),
                          output=PortOutput(exchange=PowerType.ELECTRIC_AC),
                          state=state,
+                         io_values=io_values,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,

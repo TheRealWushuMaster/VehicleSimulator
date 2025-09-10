@@ -244,3 +244,21 @@ def return_liquid_ice_io(fuel: LiquidFuel,
     return LiquidInternalCombustionEngineIO(input_port=LiquidFuelIO(_fuel=fuel,
                                                                     liters_flow=liters_flow),
                                             output_port=MechanicalIO(torque=torque))
+
+def return_gaseous_ice_io(fuel: GaseousFuel,
+                          mass_flow: float = 0.0,
+                          torque: float = 0.0) -> GaseousInternalCombustionEngineIO:
+    """
+    Returns an instance of `LiquidInternalCombustionEngineIO`.
+    """
+    return GaseousInternalCombustionEngineIO(input_port=GaseousFuelIO(_fuel=fuel,
+                                                                      mass_flow=mass_flow),
+                                             output_port=MechanicalIO(torque=torque))
+
+def return_electric_generator_io(torque: float=0.0,
+                                 electric_power: float=0.0) -> ElectricGeneratorIO:
+    """
+    Returns an instance of `ElectricGeneratorIO`.
+    """
+    return ElectricGeneratorIO(input_port=MechanicalIO(torque=torque),
+                               output_port=ElectricIO(electric_power=electric_power))
