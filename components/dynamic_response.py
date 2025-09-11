@@ -10,10 +10,19 @@ from components.limitation import ElectricMotorLimits, \
     ElectricGeneratorLimits, \
     LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
     FuelCellLimits
-from components.state import \
+from components.component_io import \
+    ElectricMotorIO, ElectricGeneratorIO, \
+    LiquidInternalCombustionEngineIO, GaseousInternalCombustionEngineIO, \
+    FuelCellIO, \
+    ElectricInverterIO, ElectricRectifierIO
+from components.component_state import \
     ElectricMotorState, ElectricGeneratorState, \
-    LiquidCombustionEngineState, GaseousCombustionEngineState, \
-    PureElectricState, PureMechanicalState, FuelCellState
+    InternalCombustionEngineState, \
+    PureMechanicalState
+# from components.state import \
+#     ElectricMotorState, ElectricGeneratorState, \
+#     LiquidCombustionEngineState, GaseousCombustionEngineState, \
+#     PureElectricState, PureMechanicalState, FuelCellState
 from helpers.functions import assert_callable, assert_type, assert_type_and_range
 
 class BaseDynamicResponse():

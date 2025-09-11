@@ -1,9 +1,7 @@
 """This module contains definitions for inputs and outputs of components."""
 
 from dataclasses import dataclass
-from components.component_state import RotatingState
 from components.fuel_type import LiquidFuel, GaseousFuel
-from helpers.functions import torque_to_power
 
 # ========
 # BASE IOs
@@ -11,29 +9,11 @@ from helpers.functions import torque_to_power
 
 
 @dataclass
-class BaseEnergyIO():
-    """
-    Base class for energy IO.
-    """
-    def power(self, state) -> float:
-        """
-        Returns the power being transferred.
-        """
-        raise NotImplementedError
-
-
-@dataclass
-class ElectricIO(BaseEnergyIO):
+class ElectricIO():
     """
     Describes an electric input or output.
     """
     electric_power: float=0.0
-
-    def power(self, state) -> float:
-        """
-        Returns the power being transferred.
-        """
-        return self.electric_power
 
 
 @dataclass
@@ -42,13 +22,6 @@ class MechanicalIO():
     Describes a mechanical input or output.
     """
     torque: float=0.0
-
-    def power(self, state: RotatingState) -> float:
-        """
-        Returns the power being transferred.
-        """
-        return torque_to_power(torque=self.torque,
-                               rpm=state.rpm)
 
 
 @dataclass

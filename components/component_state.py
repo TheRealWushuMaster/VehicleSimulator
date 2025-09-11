@@ -54,11 +54,36 @@ class InternalCombustionEngineState(ConverterState):
 
 
 @dataclass
+class FuelCellState(ConverterState):
+    """
+    Defines the state variable of a fuel cell.
+    """
+    internal: BaseInternalState
+
+@dataclass
 class ElectricGeneratorState(ConverterState):
     """
     Defines the state variable of an electric generator.
     """
     input_port: RotatingState
+    internal: BaseInternalState
+
+
+@dataclass
+class PureMechanicalState(ConverterState):
+    """
+    Defines the state variable of a pure mechanical component.
+    """
+    input_port: RotatingState
+    internal: BaseInternalState
+    output_port: RotatingState
+
+
+@dataclass
+class PureElectricState(ConverterState):
+    """
+    Defines the state variable of a pure electric component.
+    """
     internal: BaseInternalState
 
 
