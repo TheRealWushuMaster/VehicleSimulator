@@ -21,6 +21,30 @@ class BaseInternalState():
 
 
 @dataclass
+class BatteryInternalState(BaseInternalState):
+    """
+    Defines a battery state variable.
+    """
+    electric_energy_stored: float=0.0
+
+
+@dataclass
+class LiquidFuelTankInternalState(BaseInternalState):
+    """
+    Defines a liquid fuel tank state variable.
+    """
+    liters_stored: float=0.0
+
+
+@dataclass
+class GaseousFuelTankInternalState(BaseInternalState):
+    """
+    Defines a gaseous fuel tank state variable.
+    """
+    mass_stored: float=0.0
+
+
+@dataclass
 class MotorInternalState(BaseInternalState):
     """
     Defines the internal state of a motor or engine.
@@ -60,6 +84,7 @@ class FuelCellState(ConverterState):
     """
     internal: BaseInternalState
 
+
 @dataclass
 class ElectricGeneratorState(ConverterState):
     """
@@ -85,6 +110,30 @@ class PureElectricState(ConverterState):
     Defines the state variable of a pure electric component.
     """
     internal: BaseInternalState
+
+
+@dataclass
+class BatteryState():
+    """
+    Defines a battery's state variable.
+    """
+    internal: BatteryInternalState
+
+
+@dataclass
+class LiquidFuelTankState():
+    """
+    Defines a liquid fuel tank's state variable.
+    """
+    internal: LiquidFuelTankInternalState
+
+
+@dataclass
+class GaseousFuelTankState():
+    """
+    Defines a gaseous fuel tank's state variable.
+    """
+    internal: GaseousFuelTankInternalState
 
 
 def return_electric_motor_state(temperature: float=DEFAULT_TEMPERATURE,
