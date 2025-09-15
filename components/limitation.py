@@ -5,8 +5,9 @@ components' state limitations.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from components.component_snapshot import BaseSnapshot
 from components.state import FullStateNoInput, FullStateWithInput
-from helpers.functions import assert_type, assert_numeric, \
+from helpers.functions import assert_type, \
     assert_callable, assert_range, assert_type_and_range
 
 
@@ -24,7 +25,6 @@ class AbsoluteLimitValue():
     min: float=0.0
 
     def __post_init__(self):
-        assert_numeric(self.max, self.min)
         assert_range(self.max,
                      more_than=self.min,
                      include_more=False)
@@ -37,8 +37,8 @@ class RelativeLimitValue():
     The value of `max` must always be greater
     than `min`, for all input states.
     """
-    max: Callable[[FullStateNoInput|FullStateWithInput], float]
-    min: Callable[[FullStateNoInput|FullStateWithInput], float]=lambda s: 0.0
+    max: Callable[[BaseSnapshot], float]
+    min: Callable[[BaseSnapshot], float]=lambda s: 0.0
 
     def __post_init__(self):
         assert_callable(self.max, self.min)

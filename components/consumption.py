@@ -9,12 +9,6 @@ from components.component_snapshot import BaseSnapshot, \
     FuelCellSnapshot, LiquidFuelTankSnapshot, GaseousFuelTankSnapshot, \
     ElectricMotorSnapshot, ElectricGeneratorSnapshot, \
     GearBoxSnapshot, ElectricInverterSnapshot, ElectricRectifierSnapshot
-from components.state import FullStateNoInput, FullStateWithInput, \
-    RechargeableBatteryState, NonRechargeableBatteryState, \
-    ElectricMotorState, ElectricGeneratorState, \
-    LiquidCombustionEngineState, GaseousCombustionEngineState, \
-    LiquidFuelTankState, GaseousFuelTankState, FuelCellState, \
-    PureElectricState, PureMechanicalState
 from helpers.functions import assert_type, assert_type_and_range, assert_callable
 
 
@@ -54,7 +48,7 @@ class InternalToOutEnergyConsumption(Generic[InternalToOutSnapshot]):
         source being delivered to the output.
         """
         assert_type(snap,
-                    expected_type=(RechargeableBatteryState, NonRechargeableBatteryState))
+                    expected_type=(RechargeableBatterySnapshot, NonRechargeableBatterySnapshot))
         assert_type_and_range(delta_t,
                               more_than=0.0)
         return snap.power_out * delta_t / self.internal_to_out_efficiency_value(snap=snap)
@@ -64,7 +58,7 @@ class InternalToOutEnergyConsumption(Generic[InternalToOutSnapshot]):
         Returns the efficiency value at a given state.
         """
         assert_type(snap,
-                    expected_type=(FullStateNoInput, FullStateWithInput))
+                    expected_type=(RechargeableBatterySnapshot, NonRechargeableBatterySnapshot))
         return self.internal_to_out_efficiency_func(snap)
 
 
@@ -88,7 +82,7 @@ class OutToInternalEnergyConsumption():
         output being delivered to the internal source.
         """
         assert_type(snap,
-                    expected_type=RechargeableBatteryState)
+                    expected_type=RechargeableBatterySnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
         return snap.power_out * delta_t * self.out_to_internal_efficiency_value(snap=snap)
@@ -128,7 +122,7 @@ class InToInternalEnergyConsumption():
         Returns the reverse efficiency value at a given state.
         """
         assert_type(snap,
-                    expected_type=RechargeableBatteryState)
+                    expected_type=RechargeableBatterySnapshot)
         return self.in_to_internal_efficiency_func(snap)
 
 
@@ -423,9 +417,9 @@ class GaseousFuelTankConsumption(EnergySourceConsumption,
 
 def return_rechargeable_battery_consumption(
         discharge_efficiency_func: Callable[
-            [RechargeableBatteryState], float],
+            [RechargeableBatterySnapshot], float],
         recharge_efficiency_func: Callable[
-            [RechargeableBatteryState], float]
+            [RechargeableBatterySnapshot], float]
         ) -> RechargeableBatteryConsumption:
     return RechargeableBatteryConsumption(
         in_to_internal_efficiency_func=recharge_efficiency_func,
@@ -436,15 +430,15 @@ def return_rechargeable_battery_consumption(
 
 def return_non_rechargeable_battery_consumption(
         discharge_efficiency_func: Callable[
-            [NonRechargeableBatteryState], float],
+            [NonRechargeableBatterySnapshot], float],
         ) -> NonRechargeableBatteryConsumption:
     return NonRechargeableBatteryConsumption(
         internal_to_out_efficiency_func=discharge_efficiency_func
     )
 
 def return_electric_motor_consumption(
-        motor_efficiency_func: Callable[[ElectricMotorState], float],
-        generator_efficiency_func: Callable[[ElectricMotorState], float]
+        motor_efficiency_func: Callable[[ElectricMotorSnapshot], float],
+        generator_efficiency_func: Callable[[ElectricMotorSnapshot], float]
         ) -> ElectricMotorConsumption:
     return ElectricMotorConsumption(
         in_to_out_efficiency_func=motor_efficiency_func,
@@ -452,58 +446,65 @@ def return_electric_motor_consumption(
     )
 
 def return_electric_generator_consumption(
-        generator_efficiency_func: Callable[[ElectricGeneratorState], float]
+        generator_efficiency_func: Callable[[ElectricGeneratorSnapshot], float]
         ) -> ElectricGeneratorConsumption:
     return ElectricGeneratorConsumption(
         in_to_out_efficiency_func=generator_efficiency_func
     )
 
 def return_liquid_combustion_engine_consumption(
-        fuel_consumption_func: Callable[[LiquidCombustionEngineState], float]
+        fuel_consumption_func: Callable[[LiquidCombustionEngineSnapshot], float]
         ) -> LiquidCombustionEngineConsumption:
     return LiquidCombustionEngineConsumption(
         in_to_out_fuel_consumption_func=fuel_consumption_func
     )
 
 def return_gaseous_combustion_engine_consumption(
-        fuel_consumption_func: Callable[[GaseousCombustionEngineState], float]
+        fuel_consumption_func: Callable[[GaseousCombustionEngineSnapshot], float]
         ) -> GaseousCombustionEngineConsumption:
     return GaseousCombustionEngineConsumption(
         in_to_out_fuel_consumption_func=fuel_consumption_func
     )
 
 def return_fuel_cell_consumption(
-        fuel_consumption_func: Callable[[FuelCellState], float]
+        fuel_consumption_func: Callable[[FuelCellSnapshot], float]
         ) -> FuelCellConsumption:
     return FuelCellConsumption(
         in_to_out_fuel_consumption_func=fuel_consumption_func
     )
 
 def return_pure_mechanical_consumption(
-        efficiency_func: Callable[[PureMechanicalState], float],
-        reverse_efficiency_func: Callable[[PureMechanicalState], float]
-        ) -> PureMechanicalConsumption:
-    return PureMechanicalConsumption(
+        efficiency_func: Callable[[GearBoxSnapshot], float],
+        reverse_efficiency_func: Callable[[GearBoxSnapshot], float]
+        ) -> GearBoxConsumption:
+    return GearBoxConsumption(
         in_to_out_efficiency_func=efficiency_func,
         out_to_in_efficiency_func=reverse_efficiency_func
     )
 
-def return_pure_electric_consumption(
-    efficiency_func: Callable[[PureElectricState], float]
-    ) -> PureElectricConsumption:
-    return PureElectricConsumption(
+def return_electric_inverter_consumption(
+    efficiency_func: Callable[[ElectricInverterSnapshot], float]
+    ) -> ElectricInverterConsumption:
+    return ElectricInverterConsumption(
+        in_to_out_efficiency_func=efficiency_func
+    )
+
+def return_electric_rectifier_consumption(
+    efficiency_func: Callable[[ElectricRectifierSnapshot], float]
+    ) -> ElectricRectifierConsumption:
+    return ElectricRectifierConsumption(
         in_to_out_efficiency_func=efficiency_func
     )
 
 def return_liquid_fuel_tank_consumption(
-    fuel_consumption_func: Callable[[LiquidFuelTankState], float]
+    fuel_consumption_func: Callable[[LiquidFuelTankSnapshot], float]
     ) -> LiquidFuelTankConsumption:
     return LiquidFuelTankConsumption(
         internal_to_out_fuel_consumption_func=fuel_consumption_func
     )
 
 def return_gaseous_fuel_tank_consumption(
-    fuel_consumption_func: Callable[[GaseousFuelTankState], float]
+    fuel_consumption_func: Callable[[GaseousFuelTankSnapshot], float]
     ) -> GaseousFuelTankConsumption:
     return GaseousFuelTankConsumption(
         internal_to_out_fuel_consumption_func=fuel_consumption_func

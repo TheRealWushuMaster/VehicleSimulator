@@ -9,10 +9,12 @@ from components.component_io import ElectricMotorIO, ElectricGeneratorIO, \
     LiquidFuelTankIO, GaseousFuelTankIO, \
     NonRechargeableBatteryIO, RechargeableBatteryIO
 from components.component_state import ElectricMotorState, ElectricGeneratorState, \
-    InternalCombustionEngineState, PureMechanicalState, \
+    InternalCombustionEngineState, PureMechanicalState, PureElectricState, \
     MotorInternalState, BaseInternalState, RotatingState, \
     BatteryState, LiquidFuelTankState, GaseousFuelTankState, \
-    BatteryInternalState, LiquidFuelTankInternalState, GaseousFuelTankInternalState
+    BatteryInternalState, LiquidFuelTankInternalState, GaseousFuelTankInternalState, \
+    FuelCellState, FuelCellInternalState, \
+    PureElectricInternalState, PureMechanicalInternalState
 from components.fuel_type import LiquidFuel, GaseousFuel
 from helpers.functions import torque_to_power
 from simulation.constants import DEFAULT_TEMPERATURE
@@ -153,7 +155,7 @@ class FuelCellSnapshot(BaseSnapshot):
     Defines the snapshot contents for a fuel cell.
     """
     io: FuelCellIO
-    internal: BaseInternalState
+    state: FuelCellState
 
     @property
     def power_in(self) -> float:
@@ -174,7 +176,7 @@ class ElectricInverterSnapshot(BaseSnapshot):
     Defines the snapshot contents for an electric inverter.
     """
     io: ElectricInverterIO
-    internal: BaseInternalState
+    state: PureElectricState
 
     @property
     def power_in(self) -> float:
@@ -195,7 +197,7 @@ class ElectricRectifierSnapshot(BaseSnapshot):
     Defines the snapshot contents for an electric rectifier.
     """
     io: ElectricRectifierIO
-    internal: BaseInternalState
+    state: PureElectricState
 
     @property
     def power_in(self) -> float:
@@ -399,7 +401,7 @@ def return_fuel_cell_snapshot(fuel_in: GaseousFuel,
     return FuelCellSnapshot(io=FuelCellIO(input_port=GaseousFuelIO(_fuel=fuel_in,
                                                                    mass_flow=mass_flow_in),
                                           output_port=ElectricIO(electric_power=electric_power_out)),
-                            internal=BaseInternalState(temperature=temperature))
+                            state=FuelCellState(internal=FuelCellInternalState(temperature=temperature)))
 
 def return_electric_inverter_snapshot(electric_power_in: float=0.0,
                                       electric_power_out: float=0.0,
@@ -409,7 +411,7 @@ def return_electric_inverter_snapshot(electric_power_in: float=0.0,
     """
     return ElectricInverterSnapshot(io=ElectricInverterIO(input_port=ElectricIO(electric_power=electric_power_in),
                                                           output_port=ElectricIO(electric_power=electric_power_out)),
-                                    internal=BaseInternalState(temperature=temperature))
+                                    state=PureElectricState(internal=PureElectricInternalState(temperature=temperature)))
 
 def return_electric_rectifier_snapshot(electric_power_in: float=0.0,
                                        electric_power_out: float=0.0,
@@ -419,7 +421,7 @@ def return_electric_rectifier_snapshot(electric_power_in: float=0.0,
     """
     return ElectricRectifierSnapshot(io=ElectricRectifierIO(input_port=ElectricIO(electric_power=electric_power_in),
                                                             output_port=ElectricIO(electric_power=electric_power_out)),
-                                    internal=BaseInternalState(temperature=temperature))
+                                    state=PureElectricState(internal=PureElectricInternalState(temperature=temperature)))
 
 def return_gearbox_snapshot(torque_in: float=0.0,
                             torque_out: float=0.0,
@@ -432,7 +434,7 @@ def return_gearbox_snapshot(torque_in: float=0.0,
     return GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
                                         output_port=MechanicalIO(torque=torque_out)),
                            state=PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
-                                                     internal=BaseInternalState(temperature=temperature),
+                                                     internal=PureMechanicalInternalState(temperature=temperature),
                                                      output_port=RotatingState(rpm=rpm_out)))
 
 def return_non_rechargeable_battery_snapshot(electric_power_out: float=0.0,

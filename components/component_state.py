@@ -53,6 +53,27 @@ class MotorInternalState(BaseInternalState):
 
 
 @dataclass
+class FuelCellInternalState(BaseInternalState):
+    """
+    Defines the internal state of a fuel cell.
+    """
+
+
+@dataclass
+class PureElectricInternalState(BaseInternalState):
+    """
+    Defines the internal state of a pure electric component.
+    """
+
+
+@dataclass
+class PureMechanicalInternalState(BaseInternalState):
+    """
+    Defines the internal state of a pure mechanical component.
+    """
+
+
+@dataclass
 class ConverterState():
     """
     Base class for a converter's state.
@@ -82,7 +103,7 @@ class FuelCellState(ConverterState):
     """
     Defines the state variable of a fuel cell.
     """
-    internal: BaseInternalState
+    internal: FuelCellInternalState
 
 
 @dataclass
@@ -100,7 +121,7 @@ class PureMechanicalState(ConverterState):
     Defines the state variable of a pure mechanical component.
     """
     input_port: RotatingState
-    internal: BaseInternalState
+    internal: PureMechanicalInternalState
     output_port: RotatingState
 
 
@@ -109,7 +130,7 @@ class PureElectricState(ConverterState):
     """
     Defines the state variable of a pure electric component.
     """
-    internal: BaseInternalState
+    internal: PureElectricInternalState
 
 
 @dataclass
