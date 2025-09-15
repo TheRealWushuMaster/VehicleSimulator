@@ -7,11 +7,22 @@ from components.consumption import ElectricMotorConsumption, ElectricGeneratorCo
 from components.limitation import ElectricGeneratorLimits, \
     ElectricMotorLimits, LiquidCombustionEngineLimits, GaseousCombustionEngineLimits, \
         FuelCellLimits
-from components.state import ElectricIOState, RotatingIOState, \
-    PureMechanicalState, ElectricMotorState, ElectricGeneratorState, \
-    LiquidCombustionEngineState, GaseousCombustionEngineState, \
-    LiquidFuelIOState, GaseousFuelIOState, \
-    PureElectricState, FuelCellState
+from components.component_io import GearBoxIO, MechanicalIO, ElectricRectifierIO, \
+    ElectricIO, ElectricInverterIO, ElectricMotorIO
+from components.component_snapshot import GearBoxSnapshot, \
+    ElectricInverterSnapshot, ElectricRectifierSnapshot, \
+    ElectricMotorSnapshot, ElectricGeneratorSnapshot, \
+    LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot
+from components.component_state import PureMechanicalState, \
+    PureElectricState, \
+    ElectricMotorState, ElectricGeneratorState, \
+    InternalCombustionEngineState, \
+    RotatingState
+# from components.state import ElectricIOState, RotatingIOState, \
+#     PureMechanicalState, ElectricMotorState, ElectricGeneratorState, \
+#     LiquidCombustionEngineState, GaseousCombustionEngineState, \
+#     LiquidFuelIOState, GaseousFuelIOState, \
+#     PureElectricState, FuelCellState
 from helpers.functions import assert_type, assert_type_and_range, \
     ang_vel_to_rpm
 from helpers.types import ElectricSignalType
@@ -23,8 +34,9 @@ class MechanicalToMechanical():
     """
     @staticmethod
     def forward_gearbox(gear_ratio: float, efficiency: float
-                        ) -> Callable[[PureMechanicalState],
-                                      PureMechanicalState]:
+                        ) -> Callable[[GearBoxSnapshot],
+                                      tuple[GearBoxSnapshot,
+                                            PureMechanicalState]]:
         """
         Generates a forward response for a stateless pure
         mechanical component.
@@ -37,19 +49,25 @@ class MechanicalToMechanical():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        def response(state: PureMechanicalState) -> PureMechanicalState:
-            assert isinstance(state, PureMechanicalState)
-            output = RotatingIOState(torque=state.input.torque * gear_ratio * efficiency,
-                                     rpm=state.input.rpm / gear_ratio)
-            return PureMechanicalState(input=state.input,
-                                       output=output,
-                                       internal=state.internal)
+        def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
+                                                     PureMechanicalState]:
+            assert isinstance(snap, GearBoxSnapshot)
+            torque_out = snap.io.output_port.torque * gear_ratio * efficiency
+            rpm_out = snap.state.output_port.rpm / gear_ratio
+            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=snap.io.input_port,
+                                                    output_port=MechanicalIO(torque=torque_out)),
+                                       state=snap.state)
+            new_state = PureMechanicalState(input_port=snap.state.input_port,
+                                            internal=snap.state.internal,
+                                            output_port=RotatingState(rpm=rpm_out))
+            return new_snap, new_state
         return response
 
     @staticmethod
     def reverse_gearbox(gear_ratio: float, efficiency: float
-                        ) -> Callable[[PureMechanicalState],
-                                      PureMechanicalState]:
+                        ) -> Callable[[GearBoxSnapshot],
+                                      tuple[GearBoxSnapshot,
+                                            PureMechanicalState]]:
         """
         Generates a reverse response for a stateless pure
         mechanical component.
@@ -62,13 +80,18 @@ class MechanicalToMechanical():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        def response(state: PureMechanicalState) -> PureMechanicalState:
-            assert isinstance(state, PureMechanicalState)
-            inp = RotatingIOState(torque=state.output.torque / gear_ratio * efficiency,
-                                  rpm=state.output.rpm * gear_ratio)
-            return PureMechanicalState(input=inp,
-                                       output=state.output,
-                                       internal=state.internal)
+        def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
+                                                     PureMechanicalState]:
+            assert isinstance(snap, GearBoxSnapshot)
+            torque_in = snap.io.output_port.torque / gear_ratio * efficiency
+            rpm_in = snap.state.output_port.rpm * gear_ratio
+            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
+                                                    output_port=snap.io.output_port),
+                                       state=snap.state)
+            new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
+                                            internal=snap.state.internal,
+                                            output_port=snap.state.output_port)
+            return new_snap, new_state
         return response
 
 
@@ -79,45 +102,47 @@ class ElectricToElectric():
     @staticmethod
     def rectifier_response(voltage_gain: float,
                            efficiency: float
-                           ) -> Callable[[PureElectricState], PureElectricState]:
+                           ) -> Callable[[ElectricRectifierSnapshot],
+                                         tuple[ElectricRectifierSnapshot,
+                                               PureElectricState]]:
         """
         Returns a response for an electric
         rectifier with constant efficiency.
         """
-        def response(state: PureElectricState) -> PureElectricState:
-            assert_type(state,
-                        expected_type=PureElectricState)
-            assert state.input.signal_type==ElectricSignalType.AC
-            assert state.output.signal_type==ElectricSignalType.DC
-            return PureElectricState(input=ElectricIOState(signal_type=ElectricSignalType.AC,
-                                                           nominal_voltage=state.input.nominal_voltage,
-                                                           electric_power=state.input.electric_power),
-                                     output=ElectricIOState(signal_type=ElectricSignalType.DC,
-                                                            nominal_voltage=state.input.nominal_voltage*voltage_gain,
-                                                            electric_power=state.input.electric_power*efficiency),
-                                     internal=state.internal)
+        def response(snap: ElectricRectifierSnapshot
+                     ) -> tuple[ElectricRectifierSnapshot,
+                                PureElectricState]:
+            assert_type(snap,
+                        expected_type=ElectricRectifierSnapshot)
+            electric_power_out = snap.io.input_port.electric_power * efficiency
+            new_snap = ElectricRectifierSnapshot(io=ElectricRectifierIO(input_port=snap.io.input_port,
+                                                                        output_port=ElectricIO(electric_power=electric_power_out)),
+                                                                        internal=snap.internal)
+            new_state = PureElectricState(internal=snap.internal)
+            return new_snap, new_state
         return response
 
     @staticmethod
     def inverter_response(voltage_gain: float,
                           efficiency: float
-                          ) -> Callable[[PureElectricState], PureElectricState]:
+                          ) -> Callable[[ElectricInverterSnapshot],
+                                        tuple[ElectricInverterSnapshot,
+                                              PureElectricState]]:
         """
         Returns a response for an electric
         inverter with constant efficiency.
         """
-        def response(state: PureElectricState) -> PureElectricState:
-            assert_type(state,
-                        expected_type=PureElectricState)
-            assert state.input.signal_type == ElectricSignalType.DC
-            assert state.output.signal_type==ElectricSignalType.AC
-            return PureElectricState(input=ElectricIOState(signal_type=ElectricSignalType.DC,
-                                                           nominal_voltage=state.input.nominal_voltage,
-                                                           electric_power=state.input.electric_power),
-                                     output=ElectricIOState(signal_type=ElectricSignalType.AC,
-                                                            nominal_voltage=state.input.nominal_voltage*voltage_gain,
-                                                            electric_power=state.input.electric_power*efficiency),
-                                     internal=state.internal)
+        def response(snap: ElectricInverterSnapshot
+                     ) -> tuple[ElectricInverterSnapshot,
+                                PureElectricState]:
+            assert_type(snap,
+                        expected_type=ElectricInverterSnapshot)
+            electric_power_out = snap.io.input_port.electric_power * efficiency
+            new_snap = ElectricInverterSnapshot(io=ElectricInverterIO(input_port=snap.io.input_port,
+                                                                      output_port=ElectricIO(electric_power=electric_power_out)),
+                                                internal=snap.internal)
+            new_state = PureElectricState(internal=snap.internal)
+            return new_snap, new_state
         return response
 
 
@@ -126,24 +151,26 @@ class ElectricToMechanical():
     Contains generator methods for electric motors.
     """
     @staticmethod
-    def forward_driven_first_order() -> Callable[[ElectricMotorState, float,
+    def forward_driven_first_order() -> Callable[[ElectricMotorSnapshot, float,
                                                   float, float, float,
                                                   ElectricMotorConsumption,
                                                   ElectricMotorLimits],
-                                                 ElectricMotorState]:
+                                                 tuple[ElectricMotorSnapshot,
+                                                       ElectricMotorState]]:
         """
         Returns a response for an electric generator
         with a first-order lag response.
         """
-        def response(state: ElectricMotorState,
+        def response(snap: ElectricMotorSnapshot,
                      load_torque: float,
                      downstream_inertia: float,
                      delta_t: float,
                      control_signal: float,
                      efficiency: ElectricMotorConsumption,
-                     limits: ElectricMotorLimits) -> ElectricMotorState:
-            assert_type(state,
-                        expected_type=ElectricMotorState)
+                     limits: ElectricMotorLimits) -> tuple[ElectricMotorSnapshot,
+                                                           ElectricMotorState]:
+            assert_type(snap,
+                        expected_type=ElectricMotorSnapshot)
             assert_type(efficiency,
                         expected_type=ElectricMotorConsumption)
             assert_type(limits,
@@ -154,20 +181,19 @@ class ElectricToMechanical():
             assert_type_and_range(control_signal,
                                   more_than=0.0,
                                   less_than=1.0)
-            min_torque = limits.relative_limits.output.torque.min(state)
-            max_torque = limits.relative_limits.output.torque.max(state)
+            min_torque = limits.relative_limits.output.torque.min(snap)
+            max_torque = limits.relative_limits.output.torque.max(snap)
             torque = (max_torque - min_torque) * control_signal + min_torque
             w_dot = (torque - load_torque) / downstream_inertia
-            new_state = ElectricMotorState(input=ElectricIOState(signal_type=state.input.signal_type,
-                                                                 nominal_voltage=state.input.nominal_voltage,
-                                                                 electric_power=0.0),
-                                           output=RotatingIOState(torque=torque,
-                                                                  rpm=state.output.rpm),# + ang_vel_to_rpm(ang_vel=w_dot*delta_t)),
-                                           internal=state.internal)
-            efficiency_value = efficiency.in_to_out_efficiency_value(state=new_state)
-            new_state.input.electric_power = new_state.output.power / efficiency_value
-            new_state.output.rpm += ang_vel_to_rpm(ang_vel=w_dot*delta_t)
-            return new_state
+            efficiency_value = efficiency.in_to_out_efficiency_value(snapshot=snap)
+            new_snap = ElectricMotorSnapshot(io=ElectricMotorIO(input_port=ElectricIO(electric_power=0.0),
+                                                                output_port=MechanicalIO(torque=torque)),
+                                             state=snap.state)
+            new_snap.io.input_port.electric_power = new_snap.power_out / efficiency_value
+            new_rpm = snap.state.output_port.rpm + ang_vel_to_rpm(ang_vel=w_dot*delta_t)
+            new_state = ElectricMotorState(internal=snap.state.internal,
+                                           output_port=RotatingState(rpm=new_rpm))
+            return new_snap, new_state
         return response
 
 

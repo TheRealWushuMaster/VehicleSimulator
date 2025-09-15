@@ -17,6 +17,7 @@ from components.component_state import ElectricMotorState, ElectricGeneratorStat
     InternalCombustionEngineState
 from helpers.functions import assert_callable, assert_type, assert_type_and_range
 
+
 class BaseDynamicResponse():
     """
     Base class for categorizing dynamic responses.
@@ -100,6 +101,9 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is reversible.
+        """
         return True
 
 
@@ -140,6 +144,9 @@ class ElectricGeneratorDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is irreversible.
+        """
         return False
 
 
@@ -194,6 +201,9 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is irreversible.
+        """
         return False
 
 
@@ -248,6 +258,9 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is irreversible.
+        """
         return False
 
 
@@ -294,6 +307,9 @@ class PureMechanicalDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is reversible.
+        """
         return True
 
 
@@ -331,6 +347,9 @@ class FuelCellDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is irreversible.
+        """
         return False
 
 
@@ -360,6 +379,9 @@ class RectifierDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is irreversible.
+        """
         return False
 
 
@@ -389,4 +411,7 @@ class InverterDynamicResponse(BaseDynamicResponse):
 
     @property
     def reversible(self) -> bool:
+        """
+        States that the component is irreversible.
+        """
         return False

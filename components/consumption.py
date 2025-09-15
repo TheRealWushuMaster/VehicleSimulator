@@ -3,6 +3,12 @@ energy and fuel consumption for all components."""
 
 from typing import Callable, TypeVar, Generic
 from dataclasses import dataclass
+from components.component_snapshot import BaseSnapshot, \
+    RechargeableBatterySnapshot, NonRechargeableBatterySnapshot, \
+    LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot, \
+    FuelCellSnapshot, LiquidFuelTankSnapshot, GaseousFuelTankSnapshot, \
+    ElectricMotorSnapshot, ElectricGeneratorSnapshot, \
+    GearBoxSnapshot, ElectricInverterSnapshot, ElectricRectifierSnapshot
 from components.state import FullStateNoInput, FullStateWithInput, \
     RechargeableBatteryState, NonRechargeableBatteryState, \
     ElectricMotorState, ElectricGeneratorState, \
@@ -16,51 +22,50 @@ from helpers.functions import assert_type, assert_type_and_range, assert_callabl
 # BASE CLASSES
 # ============
 
-InternalToOutState = TypeVar("InternalToOutState",
-                             bound=RechargeableBatteryState|NonRechargeableBatteryState)
-InOutState = TypeVar("InOutState",
-                     bound=FullStateWithInput)
-FuelTankState = TypeVar("FuelTankState",
-                        bound=LiquidFuelTankState|GaseousFuelTankState)
-InFuelState = TypeVar("InFuelState",
-                      bound=LiquidCombustionEngineState|
-                            GaseousCombustionEngineState|
-                            FuelCellState)
+InternalToOutSnapshot = TypeVar("InternalToOutSnapshot",
+                                bound=RechargeableBatterySnapshot|NonRechargeableBatterySnapshot)
+InOutSnapshot = TypeVar("InOutSnapshot",
+                        bound=BaseSnapshot)
+FuelTankSnapshot = TypeVar("FuelTankSnapshot",
+                           bound=LiquidFuelTankSnapshot|GaseousFuelTankSnapshot)
+InFuelSnapshot = TypeVar("InFuelSnapshot",
+                         bound=LiquidCombustionEngineSnapshot|
+                               GaseousCombustionEngineSnapshot|
+                               FuelCellSnapshot)
 
 
 @dataclass
-class InternalToOutEnergyConsumption(Generic[InternalToOutState]):
+class InternalToOutEnergyConsumption(Generic[InternalToOutSnapshot]):
     """
     Base class for modeling internal energy
     consumption of a component.
     Applies to components that store their
     own energy (batteries and others).
     """
-    internal_to_out_efficiency_func: Callable[[InternalToOutState], float]
+    internal_to_out_efficiency_func: Callable[[InternalToOutSnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.internal_to_out_efficiency_func)
 
-    def compute_internal_to_out(self, state: InternalToOutState,
+    def compute_internal_to_out(self, snap: InternalToOutSnapshot,
                                 delta_t: float) -> float:
         """
         Calculates energy consumption from internal
         source being delivered to the output.
         """
-        assert_type(state,
+        assert_type(snap,
                     expected_type=(RechargeableBatteryState, NonRechargeableBatteryState))
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.output.set_receiving()
-        return state.output.power * delta_t / self.internal_to_out_efficiency_value(state=state)
+        return snap.power_out * delta_t / self.internal_to_out_efficiency_value(snap=snap)
 
-    def internal_to_out_efficiency_value(self, state: InternalToOutState) -> float:
+    def internal_to_out_efficiency_value(self, snap: InternalToOutSnapshot) -> float:
         """
         Returns the efficiency value at a given state.
         """
-        assert_type(state,
+        assert_type(snap,
                     expected_type=(FullStateNoInput, FullStateWithInput))
-        return self.internal_to_out_efficiency_func(state)
+        return self.internal_to_out_efficiency_func(snap)
 
 
 @dataclass
@@ -71,223 +76,214 @@ class OutToInternalEnergyConsumption():
     Applies to components that store their
     own energy (batteries and others).
     """
-    out_to_internal_efficiency_func: Callable[[RechargeableBatteryState], float]
+    out_to_internal_efficiency_func: Callable[[RechargeableBatterySnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.out_to_internal_efficiency_func)
 
-    def compute_out_to_internal(self, state: RechargeableBatteryState,
+    def compute_out_to_internal(self, snap: RechargeableBatterySnapshot,
                                 delta_t: float) -> float:
         """
         Calculates reverse energy consumption from the
         output being delivered to the internal source.
         """
-        assert_type(state,
+        assert_type(snap,
                     expected_type=RechargeableBatteryState)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.output.set_delivering()
-        return state.output.power * delta_t * self.out_to_internal_efficiency_value(state=state)
+        return snap.power_out * delta_t * self.out_to_internal_efficiency_value(snap=snap)
 
-    def out_to_internal_efficiency_value(self, state: RechargeableBatteryState) -> float:
+    def out_to_internal_efficiency_value(self, snap: RechargeableBatterySnapshot) -> float:
         """
         Returns the reverse efficiency value at a given state.
         """
-        assert_type(state,
-                    expected_type=RechargeableBatteryState)
-        return self.out_to_internal_efficiency_func(state)
+        assert_type(snap,
+                    expected_type=RechargeableBatterySnapshot)
+        return self.out_to_internal_efficiency_func(snap)
 
 
 @dataclass
 class InToInternalEnergyConsumption():
     """
     """
-    in_to_internal_efficiency_func: Callable[[RechargeableBatteryState], float]
+    in_to_internal_efficiency_func: Callable[[RechargeableBatterySnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.in_to_internal_efficiency_func)
 
-    def compute_in_to_internal(self, state: RechargeableBatteryState,
+    def compute_in_to_internal(self, snap: RechargeableBatterySnapshot,
                                delta_t: float) -> float:
         """
         Computes the energy consumption
         from the input to internal storage.
         """
-        assert_type(state,
-                    expected_type=RechargeableBatteryState)
+        assert_type(snap,
+                    expected_type=RechargeableBatterySnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.input.set_delivering()
-        return state.input.power * delta_t * self.in_to_internal_efficiency_value(state=state)
+        return snap.power_out * delta_t * self.in_to_internal_efficiency_value(snap=snap)
 
-    def in_to_internal_efficiency_value(self, state: RechargeableBatteryState) -> float:
+    def in_to_internal_efficiency_value(self, snap: RechargeableBatterySnapshot) -> float:
         """
         Returns the reverse efficiency value at a given state.
         """
-        assert_type(state,
+        assert_type(snap,
                     expected_type=RechargeableBatteryState)
-        return self.in_to_internal_efficiency_func(state)
+        return self.in_to_internal_efficiency_func(snap)
 
 
 @dataclass
 class InternalToInEnergyConsumption():
     """
     """
-    internal_to_in_efficiency_func: Callable[[RechargeableBatteryState], float]
+    internal_to_in_efficiency_func: Callable[[RechargeableBatterySnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.internal_to_in_efficiency_func)
 
-    def compute_internal_to_in(self, state: RechargeableBatteryState,
+    def compute_internal_to_in(self, snap: RechargeableBatterySnapshot,
                                delta_t: float) -> float:
         """
         Computes the energy consumption from
         the internal storage to the input.
         """
-        assert_type(state,
-                    expected_type=RechargeableBatteryState)
+        assert_type(snap,
+                    expected_type=RechargeableBatterySnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.input.set_receiving()
-        return state.input.power * delta_t / self.internal_to_in_efficiency_value(state=state)
+        return snap.power_out * delta_t / self.internal_to_in_efficiency_value(snap=snap)
 
-    def internal_to_in_efficiency_value(self, state: RechargeableBatteryState) -> float:
+    def internal_to_in_efficiency_value(self, snap: RechargeableBatterySnapshot) -> float:
         """
         Returns the reverse efficiency value at a given state.
         """
-        assert_type(state,
-                    expected_type=RechargeableBatteryState)
-        return self.internal_to_in_efficiency_func(state)
+        assert_type(snap,
+                    expected_type=RechargeableBatterySnapshot)
+        return self.internal_to_in_efficiency_func(snap)
 
 
 @dataclass
-class InToOutEnergyConsumption(Generic[InOutState]):
+class InToOutEnergyConsumption(Generic[InOutSnapshot]):
     """
     """
-    in_to_out_efficiency_func: Callable[[InOutState], float]
+    in_to_out_efficiency_func: Callable[[InOutSnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.in_to_out_efficiency_func)
 
-    def compute_in_to_out(self, state: InOutState,
+    def compute_in_to_out(self, snap: InOutSnapshot,
                           delta_t: float) -> float:
         """
         Computes the energy consumption
         from the input to the output.
         """
-        assert_type(state,
-                    expected_type=FullStateWithInput)
+        assert_type(snap,
+                    expected_type=BaseSnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.input.set_delivering()
-        state.output.set_receiving()
-        return state.output.power * delta_t / self.in_to_out_efficiency_value(state=state)
+        return snap.power_out * delta_t / self.in_to_out_efficiency_value(snap=snap)
 
-    def in_to_out_efficiency_value(self, state: InOutState) -> float:
+    def in_to_out_efficiency_value(self, snap: InOutSnapshot) -> float:
         """
         Returns the reverse efficiency value at a given state.
         """
-        assert_type(state,
-                    expected_type=FullStateWithInput)
-        return self.in_to_out_efficiency_func(state)
+        assert_type(snap,
+                    expected_type=BaseSnapshot)
+        return self.in_to_out_efficiency_func(snap)
 
 
 @dataclass
-class OutToInEnergyConsumption(Generic[InOutState]):
+class OutToInEnergyConsumption(Generic[InOutSnapshot]):
     """
     """
-    out_to_in_efficiency_func: Callable[[InOutState], float]
+    out_to_in_efficiency_func: Callable[[InOutSnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.out_to_in_efficiency_func)
 
-    def compute_out_to_in(self, state: InOutState,
+    def compute_out_to_in(self, snap: InOutSnapshot,
                           delta_t: float) -> float:
         """
         Computes the energy consumption
         from the output to the input.
         """
-        assert_type(state,
-                    expected_type=FullStateWithInput)
+        assert_type(snap,
+                    expected_type=BaseSnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.input.set_receiving()
-        state.output.set_delivering()
-        return state.input.power * delta_t / self.out_to_in_efficiency_value(state=state)
+        return snap.power_in * delta_t / self.out_to_in_efficiency_value(snap=snap)
 
-    def out_to_in_efficiency_value(self, state: InOutState) -> float:
+    def out_to_in_efficiency_value(self, snap: InOutSnapshot) -> float:
         """
         Returns the reverse efficiency value at a given state.
         """
-        assert_type(state,
-                    expected_type=FullStateWithInput)
-        return self.out_to_in_efficiency_func(state)
+        assert_type(snap,
+                    expected_type=BaseSnapshot)
+        return self.out_to_in_efficiency_func(snap)
 
 
 @dataclass
-class InternalToOutFuelConsumption(Generic[FuelTankState]):
+class InternalToOutFuelConsumption(Generic[FuelTankSnapshot]):
     """
     """
-    internal_to_out_fuel_consumption_func: Callable[[FuelTankState], float]
+    internal_to_out_fuel_consumption_func: Callable[[FuelTankSnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.internal_to_out_fuel_consumption_func)
 
-    def compute_internal_to_out(self, state: FuelTankState,
+    def compute_internal_to_out(self, snap: FuelTankSnapshot,
                                 delta_t: float):
         """
         Calculates the fuel transfered from
         internal storage to the output.
         """
-        assert_type(state,
-                    expected_type=(LiquidFuelTankState, GaseousFuelTankState))
+        assert_type(snap,
+                    expected_type=(LiquidFuelTankSnapshot, GaseousFuelTankSnapshot))
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.output.set_receiving()
-        return self.internal_to_out_fuel_consumption_value(state) * delta_t
+        return self.internal_to_out_fuel_consumption_value(snap) * delta_t
 
-    def internal_to_out_fuel_consumption_value(self, state: FuelTankState) -> float:
+    def internal_to_out_fuel_consumption_value(self, snap: FuelTankSnapshot) -> float:
         """
         Returns the marginal fuel consumption at a given state.
         """
-        assert_type(state,
-                    expected_type=(LiquidFuelTankState, GaseousFuelTankState))
-        return self.internal_to_out_fuel_consumption_func(state)
+        assert_type(snap,
+                    expected_type=(LiquidFuelTankSnapshot, GaseousFuelTankSnapshot))
+        return self.internal_to_out_fuel_consumption_func(snap)
 
 
 @dataclass
-class InToOutFuelConsumption(Generic[InFuelState]):
+class InToOutFuelConsumption(Generic[InFuelSnapshot]):
     """
     """
-    in_to_out_fuel_consumption_func: Callable[[InFuelState], float]
+    in_to_out_fuel_consumption_func: Callable[[InFuelSnapshot], float]
 
     def __post_init__(self):
         assert_callable(self.in_to_out_fuel_consumption_func)
 
-    def compute_in_to_out(self, state: InFuelState,
+    def compute_in_to_out(self, snap: InFuelSnapshot,
                           delta_t: float):
         """
         Calculates the fuel consumed
         from input to generate an output.
         """
-        assert_type(state,
-                    expected_type=(LiquidCombustionEngineState,
-                                   GaseousCombustionEngineState,
-                                   FuelCellState))
+        assert_type(snap,
+                    expected_type=(LiquidCombustionEngineSnapshot,
+                                   GaseousCombustionEngineSnapshot,
+                                   FuelCellSnapshot))
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        state.output.set_receiving()
-        return self.in_to_out_fuel_consumption_value(state) * delta_t
+        return self.in_to_out_fuel_consumption_value(snap) * delta_t
 
-    def in_to_out_fuel_consumption_value(self, state: InFuelState) -> float:
+    def in_to_out_fuel_consumption_value(self, snap: InFuelSnapshot) -> float:
         """
         Returns the marginal fuel consumption at a given state.
         """
-        assert_type(state,
-                    expected_type=(LiquidCombustionEngineState,
-                                   GaseousCombustionEngineState,
-                                   FuelCellState))
-        return self.in_to_out_fuel_consumption_func(state)
+        assert_type(snap,
+                    expected_type=(LiquidCombustionEngineSnapshot,
+                                   GaseousCombustionEngineSnapshot,
+                                   FuelCellSnapshot))
+        return self.in_to_out_fuel_consumption_func(snap)
 
 
 # ================
@@ -318,7 +314,7 @@ class BaseBattery(EnergySourceConsumption):
 
 @dataclass
 class RechargeableBatteryConsumption(BaseBattery,
-                                     InternalToOutEnergyConsumption["RechargeableBatteryState"],
+                                     InternalToOutEnergyConsumption["RechargeableBatterySnapshot"],
                                      OutToInternalEnergyConsumption,
                                      InternalToInEnergyConsumption,
                                      InToInternalEnergyConsumption):
@@ -329,7 +325,7 @@ class RechargeableBatteryConsumption(BaseBattery,
 
 @dataclass
 class NonRechargeableBatteryConsumption(BaseBattery,
-                                        InternalToOutEnergyConsumption["NonRechargeableBatteryState"]):
+                                        InternalToOutEnergyConsumption["NonRechargeableBatterySnapshot"]):
     """
     Models energy consumption in a non rechargeable battery.
     """
@@ -337,8 +333,8 @@ class NonRechargeableBatteryConsumption(BaseBattery,
 
 @dataclass
 class ElectricMotorConsumption(ConverterConsumption,
-                               InToOutEnergyConsumption["ElectricMotorState"],
-                               OutToInEnergyConsumption["ElectricMotorState"]):
+                               InToOutEnergyConsumption["ElectricMotorSnapshot"],
+                               OutToInEnergyConsumption["ElectricMotorSnapshot"]):
     """
     Models energy consumption in a reversible electric motor.
     """
@@ -346,7 +342,7 @@ class ElectricMotorConsumption(ConverterConsumption,
 
 @dataclass
 class ElectricGeneratorConsumption(ConverterConsumption,
-                                   InToOutEnergyConsumption["ElectricGeneratorState"]):
+                                   InToOutEnergyConsumption["ElectricGeneratorSnapshot"]):
     """
     Models energy consumption in an irreversible electric generator.
     """
@@ -354,7 +350,7 @@ class ElectricGeneratorConsumption(ConverterConsumption,
 
 @dataclass
 class LiquidCombustionEngineConsumption(ConverterConsumption,
-                                        InToOutFuelConsumption["LiquidCombustionEngineState"]):
+                                        InToOutFuelConsumption["LiquidCombustionEngineSnapshot"]):
     """
     Models fuel consumption in a liquid combustion engine.
     """
@@ -362,7 +358,7 @@ class LiquidCombustionEngineConsumption(ConverterConsumption,
 
 @dataclass
 class GaseousCombustionEngineConsumption(ConverterConsumption,
-                                         InToOutFuelConsumption["GaseousCombustionEngineState"]):
+                                         InToOutFuelConsumption["GaseousCombustionEngineSnapshot"]):
     """
     Models fuel consumption in a gaseous combustion engine.
     """
@@ -370,16 +366,16 @@ class GaseousCombustionEngineConsumption(ConverterConsumption,
 
 @dataclass
 class FuelCellConsumption(ConverterConsumption,
-                          InToOutFuelConsumption["FuelCellState"]):
+                          InToOutFuelConsumption["FuelCellSnapshot"]):
     """
     Models consumption in a fuel cell.
     """
 
 
 @dataclass
-class PureMechanicalConsumption(ConverterConsumption,
-                                InToOutEnergyConsumption["PureMechanicalState"],
-                                OutToInEnergyConsumption["PureMechanicalState"]):
+class GearBoxConsumption(ConverterConsumption,
+                         InToOutEnergyConsumption["GearBoxSnapshot"],
+                         OutToInEnergyConsumption["GearBoxSnapshot"]):
     """
     Models consumption in a reversible
     mechanical-to-mechanical component
@@ -388,18 +384,26 @@ class PureMechanicalConsumption(ConverterConsumption,
 
 
 @dataclass
-class PureElectricConsumption(ConverterConsumption,
-                              InToOutEnergyConsumption["PureElectricState"]):
+class ElectricInverterConsumption(ConverterConsumption,
+                                  InToOutEnergyConsumption["ElectricInverterSnapshot"]):
     """
-    Models consumption in a non reversible
-    electric-to-electric component (rectifiers,
-    inverters, etc).
+    Models consumption in an
+    irreversible electric inverter.
+    """
+
+
+@dataclass
+class ElectricRectifierConsumption(ConverterConsumption,
+                                   InToOutEnergyConsumption["ElectricRectifierSnapshot"]):
+    """
+    Models consumption in an
+    irreversible electric rectifier.
     """
 
 
 @dataclass
 class LiquidFuelTankConsumption(EnergySourceConsumption,
-                                InternalToOutFuelConsumption["LiquidFuelTankState"]):
+                                InternalToOutFuelConsumption["LiquidFuelTankSnapshot"]):
     """
     Models the fuel consumption in a fuel tank.
     """
@@ -407,7 +411,7 @@ class LiquidFuelTankConsumption(EnergySourceConsumption,
 
 @dataclass
 class GaseousFuelTankConsumption(EnergySourceConsumption,
-                                 InternalToOutFuelConsumption["GaseousFuelTankState"]):
+                                 InternalToOutFuelConsumption["GaseousFuelTankSnapshot"]):
     """
     Models the fuel consumption in a fuel tank.
     """
