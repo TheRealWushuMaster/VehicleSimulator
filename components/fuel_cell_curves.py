@@ -2,6 +2,7 @@
 
 from math import exp
 from collections.abc import Callable
+from components.component_snapshot import FuelCellSnapshot
 from components.state import FuelCellState
 from helpers.functions import assert_type_and_range, assert_range
 
@@ -35,7 +36,8 @@ class FuelCellEfficiencyCurves():
                  power_peak_eff: float,
                  peak_eff: float,
                  max_power: float,
-                 max_power_eff: float) -> Callable[[FuelCellState], float]:
+                 max_power_eff: float) -> Callable[[FuelCellSnapshot],
+                                                   float]:
         """
         Returns a piecewise gaussian curve efficiency function.
         """
@@ -55,10 +57,10 @@ class FuelCellEfficiencyCurves():
         k4 = (max_power_eff - peak_eff) / (exp(-0.5)-1)
         k3 = peak_eff - k4
         alpha2 = 0.5 / (power_peak_eff - max_power)**2
-        def efficiency_func(state: FuelCellState) -> float:
-            if not min_power <= state.output.power <= max_power:
+        def efficiency_func(snap: FuelCellSnapshot) -> float:
+            if not min_power <= snap.power_out <= max_power:
                 return 0.0
-            if state.output.power <= power_peak_eff:
-                return k1 + k2 * exp(-alpha1*(state.output.power - power_peak_eff)**2)
-            return k3 + k4 * exp(-alpha2*(state.output.power - power_peak_eff)**2)
+            if snap.power_out <= power_peak_eff:
+                return k1 + k2 * exp(-alpha1*(snap.power_out - power_peak_eff)**2)
+            return k3 + k4 * exp(-alpha2*(snap.power_out - power_peak_eff)**2)
         return efficiency_func

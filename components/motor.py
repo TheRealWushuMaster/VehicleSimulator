@@ -4,12 +4,13 @@ This module contains definitions for motors and engines.
 
 from dataclasses import dataclass
 from components.fuel_type import LiquidFuel, GaseousFuel
-from components.component_io import return_electric_motor_io, ElectricMotorIO, \
-    return_liquid_ice_io, LiquidInternalCombustionEngineIO, \
-    return_gaseous_ice_io, GaseousInternalCombustionEngineIO, \
-    return_electric_generator_io, ElectricGeneratorIO
-from components.component_state import return_internal_combustion_engine_state, \
-    return_electric_motor_state, return_electric_generator_state, \
+from components.component_io import ElectricMotorIO, \
+    LiquidInternalCombustionEngineIO, GaseousInternalCombustionEngineIO, \
+    ElectricGeneratorIO
+from components.component_snapshot import return_electric_motor_snapshot, \
+    return_electric_generator_snapshot, return_liquid_ice_snapshot, \
+    return_gaseous_ice_snapshot
+from components.component_state import \
     ElectricMotorState, InternalCombustionEngineState, ElectricGeneratorState
 from components.consumption import ElectricMotorConsumption, \
     LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
@@ -57,16 +58,14 @@ class ElectricMotor(MechanicalConverter):
                     expected_type=ElectricMotorDynamicResponse)
         assert_type(electric_type,
                     expected_type=ElectricSignalType)
-        state = return_electric_motor_state()
-        io_values = return_electric_motor_io()
+        snap = return_electric_motor_snapshot()
         super().__init__(name=name,
                          mass=mass,
                          input=PortBidirectional(exchange=PowerType.ELECTRIC_AC
                                                       if electric_type==ElectricSignalType.AC
                                                       else PowerType.ELECTRIC_DC),
                          output=PortBidirectional(exchange=PowerType.MECHANICAL),
-                         io_values=io_values,
-                         state=state,
+                         snapshot=snap,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,
@@ -125,14 +124,12 @@ class LiquidInternalCombustionEngine(MechanicalConverter):
                               include_more=False)
         assert_type(fuel,
                     expected_type=LiquidFuel)
-        state = return_internal_combustion_engine_state()
-        io_values = return_liquid_ice_io(fuel=fuel)
+        snap = return_liquid_ice_snapshot(fuel_in=fuel)
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=fuel),
                          output=PortOutput(exchange=PowerType.MECHANICAL),
-                         state=state,
-                         io_values=io_values,
+                         snapshot=snap,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,
@@ -170,14 +167,12 @@ class GaseousInternalCombustionEngine(MechanicalConverter):
                               include_more=False)
         assert_type(fuel,
                     expected_type=GaseousFuel)
-        state = return_internal_combustion_engine_state()
-        io_values = return_gaseous_ice_io(fuel=fuel)
+        snap = return_gaseous_ice_snapshot(fuel_in=fuel)
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=fuel),
                          output=PortOutput(exchange=PowerType.MECHANICAL),
-                         state=state,
-                         io_values=io_values,
+                         snapshot=snap,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,
@@ -213,14 +208,12 @@ class ElectricGenerator(MechanicalConverter):
                     expected_type=ElectricGeneratorConsumption)
         assert_type(dynamic_response,
                     expected_type=ElectricGeneratorDynamicResponse)
-        state = return_electric_generator_state()
-        io_values = return_electric_generator_io()
+        snap = return_electric_generator_snapshot()
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=PowerType.MECHANICAL),
                          output=PortOutput(exchange=PowerType.ELECTRIC_AC),
-                         state=state,
-                         io_values=io_values,
+                         snapshot=snap,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response,

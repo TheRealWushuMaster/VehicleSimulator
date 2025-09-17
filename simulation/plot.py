@@ -3,51 +3,32 @@
 from typing import Callable
 import matplotlib.pyplot as plt
 import numpy as np
-from components.state import ElectricMotorState, \
-    LiquidCombustionEngineState, GaseousCombustionEngineState, \
-    return_electric_motor_state, RotatingIOState
+from components.component_snapshot import ElectricMotorSnapshot, \
+    LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot, \
+    return_electric_motor_snapshot
 from helpers.functions import power_to_torque
-from helpers.types import ElectricSignalType
+
+motor_snapshot = ElectricMotorSnapshot | LiquidCombustionEngineSnapshot | GaseousCombustionEngineSnapshot
 
 def plot_power_curve_and_efficiency(min_rpm: float,
                                     max_rpm: float,
                                     num_points: int,
                                     power_max: float,
-                                    power_func: Callable[[ElectricMotorState|
-                                                          LiquidCombustionEngineState|
-                                                          GaseousCombustionEngineState], float],
-                                    eff_func: Callable[[ElectricMotorState|
-                                                        LiquidCombustionEngineState|
-                                                        GaseousCombustionEngineState], float]
+                                    power_func: Callable[[motor_snapshot], float],
+                                    eff_func: Callable[[motor_snapshot], float]
                                     ) -> None:
     rpm_vals = np.linspace(min_rpm, max_rpm, num_points)
-    st = return_electric_motor_state(signal_type=ElectricSignalType.AC)
-    power_vals = np.array([power_func(ElectricMotorState(input=st.input,
-                                                         output=RotatingIOState(torque=0.0,
-                                                                                rpm=rpm),
-                                                         internal=st.internal)) for rpm in rpm_vals])
-    # power_vals = np.array([power_func(MechanicalState(power=0.0,
-    #                                                   delivering=False,
-    #                                                   receiving=False,
-    #                                                   rpm=rpm,
-    #                                                   on=True)) for rpm in rpm_vals])
+    power_vals = np.array([power_func(return_electric_motor_snapshot(rpm_out=rpm)) for rpm in rpm_vals])
     power_grid = np.linspace(0, power_max, num_points)
     power_mesh, rpm_mesh = np.meshgrid(power_grid, rpm_vals)
     eff_grid = np.zeros_like(rpm_mesh)
     for i, p in enumerate(power_grid):
         for j, r in enumerate(rpm_vals):
             if p <= power_vals[j]:
-                state = ElectricMotorState(input=st.input,
-                                           output=RotatingIOState(torque=power_to_torque(power=p,
-                                                                                         rpm=r),
-                                                                  rpm=r),
-                                           internal=st.internal)
-                # state = MechanicalState(power=p,
-                #                         delivering=False,
-                #                         receiving=False,
-                #                         rpm=r,
-                #                         on=True)
-                eff_grid[j, i] = eff_func(state)
+                snap = return_electric_motor_snapshot(torque_out=power_to_torque(power=p,
+                                                                                 rpm=r),
+                                                      rpm_out=r)
+                eff_grid[j, i] = eff_func(snap)
             else:
                 eff_grid[j, i] = None
     fig = plt.figure(figsize=(14, 6))

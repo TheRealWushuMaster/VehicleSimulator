@@ -6,13 +6,13 @@ from typing import Optional
 from dataclasses import dataclass
 from components.fuel_cell_curves import FuelCellEfficiencyCurves
 from components.fuel_type import GaseousFuel, HydrogenGas
+from components.component_snapshot import return_fuel_cell_snapshot
 from components.consumption import FuelCellConsumption
 from components.converter import Converter
 from components.dynamic_response import FuelCellDynamicResponse
 from components.dynamic_response_curves import FuelToElectric
 from components.limitation import FuelCellLimits
 from components.port import PortInput, PortOutput
-from components.state import return_fuel_cell_state
 from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import PowerType
 
@@ -85,12 +85,12 @@ class FuelCell(Converter):
                         expected_type=FuelCellDynamicResponse)
         assert_type(fuel,
                     expected_type=GaseousFuel)
-        state = return_fuel_cell_state(fuel=fuel)
+        snap = return_fuel_cell_snapshot(fuel_in=fuel)
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=fuel),
                          output=PortOutput(exchange=PowerType.ELECTRIC_DC),
-                         state=state,
+                         snapshot=snap,
                          limits=limits,
                          consumption=consumption,
                          dynamic_response=dynamic_response)

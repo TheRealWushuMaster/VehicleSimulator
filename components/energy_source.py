@@ -10,15 +10,9 @@ from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
 from components.component_snapshot import EnergySourceSnapshot, \
     RechargeableBatterySnapshot, NonRechargeableBatterySnapshot, \
+    LiquidFuelTankSnapshot, GaseousFuelTankSnapshot, \
     return_rechargeable_battery_snapshot, return_non_rechargeable_battery_snapshot, \
     return_liquid_fuel_tank_snapshot, return_gaseous_fuel_tank_snapshot
-from components.state import \
-    FullStateElectricEnergyStorageNoInput, FullStateElectricEnergyStorageWithInput, \
-    FullStateFuelStorageNoInput, \
-    LiquidFuelTankState, GaseousFuelTankState, \
-    RechargeableBatteryState, NonRechargeableBatteryState, \
-    return_rechargeable_battery_state, return_non_rechargeable_battery_state, \
-    return_liquid_fuel_tank_state, return_gaseous_fuel_tank_state
 from helpers.functions import assert_type, assert_type_and_range, liters_to_cubic_meters, clamp
 from helpers.types import PowerType, ElectricSignalType
 from simulation.constants import BATTERY_DEFAULT_SOH
@@ -342,12 +336,12 @@ class FuelTank(EnergySource):
                  name: str,
                  fuel: Fuel,
                  tank_mass: float,
-                 state: FullStateFuelStorageNoInput):
+                 snap: LiquidFuelTankSnapshot|GaseousFuelTankSnapshot):
         super().__init__(name=name,
                          input=None,
                          output=PortOutput(exchange=fuel),
                          system_mass=tank_mass,
-                         state=state)
+                         snapshot=snap)
 
     @property
     def filled_percentage(self) -> float:
@@ -391,7 +385,7 @@ class LiquidFuelTank(FuelTank):
     """
     fuel: LiquidFuel # type: ignore
     capacity_liters: float
-    state: LiquidFuelTankState # type: ignore
+    snapshot: LiquidFuelTankSnapshot # type: ignore
 
     def __init__(self,
                  name: str,
@@ -406,35 +400,35 @@ class LiquidFuelTank(FuelTank):
         assert_type_and_range(liters,
                               more_than=0.0,
                               less_than=capacity_liters)
-        state = return_liquid_fuel_tank_state(fuel=fuel,
-                                              fuel_liters_stored=liters)
+        snap = return_liquid_fuel_tank_snapshot(fuel=fuel,
+                                                liters_stored=liters)
         super().__init__(name=name,
                          fuel=fuel,
                          tank_mass=tank_mass,
-                         state=state)
+                         snap=snap)
         self.capacity_liters = capacity_liters
 
     @property
     def fuel_mass(self):
-        return liters_to_cubic_meters(self.state.fuel_storage.fuel_liters) * \
-            self.state.fuel_storage.fuel.mass_density
+        return liters_to_cubic_meters(self.snapshot.state.internal.liters_stored) * \
+            self.fuel.mass_density
 
     @property
     def is_empty(self) -> bool:
-        return self.state.fuel_storage.fuel_liters==0.0
+        return self.snapshot.state.internal.liters_stored==0.0
 
     @property
     def is_full(self) -> bool:
-        return self.state.fuel_storage.fuel_liters==self.capacity_liters
+        return self.snapshot.state.internal.liters_stored==self.capacity_liters
 
     @property
     def max_energy(self) -> float:
-        return liters_to_cubic_meters(liters=self.state.fuel_storage.fuel_liters) * \
-            self.state.fuel_storage.fuel.mass_density * self.state.fuel_storage.fuel.energy_density
+        return liters_to_cubic_meters(liters=self.snapshot.state.internal.liters_stored) * \
+            self.fuel.mass_density * self.fuel.energy_density
 
     @property
     def filled_percentage(self) -> float:
-        return self.state.fuel_storage.fuel_liters / self.capacity_liters
+        return self.snapshot.state.internal.liters_stored / self.capacity_liters
 
 
 @dataclass
@@ -444,7 +438,7 @@ class GaseousFuelTank(FuelTank):
     """
     fuel: GaseousFuel # type: ignore
     capacity_mass: float
-    state: GaseousFuelTankState # type: ignore
+    snapshot: GaseousFuelTankSnapshot # type: ignore
 
     def __init__(self,
                  name: str,
@@ -459,31 +453,31 @@ class GaseousFuelTank(FuelTank):
         assert_type_and_range(fuel_mass,
                               more_than=0.0,
                               less_than=capacity_mass)
-        state = return_gaseous_fuel_tank_state(fuel=fuel,
-                                               fuel_mass_stored=fuel_mass)
+        snap = return_gaseous_fuel_tank_snapshot(fuel=fuel,
+                                                 mass_stored=fuel_mass)
         super().__init__(name=name,
                          fuel=fuel,
                          tank_mass=tank_mass,
-                         state=state)
+                         snap=snap)
         self.capacity_mass = capacity_mass
 
     @property
     def fuel_mass(self):
-        return self.state.fuel_storage.fuel_mass
+        return self.snapshot.state.internal.mass_stored
 
     @property
     def is_empty(self) -> bool:
-        return self.state.fuel_storage.fuel_mass==0.0
+        return self.snapshot.state.internal.mass_stored==0.0
 
     @property
     def is_full(self) -> bool:
-        return self.state.fuel_storage.fuel_mass==self.capacity_mass
+        return self.snapshot.state.internal.mass_stored==self.capacity_mass
 
     @property
     def max_energy(self) -> float:
-        return liters_to_cubic_meters(liters=self.state.fuel_storage.fuel_mass) * \
-            self.state.fuel_storage.fuel.energy_density
+        return liters_to_cubic_meters(liters=self.snapshot.state.internal.mass_stored) * \
+            self.fuel.energy_density
 
     @property
     def filled_percentage(self) -> float:
-        return self.state.fuel_storage.fuel_mass / self.capacity_mass
+        return self.snapshot.state.internal.mass_stored / self.capacity_mass

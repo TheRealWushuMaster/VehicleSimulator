@@ -3,8 +3,9 @@ energy and fuel consumption for all components."""
 
 from typing import Callable, TypeVar, Generic
 from dataclasses import dataclass
-from components.component_snapshot import BaseSnapshot, \
+from components.component_snapshot import EnergySourceSnapshot, \
     RechargeableBatterySnapshot, NonRechargeableBatterySnapshot, \
+    ConverterSnapshot, \
     LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot, \
     FuelCellSnapshot, LiquidFuelTankSnapshot, GaseousFuelTankSnapshot, \
     ElectricMotorSnapshot, ElectricGeneratorSnapshot, \
@@ -19,7 +20,7 @@ from helpers.functions import assert_type, assert_type_and_range, assert_callabl
 InternalToOutSnapshot = TypeVar("InternalToOutSnapshot",
                                 bound=RechargeableBatterySnapshot|NonRechargeableBatterySnapshot)
 InOutSnapshot = TypeVar("InOutSnapshot",
-                        bound=BaseSnapshot)
+                        bound=ConverterSnapshot|EnergySourceSnapshot)
 FuelTankSnapshot = TypeVar("FuelTankSnapshot",
                            bound=LiquidFuelTankSnapshot|GaseousFuelTankSnapshot)
 InFuelSnapshot = TypeVar("InFuelSnapshot",
@@ -115,7 +116,7 @@ class InToInternalEnergyConsumption():
                     expected_type=RechargeableBatterySnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        return snap.power_out * delta_t * self.in_to_internal_efficiency_value(snap=snap)
+        return snap.power_in * delta_t * self.in_to_internal_efficiency_value(snap=snap)
 
     def in_to_internal_efficiency_value(self, snap: RechargeableBatterySnapshot) -> float:
         """
@@ -145,7 +146,7 @@ class InternalToInEnergyConsumption():
                     expected_type=RechargeableBatterySnapshot)
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        return snap.power_out * delta_t / self.internal_to_in_efficiency_value(snap=snap)
+        return snap.power_in * delta_t / self.internal_to_in_efficiency_value(snap=snap)
 
     def internal_to_in_efficiency_value(self, snap: RechargeableBatterySnapshot) -> float:
         """
@@ -172,7 +173,7 @@ class InToOutEnergyConsumption(Generic[InOutSnapshot]):
         from the input to the output.
         """
         assert_type(snap,
-                    expected_type=BaseSnapshot)
+                    expected_type=(ConverterSnapshot, EnergySourceSnapshot))
         assert_type_and_range(delta_t,
                               more_than=0.0)
         return snap.power_out * delta_t / self.in_to_out_efficiency_value(snap=snap)
@@ -182,7 +183,7 @@ class InToOutEnergyConsumption(Generic[InOutSnapshot]):
         Returns the reverse efficiency value at a given state.
         """
         assert_type(snap,
-                    expected_type=BaseSnapshot)
+                    expected_type=(ConverterSnapshot, EnergySourceSnapshot))
         return self.in_to_out_efficiency_func(snap)
 
 
@@ -202,7 +203,7 @@ class OutToInEnergyConsumption(Generic[InOutSnapshot]):
         from the output to the input.
         """
         assert_type(snap,
-                    expected_type=BaseSnapshot)
+                    expected_type=(ConverterSnapshot, EnergySourceSnapshot))
         assert_type_and_range(delta_t,
                               more_than=0.0)
         return snap.power_in * delta_t / self.out_to_in_efficiency_value(snap=snap)
@@ -212,7 +213,7 @@ class OutToInEnergyConsumption(Generic[InOutSnapshot]):
         Returns the reverse efficiency value at a given state.
         """
         assert_type(snap,
-                    expected_type=BaseSnapshot)
+                    expected_type=(ConverterSnapshot, EnergySourceSnapshot))
         return self.out_to_in_efficiency_func(snap)
 
 
@@ -473,7 +474,7 @@ def return_fuel_cell_consumption(
         in_to_out_fuel_consumption_func=fuel_consumption_func
     )
 
-def return_pure_mechanical_consumption(
+def return_gearbox_consumption(
         efficiency_func: Callable[[GearBoxSnapshot], float],
         reverse_efficiency_func: Callable[[GearBoxSnapshot], float]
         ) -> GearBoxConsumption:

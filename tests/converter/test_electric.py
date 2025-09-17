@@ -2,7 +2,8 @@
 for electric to electric converters."""
 
 from components.electric_converters import Inverter, Rectifier
-from components.consumption import return_pure_electric_consumption
+from components.consumption import return_electric_inverter_consumption, \
+    return_electric_rectifier_consumption
 from components.dynamic_response import InverterDynamicResponse, \
     RectifierDynamicResponse
 from components.dynamic_response_curves import \
@@ -35,14 +36,16 @@ limits = return_electric_to_electric_limits(
     rel_max_power_in=rel_max_power_in, rel_min_power_in=rel_min_power_in,
     rel_max_power_out=rel_max_power_out, rel_min_power_out=rel_min_power_out,
     )
-eff_func = return_pure_electric_consumption(
+inverter_eff_func = return_electric_inverter_consumption(
+    efficiency_func=lambda s: efficiency
+)
+rectifier_eff_func = return_electric_rectifier_consumption(
     efficiency_func=lambda s: efficiency
 )
 
 def test_create_inverter() -> None:
     dynamic_response = InverterDynamicResponse(
         forward_response=ElectricToElectric.inverter_response(
-            voltage_gain=voltage_gain,
             efficiency=efficiency
         )
     )
@@ -50,7 +53,7 @@ def test_create_inverter() -> None:
                    mass=mass,
                    max_power=max_power,
                    limits=limits,
-                   eff_func=eff_func,
+                   eff_func=inverter_eff_func,
                    dynamic_response=dynamic_response,
                    nominal_voltage_in=nominal_voltage_in,
                    nominal_voltage_out=nominal_voltage_out)
@@ -59,7 +62,6 @@ def test_create_inverter() -> None:
 def test_create_rectifier() -> None:
     dynamic_response = RectifierDynamicResponse(
         forward_response=ElectricToElectric.rectifier_response(
-            voltage_gain=voltage_gain,
             efficiency=efficiency
         )
     )
@@ -67,7 +69,7 @@ def test_create_rectifier() -> None:
                     mass=mass,
                     max_power=max_power,
                     limits=limits,
-                    eff_func=eff_func,
+                    eff_func=rectifier_eff_func,
                     dynamic_response=dynamic_response,
                     nominal_voltage_in=nominal_voltage_in,
                     nominal_voltage_out=nominal_voltage_out)

@@ -1,5 +1,6 @@
 """This module contains test routines for the dynamic response classes."""
 
+from components.component_snapshot import return_electric_motor_snapshot
 from components.consumption import ElectricMotorConsumption, \
     ElectricGeneratorConsumption, \
     LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
@@ -112,14 +113,12 @@ def create_pure_mechanical_response() -> PureMechanicalDynamicResponse:
     return response
 
 def create_rectifier_response() -> RectifierDynamicResponse:
-    response = RectifierDynamicResponse(forward_response=ElectricToElectric.rectifier_response(voltage_gain=voltage_gain,
-                                                                                               efficiency=efficiency))
+    response = RectifierDynamicResponse(forward_response=ElectricToElectric.rectifier_response(efficiency=efficiency))
     assert isinstance(response, RectifierDynamicResponse)
     return response
 
 def create_inverter_response() -> InverterDynamicResponse:
-    response = InverterDynamicResponse(forward_response=ElectricToElectric.inverter_response(voltage_gain=voltage_gain,
-                                                                                             efficiency=efficiency))
+    response = InverterDynamicResponse(forward_response=ElectricToElectric.inverter_response(efficiency=efficiency))
     assert isinstance(response, InverterDynamicResponse)
     return response
 
@@ -135,18 +134,16 @@ def test_create_electric_motor_response() -> None:
                                              rel_max_power_in=rel_max_power_in, rel_min_power_in=rel_min_power_in,
                                              rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
                                              rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
-    initial_state = return_electric_motor_state(signal_type=ElectricSignalType.AC,
-                                                nominal_voltage=nominal_voltage,
-                                                power_in=power_in,
-                                                torque_out=torque_out,
-                                                rpm_out=rpm_out)
-    forward_conversion_state = response.compute_forward(state=initial_state,
-                                                        load_torque=load_torque,
-                                                        downstream_inertia=inertia,
-                                                        delta_t=delta_t,
-                                                        control_signal=control_signal,
-                                                        efficiency=em_consumption,
-                                                        limits=em_limits)
+    initial_snap = return_electric_motor_snapshot(electric_power_in=power_in,
+                                                  torque_out=torque_out,
+                                                  rpm_out=rpm_out)
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
+                                                     load_torque=load_torque,
+                                                     downstream_inertia=inertia,
+                                                     delta_t=delta_t,
+                                                     control_signal=control_signal,
+                                                     efficiency=em_consumption,
+                                                     limits=em_limits)
     assert forward_conversion_state.output.torque == (rel_max_torque_out(initial_state) - rel_min_torque_out(initial_state)) * control_signal
     w_dot = (forward_conversion_state.output.torque - load_torque) / inertia
     delta_rpm = ang_vel_to_rpm(ang_vel=w_dot*delta_t)
