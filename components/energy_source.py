@@ -8,6 +8,10 @@ from components.consumption import RechargeableBatteryConsumption, \
     NonRechargeableBatteryConsumption
 from components.fuel_type import Fuel, LiquidFuel, GaseousFuel
 from components.port import Port, PortInput, PortOutput, PortBidirectional, PortType
+from components.component_snapshot import EnergySourceSnapshot, \
+    RechargeableBatterySnapshot, NonRechargeableBatterySnapshot, \
+    return_rechargeable_battery_snapshot, return_non_rechargeable_battery_snapshot, \
+    return_liquid_fuel_tank_snapshot, return_gaseous_fuel_tank_snapshot
 from components.state import \
     FullStateElectricEnergyStorageNoInput, FullStateElectricEnergyStorageWithInput, \
     FullStateFuelStorageNoInput, \
@@ -19,8 +23,8 @@ from helpers.functions import assert_type, assert_type_and_range, liters_to_cubi
 from helpers.types import PowerType, ElectricSignalType
 from simulation.constants import BATTERY_DEFAULT_SOH
 
-battery_state = TypeVar("battery_state",
-                        bound=RechargeableBatteryState|NonRechargeableBatteryState)
+battery_snap = TypeVar("battery_snap",
+                        bound=RechargeableBatterySnapshot|NonRechargeableBatterySnapshot)
 battery_consumption = TypeVar("battery_consumption",
                               bound=RechargeableBatteryConsumption|NonRechargeableBatteryConsumption)
 
@@ -48,19 +52,15 @@ class EnergySource(ABC):
     input: Optional[PortInput|PortBidirectional]
     output: PortOutput|PortBidirectional
     system_mass: float
-    state: FullStateElectricEnergyStorageNoInput| \
-        FullStateFuelStorageNoInput| \
-        FullStateElectricEnergyStorageWithInput
+    snapshot: EnergySourceSnapshot
 
     def __post_init__(self):
         assert_type(self.name,
                     expected_type=str)
         assert_type_and_range(self.system_mass,
                               more_than=0.0)
-        assert_type(self.state,
-                    expected_type=(FullStateElectricEnergyStorageNoInput,
-                                   FullStateElectricEnergyStorageWithInput,
-                                   FullStateFuelStorageNoInput))
+        assert_type(self.snapshot,
+                    expected_type=EnergySourceSnapshot)
         if self.input is not None:
             assert self.input.exchange==self.output.exchange
             self.rechargeable = True
@@ -142,17 +142,17 @@ class EnergySource(ABC):
 
 
 @dataclass
-class Battery(EnergySource, Generic[battery_consumption, battery_state]):
+class Battery(EnergySource, Generic[battery_consumption, battery_snap]):
     """
     Models a generic battery.
     """
     nominal_energy: float
     nominal_voltage: float
     max_power: float
-    efficiency: battery_consumption #RechargeableBatteryConsumption|NonRechargeableBatteryConsumption
+    efficiency: battery_consumption
     soh: float=BATTERY_DEFAULT_SOH
     signal_type: ElectricSignalType=field(init=False)
-    state: battery_state=field(init=False)  #type: ignore
+    snapshot: battery_snap=field(init=False)  #type: ignore
 
     def __init__(self,
                  name: str,
@@ -164,18 +164,16 @@ class Battery(EnergySource, Generic[battery_consumption, battery_state]):
                  nominal_voltage: float,
                  efficiency: battery_consumption, #RechargeableBatteryConsumption | NonRechargeableBatteryConsumption,
                  soh: float=BATTERY_DEFAULT_SOH):
-        state: battery_state #RechargeableBatteryState|NonRechargeableBatteryState
+        snap: battery_snap
         if rechargeable:
-            state = return_rechargeable_battery_state(energy=min(nominal_energy, energy),
-                                                      nominal_voltage=nominal_voltage)  # type: ignore
+            snap = return_rechargeable_battery_snapshot(electric_energy_stored=min(nominal_energy, energy))  # type: ignore
         else:
-            state = return_non_rechargeable_battery_state(energy=min(nominal_energy, energy),
-                                                          nominal_voltage=nominal_voltage)  # type: ignore
+            snap = return_non_rechargeable_battery_snapshot(electric_energy_stored=min(nominal_energy, energy))  # type: ignore
         super().__init__(name=name,
                          input=PortInput(exchange=PowerType.ELECTRIC_DC) if rechargeable else None,
                          output=PortOutput(exchange=PowerType.ELECTRIC_DC),
                          system_mass=battery_mass,
-                         state=state)
+                         snapshot=snap)
         assert_type_and_range(nominal_voltage, max_power,
                               more_than=0.0)
         assert_type_and_range(soh,
@@ -193,10 +191,9 @@ class Battery(EnergySource, Generic[battery_consumption, battery_state]):
         """
         Returns the source's current state of charge (SOC).
         """
-        assert isinstance(self.state,
-                          (FullStateElectricEnergyStorageNoInput,
-                           FullStateElectricEnergyStorageWithInput))
-        return self.state.electric_energy_storage.energy / self.nominal_energy / self.soh
+        assert isinstance(self.snapshot,
+                          (RechargeableBatterySnapshot, NonRechargeableBatterySnapshot))
+        return self.snapshot.state.internal.electric_energy_stored / self.nominal_energy / self.soh
 
     @property
     def max_energy(self):
@@ -204,15 +201,15 @@ class Battery(EnergySource, Generic[battery_consumption, battery_state]):
 
     @property
     def is_empty(self):
-        assert isinstance(self.state, (RechargeableBatteryState,
-                                       NonRechargeableBatteryState))
-        return self.state.electric_energy_storage.energy <= 0.0
+        assert isinstance(self.snapshot,
+                          (RechargeableBatterySnapshot, NonRechargeableBatterySnapshot))
+        return self.snapshot.state.internal.electric_energy_stored<=0.0
 
     @property
     def is_full(self):
-        assert isinstance(self.state, (RechargeableBatteryState,
-                                       NonRechargeableBatteryState))
-        return self.state.electric_energy_storage.energy == self.max_energy
+        assert isinstance(self.snapshot,
+                          (RechargeableBatterySnapshot, NonRechargeableBatterySnapshot))
+        return self.snapshot.state.internal.electric_energy_stored==self.max_energy
 
     @property
     def total_mass(self):
@@ -224,7 +221,7 @@ class Battery(EnergySource, Generic[battery_consumption, battery_state]):
 
 @dataclass
 class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
-                                  "RechargeableBatteryState"]):
+                                  "RechargeableBatterySnapshot"]):
     """
     Models a generic, rechargeable battery.
     """
@@ -259,14 +256,12 @@ class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
         assert_type(which_port,
                     expected_type=PortType)
         if which_port==PortType.INPUT_PORT:
-            deliverable = self.max_power - self.state.input.electric_power
-            self.state.input.electric_power += min(deliverable, amount)
-            self.state.input.set_delivering()
-            return self.state.input.electric_power
-        deliverable = self.max_power - self.state.output.electric_power
-        self.state.output.electric_power += min(deliverable, amount)
-        self.state.output.set_delivering()
-        return self.state.output.electric_power
+            deliverable = self.max_power - self.snapshot.io.input_port.electric_power
+            self.snapshot.io.input_port.electric_power += min(deliverable, amount)
+            return self.snapshot.io.input_port.electric_power
+        deliverable = self.max_power - self.snapshot.io.output_port.electric_power
+        self.snapshot.io.output_port.electric_power += min(deliverable, amount)
+        return self.snapshot.io.output_port.electric_power
 
     def add_request(self, amount: float,
                     which_port: PortType) -> float:
@@ -278,15 +273,14 @@ class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
         assert_type(which_port,
                     expected_type=PortType)
         if which_port==PortType.INPUT_PORT:
-            self.state.input.electric_power += amount
-            self.state.input.set_receiving()
-            return self.state.input.electric_power
-        self.state.output.electric_power += amount
-        self.state.output.set_receiving()
-        return self.state.output.electric_power
+            self.snapshot.io.input_port.electric_power += amount
+            return self.snapshot.io.input_port.electric_power
+        self.snapshot.io.output_port.electric_power += amount
+        return self.snapshot.io.output_port.electric_power
 
     def update_charge(self, delta_t: float) -> None:
-        power_in = (self.state.input.power if self.state.input.is_receiving else 0.0) + \
+        power_in = self.snapshot.power_in
+        power_in = (self.snapshot.power_in if self.state.input.is_receiving else 0.0) + \
             (self.state.output.power if self.state.output.is_receiving else 0.0)
         power_out = (self.state.input.power if self.state.input.is_delivering else 0.0) + \
             (self.state.output.power if self.state.output.is_delivering else 0.0)
@@ -300,7 +294,7 @@ class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
 
 @dataclass
 class BatteryNonRechargeable(Battery["NonRechargeableBatteryConsumption",
-                                     "NonRechargeableBatteryState"]):
+                                     "NonRechargeableBatterySnapshot"]):
     """
     Models a generic, non rechargeable battery type.
     """
@@ -332,10 +326,9 @@ class BatteryNonRechargeable(Battery["NonRechargeableBatteryConsumption",
         """
         assert_type_and_range(amount,
                               more_than=0.0)
-        deliverable: float = self.max_power - self.state.output.electric_power
-        self.state.output.electric_power += min(deliverable, amount)
-        self.state.output.set_delivering()
-        return self.state.output.electric_power
+        deliverable: float = self.max_power - self.snapshot.io.output_port.electric_power
+        self.snapshot.io.output_port.electric_power += min(deliverable, amount)
+        return self.snapshot.io.output_port.electric_power
 
 
 @dataclass

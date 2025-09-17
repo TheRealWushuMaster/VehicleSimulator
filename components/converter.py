@@ -4,15 +4,12 @@ from abc import ABC
 from dataclasses import dataclass, field
 from typing import Optional
 from uuid import uuid4
-from components.component_io import ConverterIO
-from components.component_state import ConverterState
+from components.component_snapshot import ConverterSnapshot
 from components.consumption import ConverterConsumption
 from components.dynamic_response import BaseDynamicResponse
 from components.limitation import ConverterLimits
 from components.port import Port, PortInput, PortOutput, \
     PortBidirectional, PortType, PortDirection
-# from components.state import IOState, FullStateWithInput, \
-#     LiquidFuelIOState, GaseousFuelIOState, ElectricIOState, RotatingIOState
 from helpers.functions import assert_type, assert_type_and_range
 
 
@@ -43,8 +40,7 @@ class Converter(ABC):
     mass: float
     input: PortInput|PortBidirectional
     output: PortOutput|PortBidirectional
-    io_values: ConverterIO
-    state: ConverterState
+    snapshot: ConverterSnapshot
     limits: ConverterLimits
     consumption: ConverterConsumption
     dynamic_response: BaseDynamicResponse
@@ -56,8 +52,8 @@ class Converter(ABC):
                     expected_type=(PortInput, PortBidirectional))
         assert_type(self.output,
                     expected_type=(PortOutput, PortBidirectional))
-        assert_type(self.io_values,
-                    expected_type=ConverterIO)
+        assert_type(self.snapshot,
+                    expected_type=ConverterSnapshot)
         assert_type_and_range(self.mass,
                               more_than=0.0)
         assert_type(self.limits,
@@ -140,20 +136,3 @@ class MechanicalConverter(Converter):
         super().__post_init__()
         assert_type_and_range(self.inertia,
                               more_than=0.0)
-
-
-# def return_io_state(port: Port) -> IOState:
-#     """
-#     Returns the `IOState` for a type of port.
-#     """
-#     if isinstance(port.exchange, LiquidFuel):
-#         return LiquidFuelIOState(fuel=port.exchange)
-#     if isinstance(port.exchange, GaseousFuel):
-#         return GaseousFuelIOState(fuel=port.exchange)
-#     if port.exchange==PowerType.ELECTRIC_AC:
-#         return ElectricIOState(signal_type=ElectricSignalType.AC)
-#     if port.exchange==PowerType.ELECTRIC_DC:
-#         return ElectricIOState(signal_type=ElectricSignalType.DC)
-#     if port.exchange==PowerType.MECHANICAL:
-#         return RotatingIOState()
-#     raise ValueError

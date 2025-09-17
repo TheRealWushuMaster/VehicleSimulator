@@ -25,6 +25,18 @@ class BaseSnapshot():
     """
     Base class for snapshot classes.
     """
+
+
+# ===================
+# CONVERTER SNAPSHOTS
+# ===================
+
+
+@dataclass
+class ConverterSnapshot(BaseSnapshot):
+    """
+    Base snapshot class for converters.
+    """
     @property
     def power_in(self) -> float:
         """
@@ -62,7 +74,7 @@ class BaseSnapshot():
 
 
 @dataclass
-class ElectricMotorSnapshot(BaseSnapshot):
+class ElectricMotorSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for an electric motor.
     """
@@ -84,7 +96,7 @@ class ElectricMotorSnapshot(BaseSnapshot):
 
 
 @dataclass
-class LiquidCombustionEngineSnapshot(BaseSnapshot):
+class LiquidCombustionEngineSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for a liquid fuel internal combustion engine.
     """
@@ -106,7 +118,7 @@ class LiquidCombustionEngineSnapshot(BaseSnapshot):
 
 
 @dataclass
-class GaseousCombustionEngineSnapshot(BaseSnapshot):
+class GaseousCombustionEngineSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for a gaseous fuel internal combustion engine.
     """
@@ -128,7 +140,7 @@ class GaseousCombustionEngineSnapshot(BaseSnapshot):
 
 
 @dataclass
-class ElectricGeneratorSnapshot(BaseSnapshot):
+class ElectricGeneratorSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for an electric generator.
     """
@@ -150,7 +162,7 @@ class ElectricGeneratorSnapshot(BaseSnapshot):
 
 
 @dataclass
-class FuelCellSnapshot(BaseSnapshot):
+class FuelCellSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for a fuel cell.
     """
@@ -171,7 +183,7 @@ class FuelCellSnapshot(BaseSnapshot):
 
 
 @dataclass
-class ElectricInverterSnapshot(BaseSnapshot):
+class ElectricInverterSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for an electric inverter.
     """
@@ -192,7 +204,7 @@ class ElectricInverterSnapshot(BaseSnapshot):
 
 
 @dataclass
-class ElectricRectifierSnapshot(BaseSnapshot):
+class ElectricRectifierSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for an electric rectifier.
     """
@@ -213,7 +225,7 @@ class ElectricRectifierSnapshot(BaseSnapshot):
 
 
 @dataclass
-class GearBoxSnapshot(BaseSnapshot):
+class GearBoxSnapshot(ConverterSnapshot):
     """
     Defines the snapshot contents for a gearbox.
     """
@@ -235,8 +247,54 @@ class GearBoxSnapshot(BaseSnapshot):
         return 0.0
 
 
+# =======================
+# ENERGY SOURCE SNAPSHOTS
+# =======================
+
+
 @dataclass
-class NonRechargeableBatterySnapshot(BaseSnapshot):
+class EnergySourceSnapshot(BaseSnapshot):
+    """
+    Base snapshot class for energy sources.
+    """
+    @property
+    def power_in(self) -> float:
+        """
+        Calculates the power transferred through the input.
+        """
+        raise NotImplementedError
+
+    @property
+    def power_out(self) -> float:
+        """
+        Calculates the power transferred through the output.
+        """
+        raise NotImplementedError
+
+    @property
+    def forward_efficiency(self) -> float:
+        """
+        Calculates the power efficiency for a forward transfer.
+        """
+        return self.power_out / self.power_in if self.power_in > 0.0 else 0.0
+
+    @property
+    def reverse_efficiency(self) -> float:
+        """
+        Calculates the power efficiency for a reverse transfer.
+        """
+        return 1 / self.forward_efficiency if self.forward_efficiency > 0.0 else 0.0
+
+    @property
+    def fuel_consumption_in(self) -> float:
+        """
+        Calculates the fuel consumption at the input.
+        """
+        raise NotImplementedError
+
+
+@dataclass
+class NonRechargeableBatterySnapshot(EnergySourceSnapshot):
     """
     Defines the snapshot contents for a non rechargeable battery.
     """
@@ -257,7 +315,7 @@ class NonRechargeableBatterySnapshot(BaseSnapshot):
 
 
 @dataclass
-class RechargeableBatterySnapshot(BaseSnapshot):
+class RechargeableBatterySnapshot(EnergySourceSnapshot):
     """
     Defines the snapshot contents for a rechargeable battery.
     """
@@ -278,7 +336,7 @@ class RechargeableBatterySnapshot(BaseSnapshot):
 
 
 @dataclass
-class LiquidFuelTankSnapshot(BaseSnapshot):
+class LiquidFuelTankSnapshot(EnergySourceSnapshot):
     """
     Defines the snapshot contents for a liquid fuel tank.
     """
@@ -306,7 +364,7 @@ class LiquidFuelTankSnapshot(BaseSnapshot):
 
 
 @dataclass
-class GaseousFuelTankSnapshot(BaseSnapshot):
+class GaseousFuelTankSnapshot(EnergySourceSnapshot):
     """
     Defines the snapshot contents for a gaseous fuel tank.
     """

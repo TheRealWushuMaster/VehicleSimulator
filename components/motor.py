@@ -21,10 +21,6 @@ from components.dynamic_response import ElectricMotorDynamicResponse, \
 from components.limitation import ElectricMotorLimits, LiquidCombustionEngineLimits, \
     GaseousCombustionEngineLimits, ElectricGeneratorLimits
 from components.port import PortInput, PortOutput, PortBidirectional, PortType
-# from components.state import ElectricMotorState, LiquidCombustionEngineState, \
-#     GaseousCombustionEngineState, ElectricGeneratorState, \
-#     return_electric_motor_state, return_electric_generator_state, \
-#     return_liquid_combustion_engine_state, return_gaseous_combustion_engine_state
 from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import PowerType, ElectricSignalType
 

@@ -14,7 +14,7 @@ from components.component_snapshot import ElectricMotorSnapshot, ElectricGenerat
     LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot, \
     GearBoxSnapshot, FuelCellSnapshot, ElectricInverterSnapshot, ElectricRectifierSnapshot
 from components.component_state import ElectricMotorState, ElectricGeneratorState, \
-    InternalCombustionEngineState
+    InternalCombustionEngineState, FuelCellState, PureElectricState, PureMechanicalState
 from helpers.functions import assert_callable, assert_type, assert_type_and_range
 
 
@@ -217,7 +217,8 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
                                 float, float, float,
                                 GaseousCombustionEngineConsumption,
                                 GaseousCombustionEngineLimits],
-                               GaseousCombustionEngineSnapshot]
+                               tuple[GaseousCombustionEngineSnapshot,
+                                     InternalCombustionEngineState]]
 
     def __post_init__(self):
         assert_callable(self.forward_response)
@@ -229,7 +230,8 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
                         control_signal: float,
                         fuel_consumption: GaseousCombustionEngineConsumption,
                         limits: GaseousCombustionEngineLimits
-                        ) -> GaseousCombustionEngineSnapshot:
+                        ) -> tuple[GaseousCombustionEngineSnapshot,
+                                   InternalCombustionEngineState]:
         """
         Computes the output of the
         engine for a given fuel input.
@@ -245,16 +247,14 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
                               include_more=False)
-        new_snap = self.forward_response(snap,
-                                         load_torque,
-                                         downstream_inertia,
-                                         delta_t,
-                                         control_signal,
-                                         fuel_consumption,
-                                         limits)
-        #new_state.input.set_delivering()
-        #new_state.output.set_receiving()
-        return new_snap
+        new_snap, new_state = self.forward_response(snap,
+                                                    load_torque,
+                                                    downstream_inertia,
+                                                    delta_t,
+                                                    control_signal,
+                                                    fuel_consumption,
+                                                    limits)
+        return new_snap, new_state
 
     @property
     def reversible(self) -> bool:
@@ -271,39 +271,39 @@ class PureMechanicalDynamicResponse(BaseDynamicResponse):
     mechanical to mechanical component.
     """
     forward_response: Callable[[GearBoxSnapshot],
-                               GearBoxSnapshot]
+                               tuple[GearBoxSnapshot,
+                                     PureMechanicalState]]
     reverse_response: Callable[[GearBoxSnapshot],
-                               GearBoxSnapshot]
+                               tuple[GearBoxSnapshot,
+                                     PureMechanicalState]]
 
     def __post_init__(self):
         assert_callable(self.forward_response,
                         self.reverse_response)
 
     def compute_forward(self, snap: GearBoxSnapshot
-                        ) -> GearBoxSnapshot:
+                        ) -> tuple[GearBoxSnapshot,
+                                   PureMechanicalState]:
         """
         Computes the output of the
         pure mechanical component.
         """
         assert_type(snap,
                     expected_type=GearBoxSnapshot)
-        new_snap = self.forward_response(snap)
-        #new_state.input.set_delivering()
-        #new_state.output.set_receiving()
-        return new_snap
+        new_snap, new_state = self.forward_response(snap)
+        return new_snap, new_state
 
     def compute_reverse(self, snap: GearBoxSnapshot
-                        ) -> GearBoxSnapshot:
+                        ) -> tuple[GearBoxSnapshot,
+                                   PureMechanicalState]:
         """
         Computes the input of the
         pure mechanical component.
         """
         assert_type(snap,
                     expected_type=GearBoxSnapshot)
-        new_snap = self.reverse_response(snap)
-        #new_state.input.set_receiving()
-        #new_state.output.set_delivering()
-        return new_snap
+        new_snap, new_state = self.reverse_response(snap)
+        return new_snap, new_state
 
     @property
     def reversible(self) -> bool:
@@ -321,7 +321,8 @@ class FuelCellDynamicResponse(BaseDynamicResponse):
     """
     forward_response: Callable[[FuelCellSnapshot, float, float,
                                 FuelCellConsumption, FuelCellLimits],
-                               FuelCellSnapshot]
+                               tuple[FuelCellSnapshot,
+                                     FuelCellState]]
 
     def __post_init__(self):
         assert_callable(self.forward_response)
@@ -331,19 +332,18 @@ class FuelCellDynamicResponse(BaseDynamicResponse):
                         control_signal: float,
                         fuel_consumption: FuelCellConsumption,
                         limits: FuelCellLimits
-                        ) -> FuelCellSnapshot:
+                        ) -> tuple[FuelCellSnapshot,
+                                   FuelCellState]:
         """
         Computes the output of the fuel cell.
         """
         assert isinstance(snap, FuelCellSnapshot)
-        new_snap = self.forward_response(snap,
-                                         delta_t,
-                                         control_signal,
-                                         fuel_consumption,
-                                         limits)
-        #new_state.input.set_delivering()
-        #new_state.output.set_receiving()
-        return new_snap
+        new_snap, new_state = self.forward_response(snap,
+                                                    delta_t,
+                                                    control_signal,
+                                                    fuel_consumption,
+                                                    limits)
+        return new_snap, new_state
 
     @property
     def reversible(self) -> bool:
@@ -360,22 +360,22 @@ class RectifierDynamicResponse(BaseDynamicResponse):
     of an electric rectifier.
     """
     forward_response: Callable[[ElectricRectifierSnapshot],
-                               ElectricRectifierSnapshot]
+                               tuple[ElectricRectifierSnapshot,
+                                     PureElectricState]]
 
     def __post_init__(self):
         assert_callable(self.forward_response)
 
     def compute_forward(self, snap: ElectricRectifierSnapshot
-                        ) -> ElectricRectifierSnapshot:
+                        ) -> tuple[ElectricRectifierSnapshot,
+                                   PureElectricState]:
         """
         Computes the output of the rectifier.
         """
         assert_type(snap,
                     expected_type=ElectricRectifierSnapshot)
-        new_snap = self.forward_response(snap)
-        #new_state.input.set_delivering()
-        #new_state.output.set_receiving()
-        return new_snap
+        new_snap, new_state = self.forward_response(snap)
+        return new_snap, new_state
 
     @property
     def reversible(self) -> bool:
@@ -392,22 +392,22 @@ class InverterDynamicResponse(BaseDynamicResponse):
     of an electric inverter.
     """
     forward_response: Callable[[ElectricInverterSnapshot],
-                               ElectricInverterSnapshot]
+                               tuple[ElectricInverterSnapshot,
+                                     PureElectricState]]
 
     def __post_init__(self):
         assert_callable(self.forward_response)
 
     def compute_forward(self, snap: ElectricInverterSnapshot
-                        ) -> ElectricInverterSnapshot:
+                        ) -> tuple[ElectricInverterSnapshot,
+                                   PureElectricState]:
         """
         Computes the output of the inverter.
         """
         assert_type(snap,
                     expected_type=ElectricInverterSnapshot)
-        new_snap = self.forward_response(snap)
-        #new_state.input.set_delivering()
-        #new_state.output.set_receiving()
-        return new_snap
+        new_snap, new_state = self.forward_response(snap)
+        return new_snap, new_state
 
     @property
     def reversible(self) -> bool:
