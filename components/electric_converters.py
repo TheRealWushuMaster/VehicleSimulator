@@ -1,15 +1,16 @@
 """This module contains class definitions for electric converters."""
 
 from dataclasses import dataclass
-from components.consumption import PureElectricConsumption
+from components.component_snapshot import return_electric_inverter_snapshot, \
+    return_electric_rectifier_snapshot
+from components.consumption import ElectricInverterConsumption, ElectricRectifierConsumption
 from components.converter import Converter
 from components.dynamic_response import InverterDynamicResponse, \
     RectifierDynamicResponse
 from components.limitation import ElectricToElectricLimits
 from components.port import PortInput, PortOutput
-from components.state import return_pure_electric_state
 from helpers.functions import assert_type_and_range
-from helpers.types import ElectricSignalType, PowerType
+from helpers.types import PowerType
 
 
 @dataclass
@@ -38,17 +39,16 @@ class Inverter(PureElectricConverter):
                  mass: float,
                  max_power: float,
                  limits: ElectricToElectricLimits,
-                 eff_func: PureElectricConsumption,
+                 eff_func: ElectricInverterConsumption,
                  dynamic_response: InverterDynamicResponse,
                  nominal_voltage_in: float,
                  nominal_voltage_out: float):
-        state = return_pure_electric_state(signal_type_in=ElectricSignalType.DC,
-                                           signal_type_out=ElectricSignalType.AC)
+        snap = return_electric_inverter_snapshot()
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=PowerType.ELECTRIC_DC),
                          output=PortOutput(exchange=PowerType.ELECTRIC_AC),
-                         state=state,
+                         snapshot=snap,
                          limits=limits,
                          consumption=eff_func,
                          dynamic_response=dynamic_response,
@@ -66,17 +66,16 @@ class Rectifier(PureElectricConverter):
                  mass: float,
                  max_power: float,
                  limits: ElectricToElectricLimits,
-                 eff_func: PureElectricConsumption,
+                 eff_func: ElectricRectifierConsumption,
                  dynamic_response: RectifierDynamicResponse,
                  nominal_voltage_in: float,
                  nominal_voltage_out: float):
-        state = return_pure_electric_state(signal_type_in=ElectricSignalType.AC,
-                                           signal_type_out=ElectricSignalType.DC)
+        snap = return_electric_rectifier_snapshot()
         super().__init__(name=name,
                          mass=mass,
                          input=PortInput(exchange=PowerType.ELECTRIC_AC),
                          output=PortOutput(exchange=PowerType.ELECTRIC_DC),
-                         state=state,
+                         snapshot=snap,
                          limits=limits,
                          consumption=eff_func,
                          dynamic_response=dynamic_response,

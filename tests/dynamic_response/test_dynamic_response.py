@@ -1,10 +1,14 @@
 """This module contains test routines for the dynamic response classes."""
 
-from components.component_snapshot import return_electric_motor_snapshot
+from components.component_snapshot import return_electric_motor_snapshot, \
+    return_electric_generator_snapshot, return_liquid_ice_snapshot, return_gaseous_ice_snapshot, \
+    return_fuel_cell_snapshot, return_gearbox_snapshot, \
+    return_electric_inverter_snapshot, return_electric_rectifier_snapshot
 from components.consumption import ElectricMotorConsumption, \
     ElectricGeneratorConsumption, \
     LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
-    PureMechanicalConsumption, PureElectricConsumption, FuelCellConsumption
+    FuelCellConsumption, GearBoxConsumption, \
+    ElectricInverterConsumption, ElectricRectifierConsumption
 from components.dynamic_response import ElectricMotorDynamicResponse, \
     ElectricGeneratorDynamicResponse, LiquidCombustionDynamicResponse, \
     GaseousCombustionDynamicResponse, PureMechanicalDynamicResponse, \
@@ -17,12 +21,7 @@ from components.limitation import return_electric_motor_limits, \
     return_electric_generator_limits, return_liquid_combustion_engine_limits, \
     return_gaseous_combustion_engine_limits, return_mechanical_to_mechanical_limits, \
     return_electric_to_electric_limits, return_fuel_cell_limits
-from components.state import return_electric_motor_state, \
-    return_electric_generator_state, return_liquid_combustion_engine_state, \
-    return_gaseous_combustion_engine_state, return_pure_mechanical_state, \
-    return_pure_electric_state, return_fuel_cell_state
 from helpers.functions import ang_vel_to_rpm, torque_to_power
-from helpers.types import ElectricSignalType
 
 nominal_voltage: float = 300.0
 power_in: float = 2_000.0
@@ -137,6 +136,7 @@ def test_create_electric_motor_response() -> None:
     initial_snap = return_electric_motor_snapshot(electric_power_in=power_in,
                                                   torque_out=torque_out,
                                                   rpm_out=rpm_out)
+    # Testing forward conversion
     fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
                                                      load_torque=load_torque,
                                                      downstream_inertia=inertia,
@@ -144,16 +144,16 @@ def test_create_electric_motor_response() -> None:
                                                      control_signal=control_signal,
                                                      efficiency=em_consumption,
                                                      limits=em_limits)
-    assert forward_conversion_state.output.torque == (rel_max_torque_out(initial_state) - rel_min_torque_out(initial_state)) * control_signal
-    w_dot = (forward_conversion_state.output.torque - load_torque) / inertia
+    assert fc_snap.io.output_port.torque == (rel_max_torque_out(initial_snap) - rel_min_torque_out(initial_snap)) * control_signal
+    w_dot = (fc_snap.io.output_port.torque - load_torque) / inertia
     delta_rpm = ang_vel_to_rpm(ang_vel=w_dot*delta_t)
-    assert forward_conversion_state.output.rpm == rpm_out + delta_rpm
-    forward_conversion_state.output.rpm = rpm_out
-    assert forward_conversion_state.input.power == forward_conversion_state.output.power / em_consumption.in_to_out_efficiency_value(state=initial_state)
-    reverse_conversion_state = response.compute_reverse(state=initial_state,
-                                                        efficiency=em_consumption,
-                                                        limits=em_limits)
-    assert reverse_conversion_state.input.electric_power == initial_state.output.power / em_consumption.out_to_in_efficiency_value(state=initial_state)
+    assert fc_new_state.output_port.rpm == rpm_out + delta_rpm
+    assert fc_snap.power_in * em_consumption.in_to_out_efficiency_value(snap=initial_snap) == fc_snap.power_out
+    # Testing reverse conversion
+    rc_snap, rc_new_state = response.compute_reverse(snap=initial_snap,
+                                                     efficiency=em_consumption,
+                                                     limits=em_limits)
+    assert rc_snap.power_in == rc_snap.power_out * em_consumption.out_to_in_efficiency_value(snap=initial_snap)
 
 def test_create_electric_generator_response() -> ElectricGeneratorDynamicResponse:
     response = create_electric_generator_response()
@@ -166,16 +166,15 @@ def test_create_electric_generator_response() -> ElectricGeneratorDynamicRespons
                                                  rel_max_torque_in=rel_max_torque_in, rel_min_torque_in=rel_min_torque_in,
                                                  rel_max_rpm_in=rel_max_rpm_in, rel_min_rpm_in=rel_min_rpm_in,
                                                  rel_max_power_out=rel_max_power_out, rel_min_power_out=rel_min_power_out)
-    initial_state = return_electric_generator_state(nominal_voltage=nominal_voltage,
-                                                    torque_in=torque_in,
-                                                    rpm_in=rpm_in,
-                                                    power_out=power_out)
-    forward_conversion_state = response.compute_forward(state=initial_state,
-                                                        efficiency=eg_consumption,
-                                                        limits=eg_limits)
+    initial_snap = return_electric_generator_snapshot(torque_in=torque_in,
+                                                      rpm_in=rpm_in,
+                                                      electric_power_out=power_out)
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
+                                                     efficiency=eg_consumption,
+                                                     limits=eg_limits)
     result = torque_to_power(torque=torque_in,
-                             rpm=rpm_in) / efficiency
-    assert forward_conversion_state.output.power == result
+                             rpm=rpm_in) * efficiency
+    assert fc_snap.power_out == result
     return response
 
 def test_create_liquid_combustion_response() -> None:
@@ -190,19 +189,19 @@ def test_create_liquid_combustion_response() -> None:
                                                            rel_max_fuel_liters_in=rel_max_fuel_liters_in, rel_min_fuel_liters_in=rel_min_fuel_liters_in,
                                                            rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
                                                            rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
-        initial_state = return_liquid_combustion_engine_state(fuel=fuel,
-                                                              fuel_liters_in=fuel_liters_in,
-                                                              torque_out=torque_out,
-                                                              rpm_out=rpm_out)
-        forward_conversion_state = response.compute_forward(state=initial_state,
-                                                            load_torque=load_torque,
-                                                            downstream_inertia=inertia,
-                                                            delta_t=delta_t,
-                                                            control_signal=control_signal,
-                                                            fuel_consumption=lc_consumption,
-                                                            limits=lc_limits)
+        initial_snap = return_liquid_ice_snapshot(fuel_in=fuel,
+                                                  liters_flow_in=fuel_liters_in,
+                                                  torque_out=torque_out,
+                                                  rpm_out=rpm_out)
+        fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
+                                                         load_torque=load_torque,
+                                                         downstream_inertia=inertia,
+                                                         delta_t=delta_t,
+                                                         control_signal=control_signal,
+                                                         fuel_consumption=lc_consumption,
+                                                         limits=lc_limits)
         result = fuel_liters_in * delta_t
-        assert forward_conversion_state.input.fuel_liters == result
+        assert fc_snap.io.input_port.liters_flow == result
 
 def test_create_gaseous_combustion_response() -> None:
     for fuel in GASEOUS_FUELS:
@@ -216,19 +215,19 @@ def test_create_gaseous_combustion_response() -> None:
                                                             rel_max_fuel_mass_in=rel_max_fuel_mass_in, rel_min_fuel_mass_in=rel_min_fuel_mass_in,
                                                             rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
                                                             rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
-        initial_state = return_gaseous_combustion_engine_state(fuel=fuel,
-                                                               fuel_mass_in=fuel_mass_in,
-                                                               torque_out=torque_out,
-                                                               rpm_out=rpm_out)
-        forward_conversion_state = response.compute_forward(state=initial_state,
-                                                            load_torque=load_torque,
-                                                            downstream_inertia=inertia,
-                                                            delta_t=delta_t,
-                                                            control_signal=control_signal,
-                                                            fuel_consumption=gc_consumption,
-                                                            limits=gc_limits)
+        initial_snap = return_gaseous_ice_snapshot(fuel_in=fuel,
+                                                   mass_flow_in=fuel_mass_in,
+                                                   torque_out=torque_out,
+                                                   rpm_out=rpm_out)
+        fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
+                                                         load_torque=load_torque,
+                                                         downstream_inertia=inertia,
+                                                         delta_t=delta_t,
+                                                         control_signal=control_signal,
+                                                         fuel_consumption=gc_consumption,
+                                                         limits=gc_limits)
         result = fuel_mass_in * delta_t
-        assert forward_conversion_state.input.fuel_mass == result
+        assert fc_snap.io.input_port.mass_flow == result
 
 def test_create_fuel_cell_response() -> None:
     for fuel in GASEOUS_FUELS:
@@ -240,22 +239,21 @@ def test_create_fuel_cell_response() -> None:
                                             rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
                                             rel_max_fuel_mass_in=rel_max_fuel_mass_in, rel_min_fuel_mass_in=rel_min_fuel_mass_in,
                                             rel_max_power_out=rel_max_power_out, rel_min_power_out=rel_min_power_out,)
-        initial_state = return_fuel_cell_state(fuel=fuel,
-                                               fuel_mass_in=fuel_mass_in,
-                                               nominal_voltage=nominal_voltage,
-                                               power_out=power_out)
-        forward_conversion_state = response.compute_forward(state=initial_state,
-                                                            delta_t=delta_t,
-                                                            control_signal=control_signal,
-                                                            fuel_consumption=fc_consumption,
-                                                            limits=fc_limits)
+        initial_snap = return_fuel_cell_snapshot(fuel_in=fuel,
+                                                 mass_flow_in=fuel_mass_in,
+                                                 electric_power_out=power_out)
+        fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
+                                                         delta_t=delta_t,
+                                                         control_signal=control_signal,
+                                                         fuel_consumption=fc_consumption,
+                                                         limits=fc_limits)
         result = fuel_mass_in * delta_t
-        assert forward_conversion_state.input.fuel_mass == result
+        assert fc_snap.io.input_port.mass_flow == result
 
-def test_create_mechanical_to_mechanical_response() -> None:
+def test_create_gearbox_response() -> None:
     response = create_pure_mechanical_response()
-    mm_consumption = PureMechanicalConsumption(in_to_out_efficiency_func=lambda s: efficiency,
-                                               out_to_in_efficiency_func=lambda s: efficiency2)
+    mm_consumption = GearBoxConsumption(in_to_out_efficiency_func=lambda s: efficiency,
+                                        out_to_in_efficiency_func=lambda s: efficiency2)
     mm_limits = return_mechanical_to_mechanical_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                        abs_max_torque_in=abs_max_torque_in, abs_min_torque_in=abs_min_torque_in,
                                                        abs_max_rpm_in=abs_max_rpm_in, abs_min_rpm_in=abs_min_rpm_in,
@@ -266,57 +264,51 @@ def test_create_mechanical_to_mechanical_response() -> None:
                                                        rel_max_rpm_in=rel_max_rpm_in, rel_min_rpm_in=rel_min_rpm_in,
                                                        rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
                                                        rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
-    initial_state = return_pure_mechanical_state(torque_in=torque_in,
-                                                 rpm_in=rpm_in,
-                                                 torque_out=torque_out,
-                                                 rpm_out=rpm_out)
-    forward_conversion_state = response.compute_forward(state=initial_state)
-    assert forward_conversion_state.output.torque == initial_state.input.torque * \
-        gear_ratio * mm_consumption.in_to_out_efficiency_value(state=forward_conversion_state)
-    assert forward_conversion_state.output.rpm == initial_state.output.rpm / gear_ratio
-    assert round(forward_conversion_state.output.power, 5) == round(forward_conversion_state.input.power * \
-                                                                    mm_consumption.in_to_out_efficiency_value(state=initial_state), 5)
-    reverse_conversion_state = response.compute_reverse(state=initial_state)
-    assert round(reverse_conversion_state.output.torque, 5) == round(reverse_conversion_state.input.torque * \
-        gear_ratio / mm_consumption.out_to_in_efficiency_value(state=reverse_conversion_state), 5)
-    assert reverse_conversion_state.input.rpm == initial_state.output.rpm * gear_ratio
-    assert round(reverse_conversion_state.output.power, 5) == round(reverse_conversion_state.input.power / \
-                                                                    mm_consumption.out_to_in_efficiency_value(state=initial_state), 5)
+    initial_snap = return_gearbox_snapshot(torque_in=torque_in,
+                                           rpm_in=rpm_in,
+                                           torque_out=torque_out,
+                                           rpm_out=rpm_out)
+    # Testing forward conversion
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap)
+    assert fc_snap.io.output_port.torque == initial_snap.io.input_port.torque * \
+        gear_ratio * mm_consumption.in_to_out_efficiency_value(snap=fc_snap)
+    assert fc_snap.state.output_port.rpm == fc_snap.state.input_port.rpm / gear_ratio
+    assert fc_snap.power_out == fc_snap.power_in * mm_consumption.in_to_out_efficiency_value(snap=fc_snap)
+    # Testing reverse conversion
+    rc_snap, rc_new_state = response.compute_reverse(snap=initial_snap)
+    assert rc_snap.state.input_port.rpm == rc_snap.state.output_port.rpm * gear_ratio
+    assert round(rc_snap.io.output_port.torque, 8) == round(rc_snap.io.input_port.torque * \
+        gear_ratio / mm_consumption.out_to_in_efficiency_value(snap=rc_snap), 8)
+    #assert round(reverse_conversion_state.output.power, 5) == round(reverse_conversion_state.input.power / \
+    #                                                                mm_consumption.out_to_in_efficiency_value(state=initial_state), 5)
+    assert round(rc_snap.power_out, 8) == round(rc_snap.power_in / mm_consumption.out_to_in_efficiency_value(snap=rc_snap), 8)
 
 def test_create_rectifier_response() -> None:
     response = create_rectifier_response()
-    er_consumption = PureElectricConsumption(in_to_out_efficiency_func=lambda s: efficiency)
+    er_consumption = ElectricRectifierConsumption(in_to_out_efficiency_func=lambda s: efficiency)
     er_limits = return_electric_to_electric_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                    abs_max_power_in=abs_max_power_in, abs_min_power_in=abs_min_power_in,
                                                    abs_max_power_out=abs_max_power_in, abs_min_power_out=abs_min_power_in,
                                                    rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
                                                    rel_max_power_in=rel_max_power_in, rel_min_power_in=rel_min_power_in,
                                                    rel_max_power_out=rel_max_power_in, rel_min_power_out=rel_min_power_in)
-    initial_state = return_pure_electric_state(signal_type_in=ElectricSignalType.AC,
-                                               signal_type_out=ElectricSignalType.DC,
-                                               nominal_voltage_in=nominal_voltage,
-                                               nominal_voltage_out=nominal_voltage,
-                                               power_in=power_in,
-                                               power_out=power_out)
-    forward_conversion_state = response.compute_forward(state=initial_state)
-    assert forward_conversion_state.output.power == initial_state.input.power * \
-        er_consumption.in_to_out_efficiency_value(state=forward_conversion_state)
+    initial_snap = return_electric_rectifier_snapshot(electric_power_in=power_in,
+                                                      electric_power_out=power_out)
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap)
+    assert fc_snap.power_out == fc_snap.power_in * \
+        er_consumption.in_to_out_efficiency_value(snap=fc_snap)
 
 def test_create_inverter_response() -> None:
     response = create_inverter_response()
-    ir_consumption = PureElectricConsumption(in_to_out_efficiency_func=lambda s: efficiency)
+    ir_consumption = ElectricInverterConsumption(in_to_out_efficiency_func=lambda s: efficiency)
     ir_limits = return_electric_to_electric_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
                                                    abs_max_power_in=abs_max_power_in, abs_min_power_in=abs_min_power_in,
                                                    abs_max_power_out=abs_max_power_in, abs_min_power_out=abs_min_power_in,
                                                    rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
                                                    rel_max_power_in=rel_max_power_in, rel_min_power_in=rel_min_power_in,
                                                    rel_max_power_out=rel_max_power_in, rel_min_power_out=rel_min_power_in)
-    initial_state = return_pure_electric_state(signal_type_in=ElectricSignalType.DC,
-                                               signal_type_out=ElectricSignalType.AC,
-                                               nominal_voltage_in=nominal_voltage,
-                                               nominal_voltage_out=nominal_voltage,
-                                               power_in=power_in,
-                                               power_out=power_out)
-    forward_conversion_state = response.compute_forward(state=initial_state)
-    assert forward_conversion_state.output.power == initial_state.input.power * \
-        ir_consumption.in_to_out_efficiency_value(state=forward_conversion_state)
+    initial_snap = return_electric_inverter_snapshot(electric_power_in=power_in,
+                                                     electric_power_out=power_out)
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap)
+    assert fc_snap.power_out == fc_snap.power_in * \
+        ir_consumption.in_to_out_efficiency_value(snap=fc_snap)

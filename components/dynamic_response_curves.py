@@ -51,12 +51,12 @@ class MechanicalToMechanical():
             assert isinstance(snap, GearBoxSnapshot)
             torque_out = snap.io.output_port.torque * gear_ratio * efficiency
             rpm_out = snap.state.output_port.rpm / gear_ratio
-            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=snap.io.input_port,
-                                                    output_port=MechanicalIO(torque=torque_out)),
-                                       state=snap.state)
             new_state = PureMechanicalState(input_port=snap.state.input_port,
                                             internal=snap.state.internal,
                                             output_port=RotatingState(rpm=rpm_out))
+            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=snap.io.input_port,
+                                                    output_port=MechanicalIO(torque=torque_out)),
+                                       state=new_state)
             return new_snap, new_state
         return response
 
@@ -82,12 +82,12 @@ class MechanicalToMechanical():
             assert isinstance(snap, GearBoxSnapshot)
             torque_in = snap.io.output_port.torque / gear_ratio * efficiency
             rpm_in = snap.state.output_port.rpm * gear_ratio
-            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
-                                                    output_port=snap.io.output_port),
-                                       state=snap.state)
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=snap.state.output_port)
+            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
+                                                    output_port=snap.io.output_port),
+                                       state=new_state)
             return new_snap, new_state
         return response
 
