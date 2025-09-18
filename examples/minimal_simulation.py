@@ -8,7 +8,7 @@ from simulation.simulator import Simulator
 from examples.battery_and_motor_only import minimalistic_em_vehicle
 
 time_steps: int = 100
-control_signal: list[float] = [1.0] * time_steps
+control_signal: list[float] = [0.2] * time_steps
 
 simulation = Simulator(time_steps=time_steps,
                        delta_t=0.1,
@@ -16,30 +16,30 @@ simulation = Simulator(time_steps=time_steps,
                        vehicle=minimalistic_em_vehicle)
 motor_id = minimalistic_em_vehicle.converters[0].id
 battery_id = minimalistic_em_vehicle.energy_sources[0].id
-simulation.simulate(load_torque=100.0)
+simulation.simulate(load_torque=300.0)
 
 motor_hist = simulation.history[motor_id]
-motor_hist_states = motor_hist["states"]
+motor_hist_snapshots = motor_hist["snapshots"]
 battery_hist = simulation.history[battery_id]
-battery_hist_states = battery_hist["states"]
+battery_hist_snapshots = battery_hist["snapshots"]
 
 motor_rpms: list[float] = []
 motor_power_in: list[float] = []
 motor_power_out: list[float] = []
 motor_torque_out: list[float] = []
-for state in motor_hist_states:
-    motor_rpms.append(state.output.rpm)
-    motor_power_in.append(state.input.power)
-    motor_power_out.append(state.output.power)
-    motor_torque_out.append(state.output.torque)
+for snap in motor_hist_snapshots:
+    motor_rpms.append(snap.state.output_port.rpm)
+    motor_power_in.append(snap.power_in)
+    motor_power_out.append(snap.power_out)
+    motor_torque_out.append(snap.io.output_port.torque)
 
 battery_power_in: list[float] = []
 battery_power_out: list[float] = []
 battery_energy: list[float] = []
-for state in battery_hist_states:
-    battery_power_in.append(state.input.power)
-    battery_power_out.append(state.output.power)
-    battery_energy.append(state.electric_energy_storage.energy)
+for snap in battery_hist_snapshots:
+    battery_power_in.append(snap.power_in)
+    battery_power_out.append(snap.power_out)
+    battery_energy.append(snap.state.internal.electric_energy_stored)
 
 fig, axes = plt.subplots(nrows=4, ncols=2,
                          sharex=True)

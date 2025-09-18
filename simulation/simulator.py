@@ -6,6 +6,8 @@ component of a vehicle at each time step.
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
+from components.component_snapshot import ElectricMotorSnapshot, \
+    RechargeableBatterySnapshot, NonRechargeableBatterySnapshot
 from components.energy_source import Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
@@ -53,15 +55,15 @@ class Simulator():
         """
         for source in self.vehicle.energy_sources:
             self.history[source.id] = {
-                "states": [],
+                "snapshots": [],
                 "component_type": source.__class__,
-                "state_type": source.state.__class__
+                "snap_type": source.snapshot.__class__
             }
         for converter in self.vehicle.converters:
             self.history[converter.id] = {
-                "states": [],
+                "snapshots": [],
                 "type": converter.__class__,
-                "state_type": converter.state.__class__
+                "snap_type": converter.snapshot.__class__
             }
 
     def simulate(self, load_torque: float) -> None:
@@ -73,15 +75,16 @@ class Simulator():
             #self.vehicle.request_stack.reset
             for converter in self.vehicle.converters:
                 if isinstance(converter, ElectricMotor):
-                    new_state = converter.dynamic_response.compute_forward(state=converter.state,
-                                                                           load_torque=load_torque,
-                                                                           downstream_inertia=converter.inertia,
-                                                                           delta_t=self.delta_t,
-                                                                           control_signal=self.control_signal[n],
-                                                                           efficiency=converter.consumption,
-                                                                           limits=converter.limits)
-                    converter.state.output.torque = new_state.output.torque
-                    energy = converter.consumption.compute_in_to_out(state=converter.state,
+                    assert isinstance(converter.snapshot, ElectricMotorSnapshot)
+                    new_snap, new_state = converter.dynamic_response.compute_forward(
+                        snap=converter.snapshot,
+                        load_torque=load_torque,
+                        downstream_inertia=converter.inertia,
+                        delta_t=self.delta_t,
+                        control_signal=self.control_signal[n],
+                        efficiency=converter.consumption,
+                        limits=converter.limits)
+                    energy = converter.consumption.compute_in_to_out(snap=new_snap,
                                                                      delta_t=self.delta_t)
                     power = energy / self.delta_t
                     if power > 0.0:
@@ -89,14 +92,17 @@ class Simulator():
                                                                                          from_port=converter.input,
                                                                                          requested=power)):
                             self.resolve_stack()
-                            self.history[converter.id]["states"].append(new_state)
-                    converter.state.output.rpm = new_state.output.rpm
+                    self.history[converter.id]["snapshots"].append(new_snap)
+                    converter.snapshot.io = new_snap.io
+                    converter.snapshot.state = new_state
             for energy_source in self.vehicle.energy_sources:
                 if isinstance(energy_source, Battery):
+                    assert isinstance(energy_source.snapshot, (RechargeableBatterySnapshot,
+                                                               NonRechargeableBatterySnapshot))
                     energy_source.update_charge(delta_t=self.delta_t)
-                    new_state = deepcopy(energy_source.state)
-                    self.history[energy_source.id]["states"].append(new_state)
-                    energy_source.state.output.electric_power = 0.0
+                    new_snap = deepcopy(energy_source.snapshot)  # type: ignore
+                    self.history[energy_source.id]["snapshots"].append(new_snap)
+                    energy_source.snapshot.io.output_port.electric_power = 0.0
 
     def resolve_stack(self) -> None:
         """
@@ -126,6 +132,6 @@ class Simulator():
         else:
             port_type = requester.return_which_port(port=request.from_port)
             assert port_type is not None
-            requester.add_request(amount=request.requested,
-                                  which_port=port_type)
+            #requester.add_delivery(amount=request.requested,
+            #                       which_port=port_type)
 

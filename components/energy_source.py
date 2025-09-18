@@ -274,14 +274,11 @@ class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
 
     def update_charge(self, delta_t: float) -> None:
         power_in = self.snapshot.power_in
-        power_in = (self.snapshot.power_in if self.state.input.is_receiving else 0.0) + \
-            (self.state.output.power if self.state.output.is_receiving else 0.0)
-        power_out = (self.state.input.power if self.state.input.is_delivering else 0.0) + \
-            (self.state.output.power if self.state.output.is_delivering else 0.0)
+        power_out = self.snapshot.power_out
         energy_in = power_in * delta_t
         energy_out = power_out * delta_t
-        self.state.electric_energy_storage.energy = clamp(
-            val=self.state.electric_energy_storage.energy + energy_in - energy_out,
+        self.snapshot.state.internal.electric_energy_stored = clamp(
+            val=self.snapshot.state.internal.electric_energy_stored + energy_in - energy_out,
             min_val=0.0,
             max_val=self.max_energy)
 

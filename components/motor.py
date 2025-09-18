@@ -4,14 +4,11 @@ This module contains definitions for motors and engines.
 
 from dataclasses import dataclass
 from components.fuel_type import LiquidFuel, GaseousFuel
-from components.component_io import ElectricMotorIO, \
-    LiquidInternalCombustionEngineIO, GaseousInternalCombustionEngineIO, \
-    ElectricGeneratorIO
 from components.component_snapshot import return_electric_motor_snapshot, \
     return_electric_generator_snapshot, return_liquid_ice_snapshot, \
-    return_gaseous_ice_snapshot
-from components.component_state import \
-    ElectricMotorState, InternalCombustionEngineState, ElectricGeneratorState
+    return_gaseous_ice_snapshot, \
+    ElectricMotorSnapshot, ElectricGeneratorSnapshot, \
+    LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot
 from components.consumption import ElectricMotorConsumption, \
     LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
     ElectricGeneratorConsumption
@@ -32,8 +29,7 @@ class ElectricMotor(MechanicalConverter):
     Models a reversible electric motor (can act as a generator).
     """
     nominal_voltage: float
-    state: ElectricMotorState  # type: ignore
-    io_values: ElectricMotorIO  # type: ignore
+    snapshot: ElectricMotorSnapshot  # type: ignore
     limits: ElectricMotorLimits  # type: ignore
     consumption: ElectricMotorConsumption  # type: ignore
     dynamic_response: ElectricMotorDynamicResponse  # type: ignore
@@ -87,10 +83,10 @@ class ElectricMotor(MechanicalConverter):
         Sets the output according to a resource request.
         """
         if which_port==PortType.INPUT_PORT:
-            self.io_values.input_port.electric_power += amount
-            return self.io_values.input_port.electric_power
-        self.io_values.output_port.torque += amount
-        return self.io_values.output_port.torque
+            self.snapshot.io.input_port.electric_power += amount
+            return self.snapshot.io.input_port.electric_power
+        self.snapshot.io.output_port.torque += amount
+        return self.snapshot.io.output_port.torque
 
 
 @dataclass
@@ -99,8 +95,7 @@ class LiquidInternalCombustionEngine(MechanicalConverter):
     Models an internal combustion engine
     (irreversible) that runs on a liquid fuel.
     """
-    state: InternalCombustionEngineState  # type: ignore
-    io_values: LiquidInternalCombustionEngineIO  # type: ignore
+    snapshot: LiquidCombustionEngineSnapshot  # type: ignore
     limits: LiquidCombustionEngineLimits  # type: ignore
     consumption: LiquidCombustionEngineConsumption  # type: ignore
     dynamic_response: LiquidCombustionDynamicResponse  # type: ignore
@@ -142,8 +137,7 @@ class GaseousInternalCombustionEngine(MechanicalConverter):
     Models an internal combustion engine
     (irreversible) that runs on a gaseous fuel.
     """
-    state: InternalCombustionEngineState  # type: ignore
-    io_values: GaseousInternalCombustionEngineIO  # type: ignore
+    snapshot: GaseousCombustionEngineSnapshot  # type: ignore
     limits: GaseousCombustionEngineLimits  # type: ignore
     consumption: GaseousCombustionEngineConsumption  # type: ignore
     dynamic_response: GaseousCombustionDynamicResponse  # type: ignore
@@ -185,8 +179,7 @@ class ElectricGenerator(MechanicalConverter):
     Models an irreversible electric generator.
     """
     nominal_voltage: float
-    state: ElectricGeneratorState  # type: ignore
-    io_values: ElectricGeneratorIO  # type: ignore
+    snapshot: ElectricGeneratorSnapshot  # type: ignore
     limits: ElectricGeneratorLimits  # type: ignore
     consumption: ElectricGeneratorConsumption  # type: ignore
     dynamic_response: ElectricGeneratorDynamicResponse  # type: ignore

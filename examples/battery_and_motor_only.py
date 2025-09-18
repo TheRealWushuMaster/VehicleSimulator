@@ -29,7 +29,7 @@ bat_efficiency: float = BATTERY_EFFICIENCY_DEFAULT
 
 em_mass: float = 150.0
 em_nominal_voltage: float = bat_nominal_voltage
-em_inertia: float = 20.0
+em_inertia: float = 2.0
 em_efficiency: float = 0.91
 em_max_power: float = bat_max_power * bat_efficiency * em_efficiency
 em_min_rpm: float = 0.0
