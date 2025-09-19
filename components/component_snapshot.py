@@ -26,6 +26,13 @@ class BaseSnapshot():
     Base class for snapshot classes.
     """
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        """
+        Exports the snapshot data to a dictionary.
+        """
+        raise NotImplementedError
+
 
 # ===================
 # CONVERTER SNAPSHOTS
@@ -94,6 +101,15 @@ class ElectricMotorSnapshot(ConverterSnapshot):
     def fuel_consumption_in(self) -> float:
         return 0.0
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "torque_out": self.io.output_port.torque,
+                "rpm_out": self.state.output_port.rpm,
+                "on": self.state.internal.on,
+                "temperature": self.state.internal.temperature}
+
 
 @dataclass
 class LiquidCombustionEngineSnapshot(ConverterSnapshot):
@@ -115,6 +131,15 @@ class LiquidCombustionEngineSnapshot(ConverterSnapshot):
     @property
     def fuel_consumption_in(self) -> float:
         return self.io.input_port.liters_flow
+
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"fuel_liters_in": self.io.input_port.liters_flow,
+                "power_out": self.power_out,
+                "torque_out": self.io.output_port.torque,
+                "rpm_out": self.state.output_port.rpm,
+                "on": self.state.internal.on,
+                "temperature": self.state.internal.temperature}
 
 
 @dataclass
@@ -138,6 +163,15 @@ class GaseousCombustionEngineSnapshot(ConverterSnapshot):
     def fuel_consumption_in(self) -> float:
         return self.io.input_port.mass_flow
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"fuel_mass_in": self.io.input_port.mass_flow,
+                "power_out": self.power_out,
+                "torque_out": self.io.output_port.torque,
+                "rpm_out": self.state.output_port.rpm,
+                "on": self.state.internal.on,
+                "temperature": self.state.internal.temperature}
+
 
 @dataclass
 class ElectricGeneratorSnapshot(ConverterSnapshot):
@@ -160,6 +194,14 @@ class ElectricGeneratorSnapshot(ConverterSnapshot):
     def fuel_consumption_in(self) -> float:
         return 0.0
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "torque_in": self.io.input_port.torque,
+                "rpm_in": self.state.input_port.rpm,
+                "temperature": self.state.internal.temperature}
+
 
 @dataclass
 class FuelCellSnapshot(ConverterSnapshot):
@@ -180,6 +222,12 @@ class FuelCellSnapshot(ConverterSnapshot):
     @property
     def fuel_consumption_in(self) -> float:
         return self.io.input_port.mass_flow
+
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"fuel_mass_in": self.io.input_port.mass_flow,
+                "power_out": self.power_out,
+                "temperature": self.state.internal.temperature}
 
 
 @dataclass
@@ -202,6 +250,12 @@ class ElectricInverterSnapshot(ConverterSnapshot):
     def fuel_consumption_in(self) -> float:
         return 0.0
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "temperature": self.state.internal.temperature}
+
 
 @dataclass
 class ElectricRectifierSnapshot(ConverterSnapshot):
@@ -222,6 +276,12 @@ class ElectricRectifierSnapshot(ConverterSnapshot):
     @property
     def fuel_consumption_in(self) -> float:
         return 0.0
+
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "temperature": self.state.internal.temperature}
 
 
 @dataclass
@@ -245,6 +305,16 @@ class GearBoxSnapshot(ConverterSnapshot):
     @property
     def fuel_consumption_in(self) -> float:
         return 0.0
+
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "torque_in": self.io.input_port.torque,
+                "rpm_in": self.state.input_port.rpm,
+                "torque_out": self.io.output_port.torque,
+                "rpm_out": self.state.output_port.rpm,
+                "temperature": self.state.internal.temperature}
 
 
 # =======================
@@ -313,6 +383,12 @@ class NonRechargeableBatterySnapshot(EnergySourceSnapshot):
     def fuel_consumption_in(self) -> float:
         return 0.0
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_out": self.power_out,
+                "electric_energy_stored": self.state.internal.electric_energy_stored,
+                "temperature": self.state.internal.temperature}
+
 
 @dataclass
 class RechargeableBatterySnapshot(EnergySourceSnapshot):
@@ -333,6 +409,13 @@ class RechargeableBatterySnapshot(EnergySourceSnapshot):
     @property
     def fuel_consumption_in(self) -> float:
         return 0.0
+
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "electric_energy_stored": self.state.internal.electric_energy_stored,
+                "temperature": self.state.internal.temperature}
 
 
 @dataclass
@@ -362,6 +445,12 @@ class LiquidFuelTankSnapshot(EnergySourceSnapshot):
         """
         return self.io.output_port.liters_flow
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"fuel_liters_out": self.io.output_port.liters_flow,
+                "fuel_liters_stored": self.state.internal.liters_stored,
+                "temperature": self.state.internal.temperature}
+
 
 @dataclass
 class GaseousFuelTankSnapshot(EnergySourceSnapshot):
@@ -389,6 +478,12 @@ class GaseousFuelTankSnapshot(EnergySourceSnapshot):
         Returns the fuel being transferred at the output.
         """
         return self.io.output_port.mass_flow
+
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"fuel_mass_out": self.io.output_port.mass_flow,
+                "fuel_mass_stored": self.state.internal.mass_stored,
+                "temperature": self.state.internal.temperature}
 
 
 def return_electric_motor_snapshot(electric_power_in: float=0.0,

@@ -20,16 +20,19 @@ class Simulator():
     """
     Carries out the simulation at each time step.
     """
+    name: str
     time_steps: int
     delta_t: float
     control_signal: list[float]
     vehicle: Vehicle
     history: dict[str, dict[str, Any]]
 
-    def __init__(self, time_steps: int,
+    def __init__(self, name: str,
+                 time_steps: int,
                  delta_t: float,
                  control_signal: list[float],
                  vehicle: Vehicle) -> None:
+        assert len(name) > 0
         assert_type(time_steps,
                     expected_type=int)
         assert_type_and_range(time_steps, delta_t,
@@ -41,14 +44,15 @@ class Simulator():
                                   less_than=1.0)
         assert_type(vehicle,
                     expected_type=Vehicle)
+        self.name = name
         self.time_steps = time_steps
         self.delta_t = delta_t
         self.control_signal = control_signal
         self.vehicle = vehicle
         self.history = {}
-        self.create_history_structure()
+        self._create_history_structure()
 
-    def create_history_structure(self) -> None:
+    def _create_history_structure(self) -> None:
         """
         Fills the history element with sections
         for each component in the vehicle.
@@ -56,13 +60,13 @@ class Simulator():
         for source in self.vehicle.energy_sources:
             self.history[source.id] = {
                 "snapshots": [],
-                "component_type": source.__class__,
-                "snap_type": source.snapshot.__class__
+                "comp_type": source.__class__.__name__,
+                "snap_type": source.snapshot.__class__.__name__
             }
         for converter in self.vehicle.converters:
             self.history[converter.id] = {
                 "snapshots": [],
-                "type": converter.__class__,
+                "comp_type": converter.__class__.__name__,
                 "snap_type": converter.snapshot.__class__
             }
 
