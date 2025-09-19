@@ -6,6 +6,22 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from simulation.simulator import Simulator
 
+NICE_LABELS: dict[str, tuple[str, str]] = {"rpm_in": ("Speed (RPM)", "Input axis rotation"),
+                                           "rpm_out": ("Speed (RPM)", "Output axis rotation"),
+                                           "torque_in": ("Torque (N.m)", "Input torque"),
+                                           "torque_out": ("Torque (N.m)", "Output torque"),
+                                           "power_in": ("Power (W)", "Input power"),
+                                           "power_out": ("Power (W)", "Output power"),
+                                           "temperature": ("Temperature (K)", "Temperature"),
+                                           "on": ("On/Off", "On/Off status"),
+                                           "electric_energy_stored": ("Energy (J)", "Electric energy stored"),
+                                           "fuel_liters_in": ("Fuel flow (liters)", "Input fuel flow"),
+                                           "fuel_liters_out": ("Fuel flow (liters)", "Output fuel flow"),
+                                           "fuel_liters_stored": ("Fuel stored (liters)", "Fuel stored"),
+                                           "fuel_mass_in": ("Fuel flow (kg)", "Input fuel flow"),
+                                           "fuel_mass_out": ("Fuel flow (kg)", "Output fuel flow"),
+                                           "fuel_mass_stored": ("Fuel stored (kg)", "Fuel stored")}
+
 
 class ResultsManager():
     """
@@ -24,12 +40,14 @@ class ResultsManager():
         """
         grouped = defaultdict(list)
         for comp_id, comp_hist in self.simulation.history.items():
+            comp_name = comp_hist["comp_name"]
             comp_type = comp_hist["comp_type"]
             #comp_snap_type = comp_hist["snap_type"]
             for i, snap in enumerate(comp_hist["snapshots"]):
                 row = snap.to_dict
                 row["time_step"] = i
                 row["sim_time"] = i * self.simulation.delta_t
+                row["comp_name"] = comp_name
                 row["comp_id"] = comp_id
                 grouped[comp_type].append(row)
         for comp_type, rows in grouped.items():
@@ -47,7 +65,7 @@ class ResultsManager():
         """
         for comp_type, df in self.dataframes.items():
             if not df.empty:
-                df = df.set_index("time_step").drop(columns=["comp_id", "sim_time"])
+                df = df.set_index("sim_time").drop(columns=["comp_id", "time_step"])
                 axes = df.plot(subplots=True,
                                layout=(-1, 2),
                                figsize=(10, 6),
@@ -55,9 +73,11 @@ class ResultsManager():
                                sharex=True)
                 axes = axes.flatten()
             for ax, col in zip(axes, df.columns):  # type: ignore
-                ax.set_title(f"{comp_type} - {col}")
-                ax.set_xlabel("Time [s]")
-                ax.set_ylabel(col.replace("_", " ").title())
+                y_label = NICE_LABELS.get(col, col.replace("_", " "))[0].title()
+                title = NICE_LABELS.get(col, col.replace("_", " "))[1].title()
+                ax.set_title(f"{comp_type} - {title}")
+                ax.set_xlabel("Time (s)")
+                ax.set_ylabel(y_label)
                 ax.grid(True)
             plt.tight_layout()
         plt.show()
