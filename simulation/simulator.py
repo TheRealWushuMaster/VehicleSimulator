@@ -128,10 +128,5 @@ class Simulator():
                 request.add_delivery(delivery=delivery)
         if not request.fulfilled:
             pass # If the request could not be fulfilled,
-                 # must update the requester's state accordingly
-        else:
-            port_type = requester.return_which_port(port=request.from_port)
-            assert port_type is not None
-            #requester.add_delivery(amount=request.requested,
-            #                       which_port=port_type)
-
+                 # must update the requester's snapshot
+                 # accordingly by recalculating the output.
