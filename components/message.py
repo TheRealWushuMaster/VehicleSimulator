@@ -122,7 +122,6 @@ class MessageStack():
     """
     requests: list[RequestMessage]=field(default_factory=list)
 
-    @property
     def reset(self) -> None:
         """
         Removes all messages from the stack.

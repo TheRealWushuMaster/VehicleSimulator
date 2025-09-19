@@ -60,12 +60,14 @@ class Simulator():
         for source in self.vehicle.energy_sources:
             self.history[source.id] = {
                 "snapshots": [],
+                "comp_name": source.name,
                 "comp_type": source.__class__.__name__,
                 "snap_type": source.snapshot.__class__.__name__
             }
         for converter in self.vehicle.converters:
             self.history[converter.id] = {
                 "snapshots": [],
+                "comp_name": converter.name,
                 "comp_type": converter.__class__.__name__,
                 "snap_type": converter.snapshot.__class__
             }
@@ -76,7 +78,7 @@ class Simulator():
         variables in the simulation history list.
         """
         for n in range(self.time_steps):
-            #self.vehicle.request_stack.reset
+            self.vehicle.request_stack.reset()
             for converter in self.vehicle.converters:
                 if isinstance(converter, ElectricMotor):
                     assert isinstance(converter.snapshot, ElectricMotorSnapshot)
