@@ -16,8 +16,6 @@ simulation = Simulator(name="minimalistic_sim",
                        control_signal=control_signal,
                        vehicle=minimalistic_em_vehicle,
                        precision=8)
-motor_id = minimalistic_em_vehicle.converters[0].id
-battery_id = minimalistic_em_vehicle.energy_sources[0].id
 simulation.simulate(load_torque=300.0)
 
 results = ResultsManager(simulation=simulation)
