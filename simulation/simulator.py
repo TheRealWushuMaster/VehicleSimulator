@@ -12,6 +12,7 @@ from components.energy_source import Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
+from simulation.constants import DEFAULT_PRECISION
 from helpers.functions import assert_type, assert_type_and_range
 
 
@@ -26,12 +27,14 @@ class Simulator():
     control_signal: list[float]
     vehicle: Vehicle
     history: dict[str, dict[str, Any]]
+    _precision: int=DEFAULT_PRECISION
 
     def __init__(self, name: str,
                  time_steps: int,
                  delta_t: float,
                  control_signal: list[float],
-                 vehicle: Vehicle) -> None:
+                 vehicle: Vehicle,
+                 precision: int=DEFAULT_PRECISION) -> None:
         assert len(name) > 0
         assert_type(time_steps,
                     expected_type=int)
@@ -44,12 +47,15 @@ class Simulator():
                                   less_than=1.0)
         assert_type(vehicle,
                     expected_type=Vehicle)
+        assert isinstance(precision, int)
+        precision = max(precision, -1)
         self.name = name
         self.time_steps = time_steps
         self.delta_t = delta_t
         self.control_signal = control_signal
         self.vehicle = vehicle
         self.history = {}
+        self._precision = precision
         self._create_history_structure()
 
     def _create_history_structure(self) -> None:
@@ -71,6 +77,13 @@ class Simulator():
                 "comp_type": converter.__class__.__name__,
                 "snap_type": converter.snapshot.__class__
             }
+
+    @property
+    def precision(self) -> int:
+        """
+        Returns the default precision.
+        """
+        return self._precision
 
     def simulate(self, load_torque: float) -> None:
         """

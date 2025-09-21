@@ -6,21 +6,26 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from simulation.simulator import Simulator
 
-NICE_LABELS: dict[str, tuple[str, str]] = {"rpm_in": ("Speed (RPM)", "Input speed"),
-                                           "rpm_out": ("Speed (RPM)", "Output speed"),
-                                           "torque_in": ("Torque (N.m)", "Input torque"),
-                                           "torque_out": ("Torque (N.m)", "Output torque"),
-                                           "power_in": ("Power (W)", "Input power"),
-                                           "power_out": ("Power (W)", "Output power"),
-                                           "temperature": ("Temperature (K)", "Temperature"),
-                                           "on": ("Status (On/Off)", "Status"),
-                                           "electric_energy_stored": ("Energy (J)", "Electric energy stored"),
-                                           "fuel_liters_in": ("Fuel flow (liters)", "Input fuel flow"),
-                                           "fuel_liters_out": ("Fuel flow (liters)", "Output fuel flow"),
-                                           "fuel_liters_stored": ("Fuel stored (liters)", "Fuel stored"),
-                                           "fuel_mass_in": ("Fuel flow (kg)", "Input fuel flow"),
-                                           "fuel_mass_out": ("Fuel flow (kg)", "Output fuel flow"),
-                                           "fuel_mass_stored": ("Fuel stored (kg)", "Fuel stored")}
+NICE_LABELS: dict[str, tuple[str, str, str]] = {
+    "rpm_in": ("Speed (RPM)", "Input speed", "Input speed (RPM)"),
+    "rpm_out": ("Speed (RPM)", "Output speed", "Output speed (RPM)"),
+    "torque_in": ("Torque (N.m)", "Input torque", "Input torque (N.m)"),
+    "torque_out": ("Torque (N.m)", "Output torque", "Output torque (N.m)"),
+    "power_in": ("Power (W)", "Input power", "Input power (W)"),
+    "power_out": ("Power (W)", "Output power", "Output power (W)"),
+    "temperature": ("Temperature (K)", "Temperature", "Temperature (K)"),
+    "on": ("Status (On/Off)", "Status", "Status (On/Off)"),
+    "electric_energy_stored": ("Energy (J)", "Electric energy stored", "Electric energy stored (J)"),
+    "fuel_liters_in": ("Fuel flow (liters)", "Input fuel flow", "Input fuel flow (liters)"),
+    "fuel_liters_out": ("Fuel flow (liters)", "Output fuel flow", "Output fuel flow (liters)"),
+    "fuel_liters_stored": ("Fuel stored (liters)", "Fuel stored", "Fuel stored (liters)"),
+    "fuel_mass_in": ("Fuel flow (kg)", "Input fuel flow", "Input fuel flow (kg)"),
+    "fuel_mass_out": ("Fuel flow (kg)", "Output fuel flow", "Output fuel flow (kg)"),
+    "fuel_mass_stored": ("Fuel stored (kg)", "Fuel stored", "Fuel stored (kg)"),
+    "time_step": ("Time step", "Time step", "Time step"),
+    "sim_time": ("Time (s)", "Time", "Time (s)"),
+    "comp_name": ("Component name", "Component name", "Component name"),
+    "comp_id": ("Component Id", "Component Id", "Component Id")}
 
 
 class ResultsManager():
@@ -42,13 +47,16 @@ class ResultsManager():
         for comp_id, comp_hist in self.simulation.history.items():
             comp_name = comp_hist["comp_name"]
             comp_type = comp_hist["comp_type"]
-            #comp_snap_type = comp_hist["snap_type"]
             for i, snap in enumerate(comp_hist["snapshots"]):
                 row = snap.to_dict
                 row["time_step"] = i
                 row["sim_time"] = i * self.simulation.delta_t
                 row["comp_name"] = comp_name
                 row["comp_id"] = comp_id
+                if self.simulation.precision > -1:
+                    for key, value in row.items():
+                        if isinstance(value, float):
+                            row[key] = round(value, self.simulation.precision)
                 grouped[comp_type].append(row)
         for comp_type, rows in grouped.items():
             self.dataframes[comp_type] = pd.DataFrame(rows)
@@ -109,7 +117,7 @@ class ResultsManager():
         os.makedirs(folder, exist_ok=True)
         for comp_type, df in self.dataframes.items():
             if not df.empty:
-                column_names = {col: NICE_LABELS[col][1] if col in NICE_LABELS else col
+                column_names = {col: NICE_LABELS[col][2] if col in NICE_LABELS else col
                                 for col in df.columns}
                 df = df.rename(columns=column_names)
                 df.to_csv(f"{folder}/{self.simulation.name}-{comp_type}-data.csv", index=False)

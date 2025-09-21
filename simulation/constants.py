@@ -8,6 +8,7 @@ from math import pi
 # Miscellaneous
 EPSILON: float = 0.001
 DEFAULT_TEMPERATURE: float = 300.0
+DEFAULT_PRECISION: int = 8
 
 # Energy conversion
 KWH_TO_JOULES: float = 3.6e6
