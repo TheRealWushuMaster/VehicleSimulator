@@ -75,8 +75,7 @@ def assert_range(*args: Any,
     If one of the values is missing, it assumes a simple less than or
     more than comparison.
     """
-    assert_type(more_than, less_than,
-                expected_type=float)
+    assert_numeric(more_than, less_than)
     assert_type(include_more, include_less,
                 expected_type=bool)
     for arg in args:

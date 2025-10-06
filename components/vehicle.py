@@ -8,7 +8,7 @@ from typing import Optional
 #from components.body import Body
 #from components.brake import Brake
 from components.converter import Converter
-#from components.drive_train import DriveTrain
+from components.drive_train import DriveTrain
 #from components.ecu import ECU
 from components.energy_source import EnergySource
 from components.link import Link
@@ -25,7 +25,7 @@ class Vehicle():
     converters: list[Converter]
     #body: Body
     #brake: Brake
-    #drive_train: DriveTrain
+    drive_train: DriveTrain
     links: list[Link]
     #ecu: Optional[ECU]=field(default=None)
     request_stack: MessageStack=field(init=False)

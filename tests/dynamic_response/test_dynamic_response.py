@@ -3,12 +3,15 @@
 from components.component_snapshot import return_electric_motor_snapshot, \
     return_electric_generator_snapshot, return_liquid_ice_snapshot, return_gaseous_ice_snapshot, \
     return_fuel_cell_snapshot, return_gearbox_snapshot, \
-    return_electric_inverter_snapshot, return_electric_rectifier_snapshot
+    return_electric_inverter_snapshot, return_electric_rectifier_snapshot, \
+    return_drivetrain_snapshot
 from components.consumption import ElectricMotorConsumption, \
     ElectricGeneratorConsumption, \
     LiquidCombustionEngineConsumption, GaseousCombustionEngineConsumption, \
     FuelCellConsumption, GearBoxConsumption, \
     ElectricInverterConsumption, ElectricRectifierConsumption
+from components.drive_train import DriveTrain, Axle, Differential, \
+    GearBox, Wheel, WheelDrive
 from components.dynamic_response import ElectricMotorDynamicResponse, \
     ElectricGeneratorDynamicResponse, LiquidCombustionDynamicResponse, \
     GaseousCombustionDynamicResponse, PureMechanicalDynamicResponse, \
@@ -58,6 +61,18 @@ abs_max_fuel_liters_in: float = 0.45
 abs_min_fuel_liters_in: float = 0.0
 abs_max_fuel_mass_in: float = 0.36
 abs_min_fuel_mass_in: float = 0.0
+wheel_radius: float = 0.35
+wheel_drive: WheelDrive = WheelDrive.FRONT_DRIVE
+wheel_width: float = 0.21
+wheel_mass: float = 10.0
+wheel_pressure: float = 2.5
+axle_mass: float = 5.0
+num_wheels: int = 2
+diff_mass: float = 5.0
+diff_gear_ratio: float = 1.5
+diff_inertia: float = 0.3
+gearbox_mass: float = 4.8
+gearbox_inertia: float = 0.2
 def rel_max_temp(s): return abs_max_temp
 def rel_min_temp(s): return abs_min_temp
 def rel_max_power_in(s): return abs_max_power_in
@@ -120,6 +135,46 @@ def create_inverter_response() -> InverterDynamicResponse:
     response = InverterDynamicResponse(forward_response=ElectricToElectric.inverter_response(efficiency=efficiency))
     assert isinstance(response, InverterDynamicResponse)
     return response
+
+def create_drivetrain() -> DriveTrain:
+    mm_limits = return_mechanical_to_mechanical_limits(abs_max_temp=abs_max_temp, abs_min_temp=abs_min_temp,
+                                                       abs_max_torque_in=abs_max_torque_in, abs_min_torque_in=abs_min_torque_in,
+                                                       abs_max_rpm_in=abs_max_rpm_in, abs_min_rpm_in=abs_min_rpm_in,
+                                                       abs_max_torque_out=abs_max_torque_out, abs_min_torque_out=abs_min_torque_out,
+                                                       abs_max_rpm_out=abs_max_rpm_out, abs_min_rpm_out=abs_min_rpm_out,
+                                                       rel_max_temp=rel_max_temp, rel_min_temp=rel_min_temp,
+                                                       rel_max_torque_in=rel_max_torque_in, rel_min_torque_in=rel_min_torque_in,
+                                                       rel_max_rpm_in=rel_max_rpm_in, rel_min_rpm_in=rel_min_rpm_in,
+                                                       rel_max_torque_out=rel_max_torque_out, rel_min_torque_out=rel_min_torque_out,
+                                                       rel_max_rpm_out=rel_max_rpm_out, rel_min_rpm_out=rel_min_rpm_out)
+    wheel = Wheel(radius=wheel_radius,
+                  width=wheel_width,
+                  mass=wheel_mass,
+                  air_pressure=wheel_pressure)
+    axle = Axle(_inertia=inertia,
+                _mass=axle_mass,
+                _num_wheels=num_wheels,
+                wheel=wheel)
+    differential = Differential(name="Differential",
+                                mass=diff_mass,
+                                limits=mm_limits,
+                                gear_ratio=diff_gear_ratio,
+                                efficiency=efficiency,
+                                inertia=diff_inertia)
+    gearbox = GearBox(name="Gearbox",
+                      mass=gearbox_mass,
+                      limits=mm_limits,
+                      gear_ratio=gear_ratio,
+                      efficiency=efficiency2,
+                      inertia=gearbox_inertia)
+    return DriveTrain(snapshot=return_drivetrain_snapshot(wheel_radius=wheel_radius),
+                      front_axle=axle,
+                      rear_axle=axle,
+                      wheel_drive=wheel_drive,
+                      differential=differential,
+                      gearbox=gearbox)
+
+# =============================
 
 def test_create_electric_motor_response() -> None:
     response = create_electric_motor_response()
@@ -267,20 +322,24 @@ def test_create_gearbox_response() -> None:
     initial_snap = return_gearbox_snapshot(torque_in=torque_in,
                                            rpm_in=rpm_in,
                                            torque_out=torque_out,
-                                           rpm_out=rpm_out)
+                                           rpm_out=rpm_in/gear_ratio)
     # Testing forward conversion
-    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap)
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
+                                                     delta_t=delta_t,
+                                                     load_torque=load_torque,
+                                                     downstream_inertia=inertia)
     assert fc_snap.io.output_port.torque == initial_snap.io.input_port.torque * \
         gear_ratio * mm_consumption.in_to_out_efficiency_value(snap=fc_snap)
     assert fc_snap.state.output_port.rpm == fc_snap.state.input_port.rpm / gear_ratio
-    assert fc_snap.power_out == fc_snap.power_in * mm_consumption.in_to_out_efficiency_value(snap=fc_snap)
+    assert round(fc_snap.power_out, 8) == round(fc_snap.power_in * mm_consumption.in_to_out_efficiency_value(snap=fc_snap), 8)
     # Testing reverse conversion
-    rc_snap, rc_new_state = response.compute_reverse(snap=initial_snap)
-    assert rc_snap.state.input_port.rpm == rc_snap.state.output_port.rpm * gear_ratio
+    rc_snap, rc_new_state = response.compute_reverse(snap=initial_snap,
+                                                     delta_t=delta_t,
+                                                     load_torque=load_torque,
+                                                     upstream_inertia=inertia)
+    assert round(rc_snap.state.input_port.rpm, 8) == round(rc_snap.state.output_port.rpm * gear_ratio, 8)
     assert round(rc_snap.io.output_port.torque, 8) == round(rc_snap.io.input_port.torque * \
         gear_ratio / mm_consumption.out_to_in_efficiency_value(snap=rc_snap), 8)
-    #assert round(reverse_conversion_state.output.power, 5) == round(reverse_conversion_state.input.power / \
-    #                                                                mm_consumption.out_to_in_efficiency_value(state=initial_state), 5)
     assert round(rc_snap.power_out, 8) == round(rc_snap.power_in / mm_consumption.out_to_in_efficiency_value(snap=rc_snap), 8)
 
 def test_create_rectifier_response() -> None:
@@ -312,3 +371,22 @@ def test_create_inverter_response() -> None:
     fc_snap, fc_new_state = response.compute_forward(snap=initial_snap)
     assert fc_snap.power_out == fc_snap.power_in * \
         ir_consumption.in_to_out_efficiency_value(snap=fc_snap)
+
+def test_create_drivetrain_response() -> None:
+    dt = create_drivetrain()
+    initial_snap = return_drivetrain_snapshot(wheel_radius=wheel_radius,
+                                              torque_in=torque_in,
+                                              rpm_in=rpm_in,
+                                              torque_out=torque_out,
+                                              rpm_out=rpm_in/gear_ratio/diff_gear_ratio)
+    # Testing forward conversion
+    dt_snap, dt_new_state = dt.process_drive(snap=initial_snap,
+                                             delta_t=delta_t,
+                                             load_torque=load_torque,
+                                             downstream_inertia=inertia)
+    pass
+    # Testing reverse conversion
+    dt_snap, dt_new_state = dt.process_recover(snap=initial_snap,
+                                               delta_t=delta_t,
+                                               load_torque=load_torque,
+                                               upstream_inertia=inertia)
