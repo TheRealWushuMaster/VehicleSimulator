@@ -15,7 +15,7 @@ from components.dynamic_response_curves import ElectricToMechanical, \
     MechanicalToElectric
 from components.limitation import return_electric_motor_limits, \
     return_mechanical_to_mechanical_limits
-from components.link import create_link, PortType
+from components.link import create_link, create_drivetrain_link, PortType
 from components.motor import ElectricMotor
 from components.motor_curves import \
     MechanicalPowerEfficiencyCurves, MechanicalMaxTorqueVsRPMCurves
@@ -119,11 +119,15 @@ electric_motor = ElectricMotor(name="Test electric motor",
                                dynamic_response=em_dyn_resp,
                                electric_type=ElectricSignalType.DC,
                                inertia=em_inertia)
-link = create_link(component1=battery,
-                   component1_port=PortType.OUTPUT_PORT,
-                   component2=electric_motor,
-                   component2_port=PortType.INPUT_PORT)
-assert link is not None
+bat_motor_link = create_link(component1=battery,
+                             component1_port=PortType.OUTPUT_PORT,
+                             component2=electric_motor,
+                             component2_port=PortType.INPUT_PORT)
+drivetrain_link = create_drivetrain_link(component=electric_motor)
+
+assert bat_motor_link is not None
+assert drivetrain_link is not None
+
 diff_limits = return_mechanical_to_mechanical_limits(
     abs_max_temp=diff_max_temp, abs_min_temp=diff_min_temp,
     abs_max_torque_in=diff_max_torque_in, abs_min_torque_in=diff_min_torque_in,
@@ -164,4 +168,4 @@ drive_train = return_drive_train(front_axle=axle,
 minimalistic_em_vehicle = Vehicle(energy_sources=[battery],
                                   converters=[electric_motor],
                                   drive_train=drive_train,
-                                  links=[link])
+                                  links=[bat_motor_link, drivetrain_link])

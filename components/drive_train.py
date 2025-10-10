@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional
 from components.component_io import GearBoxIO
 from components.component_snapshot import return_gearbox_snapshot, \
-    return_drivetrain_snapshot, DriveTrainSnapshot, GearBoxSnapshot
+    DriveTrainSnapshot, GearBoxSnapshot
 from components.component_state import PureMechanicalState
 from components.consumption import GearBoxConsumption
 from components.converter import MechanicalConverter
@@ -18,6 +18,7 @@ from components.limitation import MechanicalToMechanicalLimits
 from components.port import PortBidirectional
 from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import PowerType
+from simulation.constants import DRIVE_TRAIN_ID
 
 
 class WheelDrive(Enum):
@@ -26,7 +27,7 @@ class WheelDrive(Enum):
     """
     FRONT_DRIVE = "FRONT_DRIVE"
     REAR_DRIVE = "REAR_DRIVE"
-    FOUR_WHEEL_DRIVE = "FOUR_WHEEL_DRIVE"
+    ALL_WHEEL_DRIVE = "ALL_WHEEL_DRIVE"
 
 
 @dataclass
@@ -88,7 +89,7 @@ class Axle():
 
 
 @dataclass
-class Differential(MechanicalConverter): 
+class Differential(MechanicalConverter):
     """Models an axle differential."""
     def __init__(self,
                  name: str,
@@ -186,6 +187,7 @@ class DriveTrain():
     """
     Models the full drive train for the vehicle.
     """
+    id: str=field(init=False)
     input_port: PortBidirectional=field(init=False)
     snapshot: DriveTrainSnapshot=field(init=False)
     front_axle: Axle
@@ -216,8 +218,8 @@ class DriveTrain():
                                                         output_port=self.differential.snapshot.io.output_port),  # pylint: disable=E1101
                                            state=PureMechanicalState(input_port=self.gearbox.snapshot.state.input_port,  # pylint: disable=E1101
                                                                      output_port=self.differential.snapshot.state.output_port,  # pylint: disable=E1101
-                                                                     internal=self.gearbox.snapshot.state.internal),  # pylint: disable=E1101
-                                           wheel_radius=wheel_radius)
+                                                                     internal=self.gearbox.snapshot.state.internal))  # pylint: disable=E1101
+        self.id = DRIVE_TRAIN_ID
 
     @property
     def inertia(self) -> float:
@@ -341,8 +343,7 @@ def return_gearbox(mass: float,
                    efficiency=efficiency,
                    inertia=inertia)
 
-def return_drive_train(wheel_radius: float,
-                       front_axle: Axle,
+def return_drive_train(front_axle: Axle,
                        rear_axle: Axle,
                        wheel_drive: WheelDrive,
                        differential: Differential,
@@ -351,9 +352,7 @@ def return_drive_train(wheel_radius: float,
     Returns a full `DriveTrain` object
     by combining each individual component.
     """
-    snap = return_drivetrain_snapshot(wheel_radius=wheel_radius)
-    return DriveTrain(snapshot=snap,
-                      front_axle=front_axle,
+    return DriveTrain(front_axle=front_axle,
                       rear_axle=rear_axle,
                       wheel_drive=wheel_drive,
                       differential=differential,

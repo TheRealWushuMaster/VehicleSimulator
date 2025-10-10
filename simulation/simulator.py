@@ -8,11 +8,12 @@ from dataclasses import dataclass
 from typing import Any
 from components.component_snapshot import ElectricMotorSnapshot, \
     RechargeableBatterySnapshot, NonRechargeableBatterySnapshot
+from components.converter import Converter
 from components.energy_source import Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
-from simulation.constants import DEFAULT_PRECISION
+from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID
 from helpers.functions import assert_type, assert_type_and_range
 
 
@@ -75,8 +76,14 @@ class Simulator():
                 "snapshots": [],
                 "comp_name": converter.name,
                 "comp_type": converter.__class__.__name__,
-                "snap_type": converter.snapshot.__class__
+                "snap_type": converter.snapshot.__class__.__name__
             }
+        self.history[DRIVE_TRAIN_ID] = {
+            "snapshots": [],
+            "comp_name": "Drivetrain",
+            "comp_type": self.vehicle.drive_train.__class__.__name__,
+            "snap_type": self.vehicle.drive_train.snapshot.__class__.__name__
+        }
 
     @property
     def precision(self) -> int:
@@ -95,10 +102,11 @@ class Simulator():
             for converter in self.vehicle.converters:
                 if isinstance(converter, ElectricMotor):
                     assert isinstance(converter.snapshot, ElectricMotorSnapshot)
+                    inertia = self.vehicle.downstream_inertia(component_id=converter.id)
                     new_snap, new_state = converter.dynamic_response.compute_forward(
                         snap=converter.snapshot,
                         load_torque=load_torque,
-                        downstream_inertia=converter.inertia,
+                        downstream_inertia=inertia,
                         delta_t=self.delta_t,
                         control_signal=self.control_signal[n],
                         efficiency=converter.consumption,
@@ -114,6 +122,7 @@ class Simulator():
                     self.history[converter.id]["snapshots"].append(new_snap)
                     converter.snapshot.io = new_snap.io
                     converter.snapshot.state = new_state
+                    self.propagate_output(component=converter)
             for energy_source in self.vehicle.energy_sources:
                 if isinstance(energy_source, Battery):
                     assert isinstance(energy_source.snapshot, (RechargeableBatterySnapshot,
@@ -122,6 +131,22 @@ class Simulator():
                     new_snap = deepcopy(energy_source.snapshot)  # type: ignore
                     self.history[energy_source.id]["snapshots"].append(new_snap)
                     energy_source.snapshot.io.output_port.electric_power = 0.0
+            new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot,
+                                                                               delta_t=self.delta_t,
+                                                                               load_torque=load_torque,
+                                                                               downstream_inertia=self.vehicle.drive_train.inertia)
+            self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
+            self.vehicle.drive_train.snapshot.io = new_dt_snap.io
+            self.vehicle.drive_train.snapshot.state = new_dt_state
+
+    def propagate_output(self, component: Converter) -> None:
+        comp_list = self.vehicle.find_suppliers_output(requester=component)
+        out = component.snapshot.io.output_port # type: ignore
+        if comp_list is None:
+            return
+        for comp, _ in comp_list:   # pylint: disable=E1133
+            comp.snapshot.io.input_port = out   # type: ignore
+        return
 
     def resolve_stack(self) -> None:
         """

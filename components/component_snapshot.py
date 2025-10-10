@@ -2,7 +2,6 @@
 containing inputs, outputs, and state variables for convenient simulation."""
 
 from dataclasses import dataclass
-from math import pi
 from components.component_io import ElectricMotorIO, ElectricGeneratorIO, \
     LiquidInternalCombustionEngineIO, GaseousInternalCombustionEngineIO, \
     FuelCellIO, ElectricInverterIO, ElectricRectifierIO, GearBoxIO, \
@@ -497,7 +496,6 @@ class DriveTrainSnapshot(GearBoxSnapshot):
     """
     Defines the snapshot of the drive train.
     """
-    wheel_radius: float
     # front_axle: GearBoxSnapshot
     # rear_axle: GearBoxSnapshot
     # differential: GearBoxSnapshot
@@ -505,17 +503,17 @@ class DriveTrainSnapshot(GearBoxSnapshot):
     # planetarygear: Optional[PlanetaryGear]
 
     @property
-    def speed(self) -> float:
-        """
-        Calculates the speed of the vehicle in m/s.
-        """
-        return self.state.output_port.rpm * 2 * self.wheel_radius * pi / 60
-    
-    @property
     def to_dict(self) -> dict[str, float]:
-        result = super().to_dict
-        result["speed"] = self.speed
-        return result
+        return {"power_in": self.power_in,
+                "power_out": self.power_out,
+                "torque_in": self.io.input_port.torque,
+                "rpm_in": self.state.input_port.rpm,
+                "torque_out": self.io.output_port.torque,
+                "rpm_out": self.state.output_port.rpm,
+                "temperature": self.state.internal.temperature}
+        #result = super().to_dict
+        #return result
+    
 
 
 def return_electric_motor_snapshot(electric_power_in: float=0.0,
@@ -669,8 +667,7 @@ def return_gaseous_fuel_tank_snapshot(fuel: GaseousFuel,
                                                                                                     mass_stored=mass_stored)))
 
 
-def return_drivetrain_snapshot(wheel_radius: float,
-                               torque_in: float = 0.0,
+def return_drivetrain_snapshot(torque_in: float = 0.0,
                                torque_out: float = 0.0,
                                rpm_in: float = 0.0,
                                rpm_out: float = 0.0,
@@ -683,5 +680,4 @@ def return_drivetrain_snapshot(wheel_radius: float,
                                            output_port=MechanicalIO(torque=torque_out)),
                               state=PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                                         internal=PureMechanicalInternalState(temperature=temperature),
-                                                        output_port=RotatingState(rpm=rpm_out)),
-                              wheel_radius=wheel_radius)
+                                                        output_port=RotatingState(rpm=rpm_out)))

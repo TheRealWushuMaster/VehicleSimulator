@@ -10,7 +10,7 @@ from components.energy_source import EnergySource
 from components.port import PortType
 from helpers.functions import assert_type
 from helpers.types import PowerType
-from simulation.constants import DRIVE_TRAIN_INPUT_ID
+from simulation.constants import DRIVE_TRAIN_ID
 
 
 @dataclass
@@ -34,7 +34,7 @@ class Link():
         """
         Returns if the link is the special drive train link.
         """
-        return self.component2_id==DRIVE_TRAIN_INPUT_ID
+        return self.component2_id==DRIVE_TRAIN_ID
 
 
 def create_link(component1: Converter|EnergySource,
@@ -68,6 +68,6 @@ def create_drivetrain_link(component: Converter) -> Optional[Link]:
     if component.output.exchange==PowerType.MECHANICAL:
         return Link(component1_id=component.id,
                     component1_port=PortType.OUTPUT_PORT,
-                    component2_id=DRIVE_TRAIN_INPUT_ID,
+                    component2_id=DRIVE_TRAIN_ID,
                     component2_port=PortType.INPUT_PORT)
     return None

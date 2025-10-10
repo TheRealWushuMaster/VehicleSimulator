@@ -14,6 +14,7 @@ from components.energy_source import EnergySource
 from components.link import Link
 from components.message import MessageStack
 from components.port import PortType
+from simulation.constants import DRIVE_TRAIN_ID
 
 
 @dataclass
@@ -43,6 +44,38 @@ class Vehicle():
     #         ecu.vehicle = self
     #         return True
     #     return False
+
+    def _get_inertia(self, component_id: str,
+                     which_port: PortType) -> float:
+        component = self.find_component_with_id(component_id=component_id)
+        if component is None:
+            return 0.0
+        if not hasattr(component, "inertia"):
+            return 0.0
+        inertia = getattr(component, "inertia")
+        if which_port == PortType.INPUT_PORT:
+            comp_list = self.find_suppliers_input(requester=component)
+        else:
+            comp_list = self.find_suppliers_output(requester=component)
+        if comp_list is not None:
+            for comp in comp_list:
+                if hasattr(comp[0], "inertia"):
+                    inertia += self.downstream_inertia(component_id=comp[0].id)
+        return inertia
+
+    def downstream_inertia(self, component_id: str) -> float:
+        """
+        Returns the inertia value as seen from a component's output.
+        """
+        return self._get_inertia(component_id=component_id,
+                                 which_port=PortType.OUTPUT_PORT)
+
+    def upstream_inertia(self, component_id: str) -> float:
+        """
+        Returns the inertia value as seen from a component's input.
+        """
+        return self._get_inertia(component_id=component_id,
+                                 which_port=PortType.INPUT_PORT)
 
     def add_component(self, component: EnergySource|Converter) -> None:
         """
@@ -76,17 +109,19 @@ class Vehicle():
         return self.energy_sources + self.converters
 
     def find_component_with_id(self, component_id: str
-                               ) -> Optional[EnergySource|Converter]:
+                               ) -> Optional[EnergySource|Converter|DriveTrain]:
         """
         Returns the component with corresponding id.
         """
+        if component_id == DRIVE_TRAIN_ID:
+            return self.drive_train
         all_components = self.return_all_components
         return next((component for component in all_components
                      if component.id==component_id), None)
 
-    def find_suppliers(self, requester: EnergySource|Converter,
+    def find_suppliers(self, requester: EnergySource|Converter|DriveTrain,
                        which_port: PortType
-                       ) -> Optional[list[tuple[EnergySource|Converter, PortType]]]:
+                       ) -> Optional[list[tuple[EnergySource|Converter|DriveTrain, PortType]]]:
         """
         Returns the list of components that can supply resources
         to a component's input port, obtained via analysis of the
@@ -111,4 +146,16 @@ class Vehicle():
             component = self.find_component_with_id(supplier_id)
             if component is not None:
                 result.append((component, supplier_port))
+            elif supplier_id == DRIVE_TRAIN_ID:
+                result.append((self.drive_train, PortType.INPUT_PORT))
         return result if result else None
+
+    def find_suppliers_input(self, requester: EnergySource|Converter|DriveTrain
+                             ) -> Optional[list[tuple[EnergySource|Converter|DriveTrain, PortType]]]:
+        return self.find_suppliers(requester=requester,
+                                   which_port=PortType.INPUT_PORT)
+
+    def find_suppliers_output(self, requester: EnergySource|Converter|DriveTrain
+                              ) -> Optional[list[tuple[EnergySource|Converter|DriveTrain, PortType]]]:
+        return self.find_suppliers(requester=requester,
+                                   which_port=PortType.OUTPUT_PORT)
