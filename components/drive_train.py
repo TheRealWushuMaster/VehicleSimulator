@@ -227,13 +227,13 @@ class DriveTrain():
         Returns the inertia of the full drive train.
         """
         if self.wheel_drive==WheelDrive.FRONT_DRIVE:
-            inertia = self.front_axle.inertia / self.differential.gear_ratio**2
+            inertia = self.front_axle.inertia * self.differential.gear_ratio**2
         elif self.wheel_drive==WheelDrive.REAR_DRIVE:
-            inertia = self.rear_axle.inertia / self.differential.gear_ratio**2
+            inertia = self.rear_axle.inertia * self.differential.gear_ratio**2
         else:
             inertia = (self.front_axle.inertia + self.rear_axle.inertia) \
-                / self.differential.gear_ratio**2
-        return inertia / self.gearbox.gear_ratio**2
+                * self.differential.gear_ratio**2
+        return inertia * self.gearbox.gear_ratio**2
 
     def process_drive(self, snap: DriveTrainSnapshot,
                       delta_t: float,

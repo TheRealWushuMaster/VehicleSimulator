@@ -6,6 +6,7 @@ from components.component_snapshot import ElectricMotorSnapshot, \
     LiquidCombustionEngineSnapshot, GaseousCombustionEngineSnapshot
 from helpers.functions import assert_type, assert_range, assert_type_and_range, \
     assert_numeric, assert_callable, power_to_torque
+from helpers.functions import clamp
 from helpers.types import MotorOperationPoint, MotorEfficiencyPoint
 
 ICESnapshot = LiquidCombustionEngineSnapshot | GaseousCombustionEngineSnapshot
@@ -166,7 +167,15 @@ class MechanicalPowerEfficiencyCurves():
         assert_range(efficiency,
                      more_than=0.0,
                      less_than=1.0)
-        def efficiency_func(snap: MotorSnapshot) -> float:
+        def efficiency_func(snap: MotorSnapshot,
+                            limit: bool=True) -> float:
+            if limit:
+                snap.io.output_port.torque = clamp(val=snap.io.output_port.torque,
+                                                   min_val=0.0,
+                                                   max_val=max_torque_vs_rpm(snap))
+                snap.state.output_port.rpm = clamp(val=snap.state.output_port.rpm,
+                                                   min_val=min_rpm,
+                                                   max_val=max_rpm)
             if not min_rpm <= snap.state.output_port.rpm <= max_rpm:
                 return 0.0
             if 0.0 <= snap.io.output_port.torque <= max_torque_vs_rpm(snap):

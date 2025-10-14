@@ -52,10 +52,16 @@ class MechanicalToMechanical():
                      downstream_inertia: float) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
+            inertia_at_input = downstream_inertia / gear_ratio**2
+            load_torque_at_input = load_torque / gear_ratio / efficiency
+            net_torque_at_input = snap.io.input_port.torque - load_torque_at_input 
+            w_dot_in = net_torque_at_input / inertia_at_input
+            rpm_in = snap.state.input_port.rpm + ang_vel_to_rpm(ang_vel=w_dot_in*delta_t)
+            rpm_out = rpm_in / gear_ratio
             torque_out = snap.io.input_port.torque * gear_ratio * efficiency
-            w_dot_out = (torque_out - load_torque) / downstream_inertia
-            rpm_out = snap.state.output_port.rpm + ang_vel_to_rpm(ang_vel=w_dot_out*delta_t)
-            rpm_in = rpm_out * gear_ratio
+            # w_dot_out = (torque_out - load_torque) / downstream_inertia
+            # rpm_out = snap.state.output_port.rpm + ang_vel_to_rpm(ang_vel=w_dot_out*delta_t)
+            # rpm_in = rpm_out * gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=RotatingState(rpm=rpm_out))

@@ -9,7 +9,8 @@ from typing import Any
 from components.component_snapshot import ElectricMotorSnapshot, \
     RechargeableBatterySnapshot, NonRechargeableBatterySnapshot
 from components.converter import Converter
-from components.energy_source import Battery
+from components.drive_train import DriveTrain
+from components.energy_source import EnergySource, Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
@@ -122,7 +123,8 @@ class Simulator():
                     self.history[converter.id]["snapshots"].append(new_snap)
                     converter.snapshot.io = new_snap.io
                     converter.snapshot.state = new_state
-                    self.propagate_output(component=converter)
+                    self.propagate_output(component=converter,
+                                          load_torque=load_torque)
             for energy_source in self.vehicle.energy_sources:
                 if isinstance(energy_source, Battery):
                     assert isinstance(energy_source.snapshot, (RechargeableBatterySnapshot,
@@ -139,13 +141,33 @@ class Simulator():
             self.vehicle.drive_train.snapshot.io = new_dt_snap.io
             self.vehicle.drive_train.snapshot.state = new_dt_state
 
-    def propagate_output(self, component: Converter) -> None:
+    def propagate_output(self, component: Converter,
+                         load_torque: float) -> None:
         comp_list = self.vehicle.find_suppliers_output(requester=component)
         out = component.snapshot.io.output_port # type: ignore
         if comp_list is None:
             return
         for comp, _ in comp_list:   # pylint: disable=E1133
             comp.snapshot.io.input_port = out   # type: ignore
+            downstream_inertia = self.vehicle.downstream_inertia(component_id=comp.id)
+            if isinstance(comp, Converter):
+                new_snap, new_state = comp.dynamic_response.compute_forward(snap=comp.snapshot, # type: ignore
+                                                                            delta_t=self.delta_t,
+                                                                            load_torque=load_torque,
+                                                                            downstream_inertia=downstream_inertia)
+                sn = deepcopy(new_snap)
+                self.history[comp.id]["snapshots"].append(sn)
+                comp.snapshot.state = new_state # type: ignore
+            elif isinstance(comp, EnergySource):
+                pass
+            elif isinstance(comp, DriveTrain):
+                new_snap, new_state = comp.process_drive(snap=comp.snapshot,
+                                                         delta_t=self.delta_t,
+                                                         load_torque=load_torque,
+                                                         downstream_inertia=downstream_inertia)
+                sn = deepcopy(new_snap)
+                self.history[comp.id]["snapshots"].append(sn)
+                #comp.snapshot.state = new_state # type: ignore
         return
 
     def resolve_stack(self) -> None:
