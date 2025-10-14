@@ -11,6 +11,8 @@ DEFAULT_TEMPERATURE: float = 300.0
 DEFAULT_PRECISION: int = 8
 DRIVE_TRAIN_ID: str = "DriveTrain"
 DRIVE_TRAIN_INPUT_ID: str = "DriveTrainInput"
+AIR_DENSITY_SEA_LEVEL: float = 1.225  # kg/m³
+REF_ALTITUDE: float = 8500      # For use in air density calculation
 
 # Energy conversion
 KWH_TO_JOULES: float = 3.6e6
