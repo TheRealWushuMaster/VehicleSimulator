@@ -68,7 +68,8 @@ class ResultsManager():
         return self.dataframes.get(comp_type, pd.DataFrame())
 
     def plot_all(self, num_cols: int=1,
-                 folder: str="examples/results"):
+                 folder: str="examples/results",
+                 dpi: int=300):
         """
         Plots all DataFrames with subplots per variable.
         """
@@ -106,7 +107,7 @@ class ResultsManager():
                     ax.grid(True)
                 plt.tight_layout()
                 plt.savefig(f"{folder}/{self.simulation.name}-{comp_type}-{name.replace(" ", "_")}.png",
-                            dpi=300)
+                            dpi=dpi)
         plt.show()
 
     def save_csv(self, folder: str="examples/results"):
