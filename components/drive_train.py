@@ -3,6 +3,7 @@ This module contains definitions for the drive train, including
 all modules that transmit power to and from the ground.
 """
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -249,21 +250,27 @@ class DriveTrain():
                                                                                         load_torque=load_torque,
                                                                                         downstream_inertia=downstream_inertia)
         self.gearbox.snapshot = gearbox_snap
+        self.gearbox.snapshot.state = gearbox_new_state
         assert isinstance(self.differential.snapshot, GearBoxSnapshot)
         assert isinstance(self.differential.dynamic_response, PureMechanicalDynamicResponse)
         self.differential.snapshot.io.input_port = gearbox_snap.io.output_port  # pylint: disable=E1101
+        self.differential.snapshot.state.input_port = gearbox_snap.state.output_port    # pylint: disable=E1101
         diff_snap, diff_new_state = self.differential.dynamic_response.compute_forward(snap=self.differential.snapshot,  # pylint: disable=E1101
                                                                                        delta_t=delta_t,
                                                                                        load_torque=load_torque,
                                                                                        downstream_inertia=downstream_inertia)
         self.differential.snapshot = diff_snap
-        new_snap = snap
+        self.differential.snapshot.state = diff_new_state
+        new_snap = deepcopy(snap)
         new_snap.io.input_port = gearbox_snap.io.input_port
         new_snap.io.output_port = diff_snap.io.output_port
-        new_state = self.snapshot.state
-        new_state.input_port = gearbox_new_state.input_port
-        new_state.output_port = diff_new_state.output_port
-        return new_snap, new_state
+        new_snap.state.input_port = gearbox_new_state.input_port
+        new_snap.state.output_port = diff_new_state.output_port
+        #new_state = self.snapshot.state
+        #new_state.input_port = gearbox_new_state.input_port
+        #new_state.output_port = diff_new_state.output_port
+        #new_snap.state = new_state
+        return new_snap, new_snap.state
 
     def process_recover(self, snap: DriveTrainSnapshot,
                         delta_t: float,
