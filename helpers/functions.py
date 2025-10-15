@@ -2,6 +2,7 @@
 Helper functions for use in the project.
 """
 
+from math import degrees, radians
 from typing import Any
 from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM, \
     CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS
@@ -180,3 +181,15 @@ def cubic_meters_to_liters(cubic_meters: float) -> float:
     assert_type_and_range(cubic_meters,
                           more_than=0.0)
     return cubic_meters * CUBIC_METERS_TO_LTS
+
+def degrees_to_radians(angle_degrees: float) -> float:
+    """
+    Converts degrees to radians.
+    """
+    return radians(angle_degrees)
+
+def radians_to_degrees(angle_radians: float) -> float:
+    """
+    Converts radians to degrees.
+    """
+    return degrees(angle_radians)

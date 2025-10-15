@@ -1,8 +1,9 @@
 """This module contains definition for the track where the vehicle rides."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import exp, tan
 from typing import Optional
+from helpers.functions import degrees_to_radians
 from simulation.constants import AIR_DENSITY_SEA_LEVEL, REF_ALTITUDE
 
 
@@ -12,6 +13,7 @@ class TrackSection():
     Base class for track sections.
     """
     horizontal_length: float
+    _base_altitude: float=0.0
 
     def altitude_value(self, d: float) -> Optional[float]:
         """
@@ -34,15 +36,39 @@ class TrackSection():
             return AIR_DENSITY_SEA_LEVEL * exp(-altitude/REF_ALTITUDE)
         return None
 
+    @property
+    def base_altitude(self) -> float:
+        """
+        Returns the base altitude of the track section.
+        """
+        return self._base_altitude
+    
+    def set_base_altitude(self, base_altitude: float) -> None:
+        """
+        Sets a new base altitude for the track section.
+        """
+        self._base_altitude = base_altitude
+
 
 @dataclass
 class Track():
     """
-    This class contains the definition of the track where
+    This class contains the full definition of a track where
     the vehicle will move on, defining its height and other
     parameters at each point.
     """
     sections: list[TrackSection]
+
+    def __init__(self, sections: list[TrackSection],
+                 base_altitude: float=0.0) -> None:
+        self.sections = sections
+        self._adjust_base_altitudes(base_altitude=base_altitude)
+
+    def _adjust_base_altitudes(self, base_altitude: float) -> None:
+        self.sections[0].set_base_altitude(base_altitude=base_altitude)
+        for i in range(1, len(self.sections)):
+            base_alt = self.sections[i-1].altitude_value(d=self.sections[i-1].horizontal_length) - self.sections[i].altitude_value(d=0)  # type: ignore
+            self.sections[i].set_base_altitude(base_altitude=base_alt)
 
     def find_section(self, d: float) -> Optional[tuple[TrackSection, float]]:
         """
@@ -94,29 +120,30 @@ class Track():
 
 
 @dataclass
-class FlatSection(TrackSection):
-    """
-    Returns a flat track section.
-    """
-    _base_altitude: float=field(init=False)
-
-    def altitude_value(self, d: float) -> float:
-        return self._base_altitude
-
-    def altitude_derivate(self, d: float) -> float:
-        return 0.0
-
-
-@dataclass
 class SlopeSection(TrackSection):
     """
     Returns a sloped track section.
     """
-    _slope: float   # In degrees
-    _base_altitude: float=field(init=False)
+    _slope: float=0.0
+
+    def __init__(self, slope_degrees: float,
+                 horizontal_length: float) -> None:
+        assert -90.0 < slope_degrees < 90.0
+        super().__init__(horizontal_length=horizontal_length)
+        self._slope = tan(degrees_to_radians(slope_degrees))
 
     def altitude_value(self, d: float) -> float:
-        return d*tan(self._slope) + self._base_altitude
+        return d*self._slope + self.base_altitude
 
     def altitude_derivate(self, d: float) -> float:
         return self._slope
+
+
+@dataclass
+class FlatSection(SlopeSection):
+    """
+    Returns a flat track section.
+    """
+    def __init__(self, horizontal_length: float) -> None:
+        super().__init__(slope_degrees=0.0,
+                         horizontal_length=horizontal_length)
