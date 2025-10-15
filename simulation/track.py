@@ -1,10 +1,9 @@
 """This module contains definition for the track where the vehicle rides."""
 
 from dataclasses import dataclass
-from math import exp, tan
+from math import tan
 from typing import Optional
-from helpers.functions import degrees_to_radians
-from simulation.constants import AIR_DENSITY_SEA_LEVEL, REF_ALTITUDE
+from helpers.functions import degrees_to_radians, estimate_air_density
 
 
 @dataclass
@@ -33,7 +32,7 @@ class TrackSection():
         """
         altitude = self.altitude_value(d=d)
         if altitude is not None:
-            return AIR_DENSITY_SEA_LEVEL * exp(-altitude/REF_ALTITUDE)
+            return estimate_air_density(altitude=altitude)
         return None
 
     @property

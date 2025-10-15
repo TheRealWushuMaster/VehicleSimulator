@@ -1,8 +1,7 @@
 """This module contains test routines for the Track class."""
 
-from math import exp, tan
-from helpers.functions import degrees_to_radians
-from simulation.constants import AIR_DENSITY_SEA_LEVEL, REF_ALTITUDE
+from math import tan
+from helpers.functions import degrees_to_radians, estimate_air_density
 from simulation.track import Track, TrackSection, \
     SlopeSection, FlatSection
 
@@ -48,4 +47,4 @@ def test_track_air_density() -> None:
         altitude = test_track.altitude_value(d=d)
         assert altitude is not None
         density = test_track.air_density(d=d)
-        assert density == AIR_DENSITY_SEA_LEVEL * exp(-altitude/REF_ALTITUDE)
+        assert density == estimate_air_density(altitude=altitude)

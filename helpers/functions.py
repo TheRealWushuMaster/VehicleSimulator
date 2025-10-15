@@ -2,10 +2,11 @@
 Helper functions for use in the project.
 """
 
-from math import degrees, radians
+from math import degrees, radians, exp
 from typing import Any
 from simulation.constants import RPM_TO_ANG_VEL, ANG_VEL_TO_RPM, \
-    CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS
+    CUBIC_METERS_TO_LTS, LTS_TO_CUBIC_METERS, AIR_DENSITY_AT_SEA_LEVEL, \
+    REFERENCE_ALTITUDE
 
 def clamp(val: float, min_val: float, max_val: float) -> float:
     """
@@ -25,6 +26,14 @@ def electric_power(voltage: float,
     assert_type_and_range(voltage, current,
                           more_than=0.0)
     return voltage * current
+
+def estimate_air_density(altitude: float,
+                         density_at_sea_level: float=AIR_DENSITY_AT_SEA_LEVEL,
+                         reference_altitude: float=REFERENCE_ALTITUDE) -> float:
+    """
+    Estimates the air density at a given altitude.
+    """
+    return density_at_sea_level * exp(-altitude/reference_altitude)
 
 # VERIFICATIONS
 
