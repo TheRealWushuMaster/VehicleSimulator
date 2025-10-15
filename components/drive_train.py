@@ -16,7 +16,8 @@ from components.converter import MechanicalConverter
 from components.dynamic_response import PureMechanicalDynamicResponse
 from components.dynamic_response_curves import MechanicalToMechanical
 from components.limitation import MechanicalToMechanicalLimits
-from components.port import PortBidirectional
+from components.port import PortBidirectional, PortInput, PortOutput, \
+    PortType
 from helpers.functions import assert_type, assert_type_and_range
 from helpers.types import PowerType
 from simulation.constants import DRIVE_TRAIN_ID
@@ -189,7 +190,8 @@ class DriveTrain():
     Models the full drive train for the vehicle.
     """
     id: str=field(init=False)
-    input_port: PortBidirectional=field(init=False)
+    input: PortBidirectional=field(init=False)
+    output: PortBidirectional = field(init=False)
     snapshot: DriveTrainSnapshot=field(init=False)
     front_axle: Axle
     rear_axle: Axle
@@ -214,7 +216,8 @@ class DriveTrain():
         #             allow_none=True)
         assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
         assert isinstance(self.differential.snapshot, GearBoxSnapshot)
-        self.input_port = PortBidirectional(exchange=PowerType.MECHANICAL)
+        self.input = PortBidirectional(exchange=PowerType.MECHANICAL)
+        self.output = PortBidirectional(exchange=PowerType.MECHANICAL)
         self.snapshot = DriveTrainSnapshot(io=GearBoxIO(input_port=self.gearbox.snapshot.io.input_port,  # pylint: disable=E1101
                                                         output_port=self.differential.snapshot.io.output_port),  # pylint: disable=E1101
                                            state=PureMechanicalState(input_port=self.gearbox.snapshot.state.input_port,  # pylint: disable=E1101
@@ -300,6 +303,16 @@ class DriveTrain():
         new_state.input_port = gearbox_new_state.input_port
         new_state.output_port = diff_new_state.output_port
         return new_snap, new_state
+
+    def return_which_port(self, port: PortInput|PortOutput|PortBidirectional) -> Optional[PortType]:
+        """
+        Returns whether the port is the converter's input or output port.
+        """
+        if self.input == port:
+            return PortType.INPUT_PORT
+        if self.output == port:
+            return PortType.OUTPUT_PORT
+        return None
 
 
 # =====================
