@@ -167,8 +167,7 @@ def create_drivetrain() -> DriveTrain:
                       gear_ratio=gear_ratio,
                       efficiency=efficiency2,
                       inertia=gearbox_inertia)
-    return DriveTrain(snapshot=return_drivetrain_snapshot(wheel_radius=wheel_radius),
-                      front_axle=axle,
+    return DriveTrain(front_axle=axle,
                       rear_axle=axle,
                       wheel_drive=wheel_drive,
                       differential=differential,
@@ -374,8 +373,7 @@ def test_create_inverter_response() -> None:
 
 def test_create_drivetrain_response() -> None:
     dt = create_drivetrain()
-    initial_snap = return_drivetrain_snapshot(wheel_radius=wheel_radius,
-                                              torque_in=torque_in,
+    initial_snap = return_drivetrain_snapshot(torque_in=torque_in,
                                               rpm_in=rpm_in,
                                               torque_out=torque_out,
                                               rpm_out=rpm_in/gear_ratio/diff_gear_ratio)
@@ -384,7 +382,6 @@ def test_create_drivetrain_response() -> None:
                                              delta_t=delta_t,
                                              load_torque=load_torque,
                                              downstream_inertia=inertia)
-    pass
     # Testing reverse conversion
     dt_snap, dt_new_state = dt.process_recover(snap=initial_snap,
                                                delta_t=delta_t,
