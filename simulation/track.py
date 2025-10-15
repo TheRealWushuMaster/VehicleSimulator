@@ -12,6 +12,7 @@ class TrackSection():
     Base class for track sections.
     """
     horizontal_length: float
+    _friction_coefficient: float
     _base_altitude: float=0.0
 
     def altitude_value(self, d: float) -> Optional[float]:
@@ -41,12 +42,19 @@ class TrackSection():
         Returns the base altitude of the track section.
         """
         return self._base_altitude
-    
+
     def set_base_altitude(self, base_altitude: float) -> None:
         """
         Sets a new base altitude for the track section.
         """
         self._base_altitude = base_altitude
+
+    @property
+    def friction_coefficient(self) -> float:
+        """
+        Returns the friction coefficient value.
+        """
+        return self._friction_coefficient
 
 
 @dataclass
@@ -117,6 +125,16 @@ class Track():
         """
         return sum(section.horizontal_length for section in self.sections)
 
+    def friction_coefficient(self, d: float) -> Optional[float]:
+        """
+        Returns the friction coefficient
+        at the specified distance.
+        """
+        section_dist = self.find_section(d=d)
+        if section_dist is not None:
+            return section_dist[0].friction_coefficient
+        return None
+
 
 @dataclass
 class SlopeSection(TrackSection):
@@ -126,9 +144,11 @@ class SlopeSection(TrackSection):
     _slope: float=0.0
 
     def __init__(self, slope_degrees: float,
-                 horizontal_length: float) -> None:
+                 horizontal_length: float,
+                 friction_coefficient: float) -> None:
         assert -90.0 < slope_degrees < 90.0
-        super().__init__(horizontal_length=horizontal_length)
+        super().__init__(horizontal_length=horizontal_length,
+                         _friction_coefficient=friction_coefficient)
         self._slope = tan(degrees_to_radians(slope_degrees))
 
     def altitude_value(self, d: float) -> float:
@@ -143,6 +163,8 @@ class FlatSection(SlopeSection):
     """
     Returns a flat track section.
     """
-    def __init__(self, horizontal_length: float) -> None:
+    def __init__(self, horizontal_length: float,
+                 friction_coefficient: float) -> None:
         super().__init__(slope_degrees=0.0,
-                         horizontal_length=horizontal_length)
+                         horizontal_length=horizontal_length,
+                         friction_coefficient=friction_coefficient)
