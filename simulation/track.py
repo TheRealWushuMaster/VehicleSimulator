@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import tan
 from typing import Optional
 from helpers.functions import degrees_to_radians, estimate_air_density
+from simulation.materials import TrackMaterial
 
 
 @dataclass
@@ -12,7 +13,7 @@ class TrackSection():
     Base class for track sections.
     """
     horizontal_length: float
-    _friction_coefficient: float
+    material: TrackMaterial
     _base_altitude: float=0.0
 
     def altitude_value(self, d: float) -> Optional[float]:
@@ -50,11 +51,18 @@ class TrackSection():
         self._base_altitude = base_altitude
 
     @property
-    def friction_coefficient(self) -> float:
+    def static_friction_coefficient(self) -> float:
         """
-        Returns the friction coefficient value.
+        Returns the static friction coefficient value.
         """
-        return self._friction_coefficient
+        return self.material.value[1]
+
+    @property
+    def kinetic_friction_coefficient(self) -> float:
+        """
+        Returns the kinetic friction coefficient value.
+        """
+        return self.material.value[2]
 
 
 @dataclass
@@ -125,14 +133,24 @@ class Track():
         """
         return sum(section.horizontal_length for section in self.sections)
 
-    def friction_coefficient(self, d: float) -> Optional[float]:
+    def static_friction_coefficient(self, d: float) -> Optional[float]:
         """
-        Returns the friction coefficient
+        Returns the static friction coefficient
         at the specified distance.
         """
         section_dist = self.find_section(d=d)
         if section_dist is not None:
-            return section_dist[0].friction_coefficient
+            return section_dist[0].static_friction_coefficient
+        return None
+
+    def kinetic_friction_coefficient(self, d: float) -> Optional[float]:
+        """
+        Returns the kinetic friction coefficient
+        at the specified distance.
+        """
+        section_dist = self.find_section(d=d)
+        if section_dist is not None:
+            return section_dist[0].kinetic_friction_coefficient
         return None
 
 
@@ -145,10 +163,10 @@ class SlopeSection(TrackSection):
 
     def __init__(self, slope_degrees: float,
                  horizontal_length: float,
-                 friction_coefficient: float) -> None:
+                 material: TrackMaterial) -> None:
         assert -90.0 < slope_degrees < 90.0
         super().__init__(horizontal_length=horizontal_length,
-                         _friction_coefficient=friction_coefficient)
+                         material=material)
         self._slope = tan(degrees_to_radians(slope_degrees))
 
     def altitude_value(self, d: float) -> float:
@@ -164,7 +182,7 @@ class FlatSection(SlopeSection):
     Returns a flat track section.
     """
     def __init__(self, horizontal_length: float,
-                 friction_coefficient: float) -> None:
+                 material: TrackMaterial) -> None:
         super().__init__(slope_degrees=0.0,
                          horizontal_length=horizontal_length,
-                         friction_coefficient=friction_coefficient)
+                         material=material)

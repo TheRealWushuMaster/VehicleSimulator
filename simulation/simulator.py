@@ -14,6 +14,7 @@ from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
 from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID
+from simulation.track import Track
 from helpers.functions import assert_type, assert_type_and_range
 
 
@@ -27,6 +28,7 @@ class Simulator():
     delta_t: float
     control_signal: list[float]
     vehicle: Vehicle
+    track: Track
     history: dict[str, dict[str, Any]]
     _precision: int=DEFAULT_PRECISION
 
@@ -35,6 +37,7 @@ class Simulator():
                  delta_t: float,
                  control_signal: list[float],
                  vehicle: Vehicle,
+                 track: Track,
                  precision: int=DEFAULT_PRECISION) -> None:
         assert len(name) > 0
         assert_type(time_steps,
@@ -55,6 +58,7 @@ class Simulator():
         self.delta_t = delta_t
         self.control_signal = control_signal
         self.vehicle = vehicle
+        self.track = track
         self.history = {}
         self._precision = precision
         self._create_history_structure()
@@ -140,6 +144,10 @@ class Simulator():
             self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
 
     def propagate_output(self, component: Converter) -> None:
+        """
+        Propagates an output of a converter to the inputs
+        of all components connected to it via its output.
+        """
         comp_list = self.vehicle.find_suppliers_output(requester=component)
         out_io = deepcopy(component.snapshot.io.output_port) # type: ignore
         out_st = deepcopy(component.snapshot.state.output_port) # type: ignore

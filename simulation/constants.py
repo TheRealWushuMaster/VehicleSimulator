@@ -14,6 +14,22 @@ DRIVE_TRAIN_INPUT_ID: str = "DriveTrainInput"
 AIR_DENSITY_AT_SEA_LEVEL: float = 1.225  # kg/m³
 REFERENCE_ALTITUDE: float = 8_500.0      # For use in air density calculations
 
+# Friction coefficients
+KINETIC_PERCENTAGE: float = 0.8
+STATIC_FRICTION_COEFFICIENTS: dict[str, float] = {"Dry asphalt": 0.80,
+                                                  "Wet asphalt": 0.50,
+                                                  "Icy asphalt": 0.15,
+                                                  "Dry concrete": 0.725,
+                                                  "Wet concrete": 0.575,
+                                                  "Loose gravel": 0.50,
+                                                  "Compacted gravel": 0.60,
+                                                  "Dry dirt": 0.60,
+                                                  "Wet dirt": 0.40,
+                                                  "Hard-packed dirt": 0.70}
+KINETIC_FRICTION_COEFFICIENTS: dict[str, float] = {}
+for key, value in STATIC_FRICTION_COEFFICIENTS.items():
+    KINETIC_FRICTION_COEFFICIENTS[key] = round(KINETIC_PERCENTAGE * value, DEFAULT_PRECISION)
+
 # Energy conversion
 KWH_TO_JOULES: float = 3.6e6
 WH_TO_JOULES: float = KWH_TO_JOULES / 1_000
