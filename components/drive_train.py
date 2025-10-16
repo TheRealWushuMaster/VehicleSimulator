@@ -239,29 +239,24 @@ class DriveTrain():
                 * self.differential.gear_ratio**2
         return inertia * self.gearbox.gear_ratio**2
 
-    def process_drive(self, snap: DriveTrainSnapshot,
-                      delta_t: float,
-                      load_torque: float,
-                      downstream_inertia: float) -> tuple[DriveTrainSnapshot, PureMechanicalState]:
+    def process_drive(self, snap: DriveTrainSnapshot) -> tuple[DriveTrainSnapshot,
+                                                               PureMechanicalState]:
+        """
+        Processes the drive train from its input.
+        """
         assert isinstance(self.gearbox, GearBox)
         assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
         assert isinstance(self.gearbox.dynamic_response, PureMechanicalDynamicResponse)
         self.gearbox.snapshot.io.input_port = snap.io.input_port  # pylint: disable=E1101
         self.gearbox.snapshot.state.input_port = snap.state.input_port  # pylint: disable=E1101
-        gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_forward(snap=self.gearbox.snapshot,  # pylint: disable=E1101
-                                                                                        delta_t=delta_t,
-                                                                                        load_torque=load_torque,
-                                                                                        downstream_inertia=downstream_inertia)
+        gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_forward(snap=self.gearbox.snapshot)  # pylint: disable=E1101
         self.gearbox.snapshot = gearbox_snap
         self.gearbox.snapshot.state = gearbox_new_state
         assert isinstance(self.differential.snapshot, GearBoxSnapshot)
         assert isinstance(self.differential.dynamic_response, PureMechanicalDynamicResponse)
         self.differential.snapshot.io.input_port = gearbox_snap.io.output_port  # pylint: disable=E1101
         self.differential.snapshot.state.input_port = gearbox_snap.state.output_port    # pylint: disable=E1101
-        diff_snap, diff_new_state = self.differential.dynamic_response.compute_forward(snap=self.differential.snapshot,  # pylint: disable=E1101
-                                                                                       delta_t=delta_t,
-                                                                                       load_torque=load_torque,
-                                                                                       downstream_inertia=downstream_inertia)
+        diff_snap, diff_new_state = self.differential.dynamic_response.compute_forward(snap=self.differential.snapshot)  # pylint: disable=E1101
         self.differential.snapshot = diff_snap
         self.differential.snapshot.state = diff_new_state
         new_snap = deepcopy(snap)
@@ -269,32 +264,23 @@ class DriveTrain():
         new_snap.io.output_port = diff_snap.io.output_port
         new_snap.state.input_port = gearbox_new_state.input_port
         new_snap.state.output_port = diff_new_state.output_port
-        #new_state = self.snapshot.state
-        #new_state.input_port = gearbox_new_state.input_port
-        #new_state.output_port = diff_new_state.output_port
-        #new_snap.state = new_state
         return new_snap, new_snap.state
 
-    def process_recover(self, snap: DriveTrainSnapshot,
-                        delta_t: float,
-                        load_torque: float,
-                        upstream_inertia: float) -> tuple[DriveTrainSnapshot, PureMechanicalState]:
+    def process_recover(self, snap: DriveTrainSnapshot) -> tuple[DriveTrainSnapshot,
+                                                                 PureMechanicalState]:
+        """
+        Processes the drive train from its output.
+        """
         assert isinstance(self.differential.snapshot, GearBoxSnapshot)
         assert isinstance(self.differential.dynamic_response, PureMechanicalDynamicResponse)
         self.differential.snapshot.io.output_port = snap.io.output_port  # pylint: disable=E1101
-        diff_snap, diff_new_state = self.differential.dynamic_response.compute_reverse(snap=self.differential.snapshot,  # pylint: disable=E1101
-                                                                                       delta_t=delta_t,
-                                                                                       load_torque=load_torque,
-                                                                                       upstream_inertia=upstream_inertia)
+        diff_snap, diff_new_state = self.differential.dynamic_response.compute_reverse(snap=self.differential.snapshot)  # pylint: disable=E1101
         self.differential.snapshot = diff_snap
         assert isinstance(self.gearbox, GearBox)
         assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
         assert isinstance(self.gearbox.dynamic_response, PureMechanicalDynamicResponse)
         self.gearbox.snapshot.io.input_port = snap.io.input_port  # pylint: disable=E1101
-        gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_reverse(snap=self.gearbox.snapshot,  # pylint: disable=E1101
-                                                                                        delta_t=delta_t,
-                                                                                        load_torque=load_torque,
-                                                                                        upstream_inertia=upstream_inertia)
+        gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_reverse(snap=self.gearbox.snapshot)  # pylint: disable=E1101
         self.gearbox.snapshot = gearbox_snap
         new_snap = snap
         new_snap.io.input_port = gearbox_snap.io.input_port
@@ -323,6 +309,9 @@ def return_wheel(radius: float,
                  width: float,
                  mass: float,
                  pressure: float) -> Wheel:
+    """
+    Returns a `Wheel` object.
+    """
     return Wheel(radius=radius,
                  width=width,
                  mass=mass,
@@ -332,6 +321,9 @@ def return_axle(inertia: float,
                 mass: float,
                 num_wheels: int,
                 wheel: Wheel) -> Axle:
+    """
+    Returns an `Axle` object.
+    """
     return Axle(_inertia=inertia,
                 _mass=mass,
                 _num_wheels=num_wheels,
@@ -343,6 +335,9 @@ def return_differential(mass: float,
                         efficiency: float,
                         inertia: float,
                         name: Optional[str]=None) -> Differential:
+    """
+    Returns a `Differential` object.
+    """
     return Differential(name=name if name is not None else "Differential",
                         mass=mass,
                         limits=limits,
@@ -355,7 +350,10 @@ def return_gearbox(mass: float,
                    gear_ratio: float,
                    efficiency: float,
                    inertia: float,
-                   name: Optional[str] = None) -> GearBox:
+                   name: Optional[str]=None) -> GearBox:
+    """
+    Returns a `GearBox` object.
+    """
     return GearBox(name=name if name is not None else "Gearbox",
                    mass=mass,
                    limits=limits,

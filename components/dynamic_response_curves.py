@@ -31,9 +31,8 @@ class MechanicalToMechanical():
     """
     @staticmethod
     def forward_gearbox(gear_ratio: float, efficiency: float
-                        ) -> Callable[[GearBoxSnapshot, float, float, float],
-                                      tuple[GearBoxSnapshot,
-                                            PureMechanicalState]]:
+                        ) -> Callable[[GearBoxSnapshot], tuple[GearBoxSnapshot,
+                                                               PureMechanicalState]]:
         """
         Generates a forward response for a stateless pure
         mechanical component.
@@ -46,14 +45,10 @@ class MechanicalToMechanical():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        def response(snap: GearBoxSnapshot,
-                     delta_t: float,
-                     load_torque: float,
-                     downstream_inertia: float) -> tuple[GearBoxSnapshot,
+        def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
             torque_out = snap.io.input_port.torque * gear_ratio * efficiency
-            #w_dot_out = (torque_out - load_torque) / downstream_inertia
             rpm_in = snap.state.input_port.rpm
             rpm_out = rpm_in / gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
@@ -67,9 +62,8 @@ class MechanicalToMechanical():
 
     @staticmethod
     def reverse_gearbox(gear_ratio: float, efficiency: float
-                        ) -> Callable[[GearBoxSnapshot, float, float, float],
-                                      tuple[GearBoxSnapshot,
-                                            PureMechanicalState]]:
+                        ) -> Callable[[GearBoxSnapshot], tuple[GearBoxSnapshot,
+                                                               PureMechanicalState]]:
         """
         Generates a reverse response for a stateless pure
         mechanical component.
@@ -82,15 +76,11 @@ class MechanicalToMechanical():
                               more_than=0.0,
                               less_than=1.0,
                               include_more=False)
-        def response(snap: GearBoxSnapshot,
-                     delta_t: float,
-                     load_torque: float,
-                     upstream_inertia: float) -> tuple[GearBoxSnapshot,
+        def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
             torque_in = snap.io.output_port.torque / gear_ratio * efficiency
-            w_dot = (torque_in - load_torque) / upstream_inertia
-            rpm_in = snap.state.output_port.rpm * gear_ratio + ang_vel_to_rpm(ang_vel=w_dot*delta_t)
+            rpm_in = snap.state.output_port.rpm * gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=snap.state.output_port)
@@ -98,16 +88,6 @@ class MechanicalToMechanical():
                                                     output_port=snap.io.output_port),
                                        state=new_state)
             
-            torque_in = snap.io.output_port.torque / gear_ratio * efficiency
-            w_dot_in = (torque_in - load_torque) / upstream_inertia
-            rpm_in = snap.state.input_port.rpm + ang_vel_to_rpm(ang_vel=w_dot_in*delta_t)
-            rpm_out = rpm_in / gear_ratio
-            new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
-                                            internal=snap.state.internal,
-                                            output_port=RotatingState(rpm=rpm_out))
-            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
-                                                    output_port=snap.io.input_port),
-                                       state=new_state)
             return new_snap, new_state
         return response
 

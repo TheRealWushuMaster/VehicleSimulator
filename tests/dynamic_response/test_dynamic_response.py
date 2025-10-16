@@ -323,19 +323,13 @@ def test_create_gearbox_response() -> None:
                                            torque_out=torque_out,
                                            rpm_out=rpm_in/gear_ratio)
     # Testing forward conversion
-    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap,
-                                                     delta_t=delta_t,
-                                                     load_torque=load_torque,
-                                                     downstream_inertia=inertia)
+    fc_snap, fc_new_state = response.compute_forward(snap=initial_snap)
     assert fc_snap.io.output_port.torque == initial_snap.io.input_port.torque * \
         gear_ratio * mm_consumption.in_to_out_efficiency_value(snap=fc_snap)
     assert fc_snap.state.output_port.rpm == fc_snap.state.input_port.rpm / gear_ratio
     assert round(fc_snap.power_out, 8) == round(fc_snap.power_in * mm_consumption.in_to_out_efficiency_value(snap=fc_snap), 8)
     # Testing reverse conversion
-    rc_snap, rc_new_state = response.compute_reverse(snap=initial_snap,
-                                                     delta_t=delta_t,
-                                                     load_torque=load_torque,
-                                                     upstream_inertia=inertia)
+    rc_snap, rc_new_state = response.compute_reverse(snap=initial_snap)
     assert round(rc_snap.state.input_port.rpm, 8) == round(rc_snap.state.output_port.rpm * gear_ratio, 8)
     assert round(rc_snap.io.output_port.torque, 8) == round(rc_snap.io.input_port.torque * \
         gear_ratio / mm_consumption.out_to_in_efficiency_value(snap=rc_snap), 8)
@@ -378,12 +372,6 @@ def test_create_drivetrain_response() -> None:
                                               torque_out=torque_out,
                                               rpm_out=rpm_in/gear_ratio/diff_gear_ratio)
     # Testing forward conversion
-    dt_snap, dt_new_state = dt.process_drive(snap=initial_snap,
-                                             delta_t=delta_t,
-                                             load_torque=load_torque,
-                                             downstream_inertia=inertia)
+    dt_snap, dt_new_state = dt.process_drive(snap=initial_snap)
     # Testing reverse conversion
-    dt_snap, dt_new_state = dt.process_recover(snap=initial_snap,
-                                               delta_t=delta_t,
-                                               load_torque=load_torque,
-                                               upstream_inertia=inertia)
+    dt_snap, dt_new_state = dt.process_recover(snap=initial_snap)

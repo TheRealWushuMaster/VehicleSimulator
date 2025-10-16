@@ -270,51 +270,35 @@ class PureMechanicalDynamicResponse(BaseDynamicResponse):
     Creates the dynamic response of a reversible
     mechanical to mechanical component.
     """
-    forward_response: Callable[[GearBoxSnapshot, float, float, float],
-                               tuple[GearBoxSnapshot,
-                                     PureMechanicalState]]
-    reverse_response: Callable[[GearBoxSnapshot, float, float, float],
-                               tuple[GearBoxSnapshot,
-                                     PureMechanicalState]]
+    forward_response: Callable[[GearBoxSnapshot], tuple[GearBoxSnapshot,
+                                                        PureMechanicalState]]
+    reverse_response: Callable[[GearBoxSnapshot], tuple[GearBoxSnapshot,
+                                                        PureMechanicalState]]
 
     def __post_init__(self):
         assert_callable(self.forward_response,
                         self.reverse_response)
 
-    def compute_forward(self, snap: GearBoxSnapshot,
-                        delta_t: float,
-                        load_torque: float,
-                        downstream_inertia: float
-                        ) -> tuple[GearBoxSnapshot,
-                                   PureMechanicalState]:
+    def compute_forward(self, snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
+                                                              PureMechanicalState]:
         """
         Computes the output of the
         pure mechanical component.
         """
         assert_type(snap,
                     expected_type=GearBoxSnapshot)
-        new_snap, new_state = self.forward_response(snap,
-                                                    delta_t,
-                                                    load_torque,
-                                                    downstream_inertia)
+        new_snap, new_state = self.forward_response(snap)
         return new_snap, new_state
 
-    def compute_reverse(self, snap: GearBoxSnapshot,
-                        delta_t: float,
-                        load_torque: float,
-                        upstream_inertia: float
-                        ) -> tuple[GearBoxSnapshot,
-                                   PureMechanicalState]:
+    def compute_reverse(self, snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
+                                                              PureMechanicalState]:
         """
         Computes the input of the
         pure mechanical component.
         """
         assert_type(snap,
                     expected_type=GearBoxSnapshot)
-        new_snap, new_state = self.reverse_response(snap,
-                                                    delta_t,
-                                                    load_torque,
-                                                    upstream_inertia)
+        new_snap, new_state = self.reverse_response(snap)
         return new_snap, new_state
 
     @property

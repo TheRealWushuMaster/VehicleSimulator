@@ -107,7 +107,7 @@ class Simulator():
                 if isinstance(converter, ElectricMotor):
                     assert isinstance(converter.snapshot, ElectricMotorSnapshot)
                     inertia = self.vehicle.downstream_inertia(component_id=converter.id)
-                    new_snap, new_state = converter.dynamic_response.compute_forward(
+                    new_conv_snap, new_state = converter.dynamic_response.compute_forward(
                         snap=converter.snapshot,
                         load_torque=load_torque,
                         downstream_inertia=inertia,
@@ -115,7 +115,7 @@ class Simulator():
                         control_signal=self.control_signal[n],
                         efficiency=converter.consumption,
                         limits=converter.limits)
-                    energy = converter.consumption.compute_in_to_out(snap=new_snap,
+                    energy = converter.consumption.compute_in_to_out(snap=new_conv_snap,
                                                                      delta_t=self.delta_t)
                     power = energy / self.delta_t
                     if power > 0.0:
@@ -123,8 +123,8 @@ class Simulator():
                                                                                          from_port=converter.input,
                                                                                          requested=power)):
                             self.resolve_stack()
-                    self.history[converter.id]["snapshots"].append(new_snap)
-                    converter.snapshot.io = new_snap.io
+                    self.history[converter.id]["snapshots"].append(new_conv_snap)
+                    converter.snapshot.io = new_conv_snap.io
                     self.propagate_output(component=converter)
                     converter.snapshot.state = new_state
             for energy_source in self.vehicle.energy_sources:
@@ -132,13 +132,10 @@ class Simulator():
                     assert isinstance(energy_source.snapshot, (RechargeableBatterySnapshot,
                                                                NonRechargeableBatterySnapshot))
                     energy_source.update_charge(delta_t=self.delta_t)
-                    new_snap = deepcopy(energy_source.snapshot)  # type: ignore
-                    self.history[energy_source.id]["snapshots"].append(new_snap)
+                    new_source_snap = deepcopy(energy_source.snapshot)
+                    self.history[energy_source.id]["snapshots"].append(new_source_snap)
                     energy_source.snapshot.io.output_port.electric_power = 0.0
-            new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot,
-                                                                               delta_t=self.delta_t,
-                                                                               load_torque=load_torque,
-                                                                               downstream_inertia=self.vehicle.drive_train.inertia)
+            new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot)
             self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
             self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
             self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
