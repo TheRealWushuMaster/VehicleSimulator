@@ -1,9 +1,9 @@
 """This module contains definition for the track where the vehicle rides."""
 
 from dataclasses import dataclass
-from math import tan
+from math import tan, atan
 from typing import Optional
-from helpers.functions import degrees_to_radians, estimate_air_density
+from helpers.functions import radians_to_degrees, degrees_to_radians, estimate_air_density
 from simulation.materials import TrackMaterial
 
 
@@ -27,6 +27,15 @@ class TrackSection():
         Returns the altitude derivate at the specified distance.
         """
         raise NotImplementedError
+
+    def angle_degrees(self, d: float) -> Optional[float]:
+        """
+        Returns the angle (in degrees) at the specified point.
+        """
+        derivate = self.altitude_derivate(d=d)
+        if derivate is not None:
+            return round(radians_to_degrees(angle_radians=atan(derivate)), 10)
+        return None
 
     def air_density(self, d: float) -> Optional[float]:
         """
@@ -115,6 +124,15 @@ class Track():
         section_dist = self.find_section(d=d)
         if section_dist is not None:
             return section_dist[0].altitude_derivate(d=d-section_dist[1])
+        return None
+
+    def angle_degrees(self, d: float) -> Optional[float]:
+        """
+        Returns the angle (in degrees) at the specified point.
+        """
+        section_dist = self.find_section(d=d)
+        if section_dist is not None:
+            return section_dist[0].angle_degrees(d=d-section_dist[1])
         return None
 
     def air_density(self, d: float) -> Optional[float]:

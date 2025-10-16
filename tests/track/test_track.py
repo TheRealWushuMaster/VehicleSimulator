@@ -70,3 +70,16 @@ def test_kinetic_friction_coefficient() -> None:
         for d in range(int(test_track.total_length)):
             coefficient = test_track.kinetic_friction_coefficient(d=d)
             assert coefficient == material.value[2]
+
+def test_track_angle() -> None:
+    for material in TrackMaterial:
+        test_track = create_test_track(material=material)
+        for d in range(int(test_track.total_length)):
+            d_p = d + 0.1
+            angle = test_track.angle_degrees(d=d_p)
+            if 0 <= d_p < length:
+                assert angle == 0.0
+            elif length <= d_p < 2*length:
+                assert angle == slope_degrees
+            else:
+                assert angle == 0.0
