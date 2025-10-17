@@ -87,8 +87,8 @@ class SectionResult():
     """
     section: TrackSection
     in_section_d: float
-    remainder: float
     total_d: float
+    remainder: float=0.0
 
 
 @dataclass
@@ -131,36 +131,36 @@ class Track():
         """
         Returns the altitude at the specified distance.
         """
-        section_dist = self.find_section(d=d)
-        if section_dist is not None:
-            return section_dist[0].altitude_value(d=d-section_dist[1])
+        section_result = self.find_section(d=d)
+        if section_result is not None:
+            return section_result.section.altitude_value(d=section_result.in_section_d)
         return None
 
     def altitude_derivate(self, d: float) -> Optional[float]:
         """
         Returns the altitude derivate at the specified distance.
         """
-        section_dist = self.find_section(d=d)
-        if section_dist is not None:
-            return section_dist[0].altitude_derivate(d=d-section_dist[1])
+        section_result = self.find_section(d=d)
+        if section_result is not None:
+            return section_result.section.altitude_derivate(d=section_result.in_section_d)
         return None
 
     def angle_degrees(self, d: float) -> Optional[float]:
         """
         Returns the angle (in degrees) at the specified point.
         """
-        section_dist = self.find_section(d=d)
-        if section_dist is not None:
-            return section_dist[0].angle_degrees(d=d-section_dist[1])
+        section_result = self.find_section(d=d)
+        if section_result is not None:
+            return section_result.section.angle_degrees(d=section_result.in_section_d)
         return None
 
     def air_density(self, d: float) -> Optional[float]:
         """
         Returns the air density at the specified distance.
         """
-        section_dist = self.find_section(d=d)
-        if section_dist is not None:
-            return section_dist[0].air_density(d=d-section_dist[1])
+        section_result = self.find_section(d=d)
+        if section_result is not None:
+            return section_result.section.air_density(d=section_result.in_section_d)
         return None
 
     @property
@@ -175,9 +175,9 @@ class Track():
         Returns the static friction coefficient
         at the specified distance.
         """
-        section_dist = self.find_section(d=d)
-        if section_dist is not None:
-            return section_dist[0].static_friction_coefficient
+        section_result = self.find_section(d=d)
+        if section_result is not None:
+            return section_result.section.static_friction_coefficient
         return None
 
     def kinetic_friction_coefficient(self, d: float) -> Optional[float]:
@@ -185,13 +185,13 @@ class Track():
         Returns the kinetic friction coefficient
         at the specified distance.
         """
-        section_dist = self.find_section(d=d)
-        if section_dist is not None:
-            return section_dist[0].kinetic_friction_coefficient
+        section_result = self.find_section(d=d)
+        if section_result is not None:
+            return section_result.section.kinetic_friction_coefficient
         return None
 
-    def which_section(self, section: TrackSection,
-                      next_one: bool) -> Optional[TrackSection]:
+    def _which_section(self, section: TrackSection,
+                       next_one: bool) -> Optional[TrackSection]:
         """
         Returns the next or previous track section.
         """
@@ -211,15 +211,15 @@ class Track():
         """
         Returns the next track section.
         """
-        return self.which_section(section=section,
-                                  next_one=True)
+        return self._which_section(section=section,
+                                   next_one=True)
 
     def previous_section(self, section: TrackSection) -> Optional[TrackSection]:
         """
         Returns the previous track section.
         """
-        return self.which_section(section=section,
-                                  next_one=False)
+        return self._which_section(section=section,
+                                   next_one=False)
 
     def advance_distance(self, d: float,
                          distance: float) -> Optional[float]:
@@ -230,22 +230,28 @@ class Track():
         section_result = self.find_section(d=d)
         if section_result is None:
             return None
+        base_distance = section_result.total_d - section_result.in_section_d
         new_section_result = section_result.section.advance_distance(d=section_result.in_section_d,
                                                                      distance=distance)
         if new_section_result is None:
             return None
-        if new_section_result.in_section_d >= 0.0:
-            return new_section_result.total_d
-        while new_section_result.in_section_d < 0.0:
+        if new_section_result.remainder == 0.0:
+            return new_section_result.total_d + base_distance
+        while new_section_result.remainder > 0.0:
             if distance > 0.0:
                 new_section = self.next_section(section=new_section_result.section)
+                base_distance += new_section_result.section.horizontal_length
             else:
                 new_section = self.previous_section(section=new_section_result.section)
+                base_distance -= new_section_result.section.horizontal_length
             if new_section is None:
                 return None
-            new_section_result = new_section.advance_distance(d=new_section_result.in_section_d,
-                                                              distance=remainder)
-        return new_d
+            start_dist = 0.0 if distance > 0.0 else new_section.horizontal_length
+            new_section_result = new_section.advance_distance(d=start_dist,
+                                                              distance=new_section_result.remainder)
+            if new_section_result is None:
+                return None
+        return new_section_result.in_section_d + base_distance
 
 
 @dataclass
@@ -276,14 +282,27 @@ class SlopeSection(TrackSection):
                          distance: float) -> Optional[SectionResult]:
         angle = self.angle_degrees(d=d)
         if angle is not None:
-            new_d = d + distance * cos(degrees_to_radians(angle))
-            if new_d <= self.horizontal_length:
+            distance_projected = abs(distance) * cos(degrees_to_radians(angle))
+            if distance >= 0.0:
+                d_max = (self.horizontal_length - d) / cos(degrees_to_radians(angle))
+                if distance <= d_max:
+                    return SectionResult(section=self,
+                                         in_section_d=d+distance_projected,
+                                         total_d=d+distance_projected)
                 return SectionResult(section=self,
-                                     in_section_d=new_d,
-                                     total_d=new_d)
+                                     in_section_d=-1.0,
+                                     total_d=d,
+                                     remainder=distance-d_max)
+            d_max = d / cos(degrees_to_radians(angle))
+            if abs(distance) <= d_max:
+                return SectionResult(section=self,
+                                     in_section_d=d-distance_projected,
+                                     total_d=d-distance_projected)
+            remaining_d = abs(distance) - d_max
             return SectionResult(section=self,
-                                 in_section_d=-1.0,
-                                 total_d=new_d)
+                                 in_section_d=-2.0,
+                                 total_d=d,
+                                 remainder=remaining_d)
         return None
 
 

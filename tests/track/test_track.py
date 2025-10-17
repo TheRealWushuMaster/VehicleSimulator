@@ -87,10 +87,8 @@ def test_track_angle() -> None:
 def test_advance_distance() -> None:
     for material in TrackMaterial:
         test_track = create_test_track(material=material)
-        for distance in range(0, 5):
-            new_d = test_track.advance_distance(d=0.0,
-                                                distance=distance)
-            assert new_d == distance
-            new_d = test_track.advance_distance(d=5.0,
-                                                distance=distance)
-            assert new_d == distance * cos(degrees_to_radians(slope_degrees))
+        d_deg = cos(degrees_to_radians(slope_degrees))
+        for d, c in (3.0, 5.0+d_deg), (8.0, 10+(3-2/d_deg)) , (11.0, 14.0):
+            new_d = test_track.advance_distance(d=d,
+                                                distance=3.0)
+            assert new_d == c
