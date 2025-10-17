@@ -1,9 +1,10 @@
 """This module contains definition for the track where the vehicle rides."""
 
+from __future__ import annotations
 from dataclasses import dataclass
-from math import tan, atan
+from math import tan, cos
 from typing import Optional
-from helpers.functions import radians_to_degrees, degrees_to_radians, estimate_air_density
+from helpers.functions import degrees_to_radians, estimate_air_density
 from simulation.materials import TrackMaterial
 
 
@@ -32,10 +33,7 @@ class TrackSection():
         """
         Returns the angle (in degrees) at the specified point.
         """
-        derivate = self.altitude_derivate(d=d)
-        if derivate is not None:
-            return round(radians_to_degrees(angle_radians=atan(derivate)), 10)
-        return None
+        raise NotImplementedError
 
     def air_density(self, d: float) -> Optional[float]:
         """
@@ -73,6 +71,25 @@ class TrackSection():
         """
         return self.material.value[2]
 
+    def advance_distance(self, d: float,
+                         distance: float) -> Optional[SectionResult]:
+        """
+        Returns the new horizontal coordinate after
+        advancing a certain distance over the track.
+        """
+        raise NotImplementedError
+
+
+@dataclass
+class SectionResult():
+    """
+    Class used for storing results.
+    """
+    section: TrackSection
+    in_section_d: float
+    remainder: float
+    total_d: float
+
 
 @dataclass
 class Track():
@@ -94,7 +111,7 @@ class Track():
             base_alt = self.sections[i-1].altitude_value(d=self.sections[i-1].horizontal_length) - self.sections[i].altitude_value(d=0)  # type: ignore
             self.sections[i].set_base_altitude(base_altitude=base_alt)
 
-    def find_section(self, d: float) -> Optional[tuple[TrackSection, float]]:
+    def find_section(self, d: float) -> Optional[SectionResult]:
         """
         Returns the section of the track corresponding
         to the distance passed as argument.
@@ -104,7 +121,9 @@ class Track():
         dist: float = 0.0
         for section in self.sections:
             if d <= dist + section.horizontal_length:
-                return section, dist
+                return SectionResult(section=section,
+                                     in_section_d=d-dist,
+                                     total_d=d)
             dist += section.horizontal_length
         return None
 
@@ -171,13 +190,70 @@ class Track():
             return section_dist[0].kinetic_friction_coefficient
         return None
 
+    def which_section(self, section: TrackSection,
+                      next_one: bool) -> Optional[TrackSection]:
+        """
+        Returns the next or previous track section.
+        """
+        try:
+            index = self.sections.index(section)
+            if next_one:
+                if index < len(self.sections) - 1:
+                    return self.sections[index + 1]
+                return None
+            if index > 0:
+                return self.sections[index - 1]
+            return None
+        except ValueError:
+            return None
+
+    def next_section(self, section: TrackSection) -> Optional[TrackSection]:
+        """
+        Returns the next track section.
+        """
+        return self.which_section(section=section,
+                                  next_one=True)
+
+    def previous_section(self, section: TrackSection) -> Optional[TrackSection]:
+        """
+        Returns the previous track section.
+        """
+        return self.which_section(section=section,
+                                  next_one=False)
+
+    def advance_distance(self, d: float,
+                         distance: float) -> Optional[float]:
+        """
+        Calculates new positions after advancing
+        a certain distance over the track.
+        """
+        section_result = self.find_section(d=d)
+        if section_result is None:
+            return None
+        new_section_result = section_result.section.advance_distance(d=section_result.in_section_d,
+                                                                     distance=distance)
+        if new_section_result is None:
+            return None
+        if new_section_result.in_section_d >= 0.0:
+            return new_section_result.total_d
+        while new_section_result.in_section_d < 0.0:
+            if distance > 0.0:
+                new_section = self.next_section(section=new_section_result.section)
+            else:
+                new_section = self.previous_section(section=new_section_result.section)
+            if new_section is None:
+                return None
+            new_section_result = new_section.advance_distance(d=new_section_result.in_section_d,
+                                                              distance=remainder)
+        return new_d
+
 
 @dataclass
 class SlopeSection(TrackSection):
     """
     Returns a sloped track section.
     """
-    _slope: float=0.0
+    _slope_degrees: float=0.0
 
     def __init__(self, slope_degrees: float,
                  horizontal_length: float,
@@ -185,13 +261,30 @@ class SlopeSection(TrackSection):
         assert -90.0 < slope_degrees < 90.0
         super().__init__(horizontal_length=horizontal_length,
                          material=material)
-        self._slope = tan(degrees_to_radians(slope_degrees))
+        self._slope_degrees = slope_degrees
 
     def altitude_value(self, d: float) -> float:
-        return d*self._slope + self.base_altitude
+        return d * self.altitude_derivate(d=d) + self.base_altitude
 
     def altitude_derivate(self, d: float) -> float:
-        return self._slope
+        return tan(degrees_to_radians(self._slope_degrees))
+
+    def angle_degrees(self, d: float) -> Optional[float]:
+        return self._slope_degrees
+
+    def advance_distance(self, d: float,
+                         distance: float) -> Optional[SectionResult]:
+        angle = self.angle_degrees(d=d)
+        if angle is not None:
+            new_d = d + distance * cos(degrees_to_radians(angle))
+            if new_d <= self.horizontal_length:
+                return SectionResult(section=self,
+                                     in_section_d=new_d,
+                                     total_d=new_d)
+            return SectionResult(section=self,
+                                 in_section_d=-1.0,
+                                 total_d=new_d)
+        return None
 
 
 @dataclass

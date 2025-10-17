@@ -1,6 +1,6 @@
 """This module contains test routines for the Track class."""
 
-from math import tan
+from math import tan, cos
 from helpers.functions import degrees_to_radians, estimate_air_density
 from simulation.materials import TrackMaterial
 from simulation.track import Track, TrackSection, \
@@ -83,3 +83,14 @@ def test_track_angle() -> None:
                 assert angle == slope_degrees
             else:
                 assert angle == 0.0
+
+def test_advance_distance() -> None:
+    for material in TrackMaterial:
+        test_track = create_test_track(material=material)
+        for distance in range(0, 5):
+            new_d = test_track.advance_distance(d=0.0,
+                                                distance=distance)
+            assert new_d == distance
+            new_d = test_track.advance_distance(d=5.0,
+                                                distance=distance)
+            assert new_d == distance * cos(degrees_to_radians(slope_degrees))
