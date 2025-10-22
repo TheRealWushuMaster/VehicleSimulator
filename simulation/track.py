@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from math import tan, cos
+from math import tan, cos, sin
 from typing import Optional
+from components.drive_train import Wheel
 from helpers.functions import degrees_to_radians, estimate_air_density
 from simulation.materials import TrackMaterial
 
@@ -252,6 +253,32 @@ class Track():
             if new_section_result is None:
                 return None
         return new_section_result.in_section_d + base_distance
+
+    def wheel_contact_point(self, d: float,
+                            wheel: Wheel) -> Optional[float]:
+        """
+        Returns the location of the contact point
+        for a wheel whose center is located in `d`.
+        """
+        section_result = self.find_section(d=d)
+        if section_result is None:
+            return None
+        alpha = section_result.section.angle_degrees(d=d)
+        assert alpha is not None
+        next_section = self.next_section(section=section_result.section)
+        if next_section is None:
+            return None # When section_result is the last section
+        beta = next_section.angle_degrees(d=0.0)
+        assert beta is not None
+        if beta >= alpha:
+            critical_d = wheel.radius * (sin(alpha) + tan((beta-alpha)/2) * cos(alpha))
+            if d + critical_d < section_result.section.horizontal_length:
+                return section_result.total_d + wheel.radius * sin(alpha)
+            return section_result.total_d + critical_d + wheel.radius * tan((beta-alpha)/2) * cos(beta)
+        # If next section slope is less than the previous',
+        # must define if the wheels stay in contact at all
+        # times or if there is any jumping involved.
+        return None
 
 
 @dataclass

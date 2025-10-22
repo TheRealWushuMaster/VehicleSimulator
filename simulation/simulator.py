@@ -26,7 +26,8 @@ class Simulator():
     name: str
     time_steps: int
     delta_t: float
-    control_signal: list[float]
+    throttle_signal: list[float]
+    brake_signal: list[float]
     vehicle: Vehicle
     track: Track
     history: dict[str, dict[str, Any]]
@@ -35,7 +36,8 @@ class Simulator():
     def __init__(self, name: str,
                  time_steps: int,
                  delta_t: float,
-                 control_signal: list[float],
+                 throttle_signal: list[float],
+                 brake_signal: list[float],
                  vehicle: Vehicle,
                  track: Track,
                  precision: int=DEFAULT_PRECISION) -> None:
@@ -45,8 +47,12 @@ class Simulator():
         assert_type_and_range(time_steps, delta_t,
                               more_than=0.0,
                               include_more=False)
-        for control in control_signal:
-            assert_type_and_range(control,
+        for throttle in throttle_signal:
+            assert_type_and_range(throttle,
+                                  more_than=0.0,
+                                  less_than=1.0)
+        for brake in brake_signal:
+            assert_type_and_range(brake,
                                   more_than=0.0,
                                   less_than=1.0)
         assert_type(vehicle,
@@ -56,7 +62,8 @@ class Simulator():
         self.name = name
         self.time_steps = time_steps
         self.delta_t = delta_t
-        self.control_signal = control_signal
+        self.throttle_signal = throttle_signal
+        self.brake_signal = brake_signal
         self.vehicle = vehicle
         self.track = track
         self.history = {}
@@ -112,7 +119,7 @@ class Simulator():
                         load_torque=load_torque,
                         downstream_inertia=inertia,
                         delta_t=self.delta_t,
-                        control_signal=self.control_signal[n],
+                        throttle_signal=self.throttle_signal[n],
                         efficiency=converter.consumption,
                         limits=converter.limits)
                     energy = converter.consumption.compute_in_to_out(snap=new_conv_snap,

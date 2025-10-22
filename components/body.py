@@ -30,7 +30,8 @@ class Body():
     def __post_init__(self):
         assert_range(self.mass, self.occupants_mass, self.height, self.length,
                      self.front_area, self.rear_area, self.axle_distance,
-                     more_than=0.0)
+                     more_than=0.0,
+                     include_more=False)
 
     @property
     def total_body_mass(self):
@@ -38,3 +39,22 @@ class Body():
         Returns the total mass of the body of the vehicle.
         """
         return self.mass + self.occupants_mass
+
+
+def return_body(mass: float,
+                occupants_mass: float,
+                height: float,
+                length: float,
+                front_area: float,
+                rear_area: float,
+                axle_distance: float) -> Body:
+    """
+    Returns an instance of `Body`.
+    """
+    return Body(mass=mass,
+                occupants_mass=occupants_mass,
+                height=height,
+                length=length,
+                front_area=front_area,
+                rear_area=rear_area,
+                axle_distance=axle_distance)

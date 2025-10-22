@@ -50,7 +50,7 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
                         load_torque: float,
                         downstream_inertia: float,
                         delta_t: float,
-                        control_signal: float,
+                        throttle_signal: float,
                         efficiency: ElectricMotorConsumption,
                         limits: ElectricMotorLimits
                         ) -> tuple[ElectricMotorSnapshot,
@@ -65,7 +65,7 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
                     expected_type=ElectricMotorConsumption)
         assert_type(limits,
                     expected_type=ElectricMotorLimits)
-        assert_type_and_range(load_torque, control_signal,
+        assert_type_and_range(load_torque, throttle_signal,
                               more_than=0.0)
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
@@ -74,7 +74,7 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
                                                     load_torque,
                                                     downstream_inertia,
                                                     delta_t,
-                                                    control_signal,
+                                                    throttle_signal,
                                                     efficiency,
                                                     limits)
         return new_snap, new_state
@@ -170,7 +170,7 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
                         load_torque: float,
                         downstream_inertia: float,
                         delta_t: float,
-                        control_signal: float,
+                        throttle_signal: float,
                         fuel_consumption: LiquidCombustionEngineConsumption,
                         limits: LiquidCombustionEngineLimits
                         ) -> tuple[LiquidCombustionEngineSnapshot,
@@ -185,7 +185,7 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
                     expected_type=LiquidCombustionEngineConsumption)
         assert_type(limits,
                     expected_type=LiquidCombustionEngineLimits)
-        assert_type_and_range(load_torque, control_signal,
+        assert_type_and_range(load_torque, throttle_signal,
                               more_than=0.0)
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
@@ -194,7 +194,7 @@ class LiquidCombustionDynamicResponse(BaseDynamicResponse):
                                                     load_torque,
                                                     downstream_inertia,
                                                     delta_t,
-                                                    control_signal,
+                                                    throttle_signal,
                                                     fuel_consumption,
                                                     limits)
         return new_snap, new_state
@@ -227,7 +227,7 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
                         load_torque: float,
                         downstream_inertia: float,
                         delta_t: float,
-                        control_signal: float,
+                        throttle_signal: float,
                         fuel_consumption: GaseousCombustionEngineConsumption,
                         limits: GaseousCombustionEngineLimits
                         ) -> tuple[GaseousCombustionEngineSnapshot,
@@ -242,7 +242,7 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
                     expected_type=GaseousCombustionEngineConsumption)
         assert_type(limits,
                     expected_type=GaseousCombustionEngineLimits)
-        assert_type_and_range(load_torque, control_signal,
+        assert_type_and_range(load_torque, throttle_signal,
                               more_than=0.0)
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
@@ -251,7 +251,7 @@ class GaseousCombustionDynamicResponse(BaseDynamicResponse):
                                                     load_torque,
                                                     downstream_inertia,
                                                     delta_t,
-                                                    control_signal,
+                                                    throttle_signal,
                                                     fuel_consumption,
                                                     limits)
         return new_snap, new_state
