@@ -94,4 +94,3 @@ def return_vehicle_snapshot(throttle: float=0.0,
                            state=VehicleState(position=position,
                                               temperature=temperature,
                                               velocity=velocity))
-
