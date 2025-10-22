@@ -197,7 +197,7 @@ class DriveTrain():
     rear_axle: Axle
     wheel_drive: WheelDrive
     differential: Differential
-    gearbox: GearBox
+    gearbox: Optional[GearBox]
     #planetarygear: Optional[PlanetaryGear]
 
     def __post_init__(self):
@@ -214,15 +214,22 @@ class DriveTrain():
         # assert_type(self.planetarygear,
         #             expected_type=PlanetaryGear,
         #             allow_none=True)
-        assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
         assert isinstance(self.differential.snapshot, GearBoxSnapshot)
+        if self.gearbox is not None:
+            assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
+            self.snapshot = DriveTrainSnapshot(io=GearBoxIO(input_port=self.gearbox.snapshot.io.input_port,  # pylint: disable=E1101
+                                                            output_port=self.differential.snapshot.io.output_port),  # pylint: disable=E1101
+                                               state=PureMechanicalState(input_port=self.gearbox.snapshot.state.input_port,  # pylint: disable=E1101
+                                                                         output_port=self.differential.snapshot.state.output_port,  # pylint: disable=E1101
+                                                                         internal=self.gearbox.snapshot.state.internal))  # pylint: disable=E1101
+        else:
+            self.snapshot = DriveTrainSnapshot(io=GearBoxIO(input_port=self.differential.snapshot.io.input_port,  # pylint: disable=E1101
+                                                            output_port=self.differential.snapshot.io.output_port),  # pylint: disable=E1101
+                                               state=PureMechanicalState(input_port=self.differential.snapshot.state.input_port,  # pylint: disable=E1101
+                                                                         output_port=self.differential.snapshot.state.output_port,  # pylint: disable=E1101
+                                                                         internal=self.differential.snapshot.state.internal))  # pylint: disable=E1101
         self.input = PortBidirectional(exchange=PowerType.MECHANICAL)
         self.output = PortBidirectional(exchange=PowerType.MECHANICAL)
-        self.snapshot = DriveTrainSnapshot(io=GearBoxIO(input_port=self.gearbox.snapshot.io.input_port,  # pylint: disable=E1101
-                                                        output_port=self.differential.snapshot.io.output_port),  # pylint: disable=E1101
-                                           state=PureMechanicalState(input_port=self.gearbox.snapshot.state.input_port,  # pylint: disable=E1101
-                                                                     output_port=self.differential.snapshot.state.output_port,  # pylint: disable=E1101
-                                                                     internal=self.gearbox.snapshot.state.internal))  # pylint: disable=E1101
         self.id = DRIVE_TRAIN_ID
 
     @property
@@ -237,32 +244,52 @@ class DriveTrain():
         else:
             inertia = (self.front_axle.inertia + self.rear_axle.inertia) \
                 * self.differential.gear_ratio**2
-        return inertia * self.gearbox.gear_ratio**2
+        if self.gearbox is not None:
+            return inertia * self.gearbox.gear_ratio**2
+        return inertia
+
+    @property
+    def mass(self) -> float:
+        """
+        Returns the mass of the drive train.
+        """
+        mass = self.front_axle.mass + self.rear_axle.mass + self.differential.mass
+        if self.gearbox is None:
+            return mass
+        return mass + self.gearbox.mass
 
     def process_drive(self, snap: DriveTrainSnapshot) -> tuple[DriveTrainSnapshot,
                                                                PureMechanicalState]:
         """
         Processes the drive train from its input.
         """
-        assert isinstance(self.gearbox, GearBox)
-        assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
-        assert isinstance(self.gearbox.dynamic_response, PureMechanicalDynamicResponse)
-        self.gearbox.snapshot.io.input_port = snap.io.input_port  # pylint: disable=E1101
-        self.gearbox.snapshot.state.input_port = snap.state.input_port  # pylint: disable=E1101
-        gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_forward(snap=self.gearbox.snapshot)  # pylint: disable=E1101
-        self.gearbox.snapshot = gearbox_snap
-        self.gearbox.snapshot.state = gearbox_new_state
         assert isinstance(self.differential.snapshot, GearBoxSnapshot)
         assert isinstance(self.differential.dynamic_response, PureMechanicalDynamicResponse)
-        self.differential.snapshot.io.input_port = gearbox_snap.io.output_port  # pylint: disable=E1101
-        self.differential.snapshot.state.input_port = gearbox_snap.state.output_port    # pylint: disable=E1101
+        if self.gearbox is not None:
+            assert isinstance(self.gearbox, GearBox)
+            assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
+            assert isinstance(self.gearbox.dynamic_response, PureMechanicalDynamicResponse)
+            self.gearbox.snapshot.io.input_port = snap.io.input_port  # pylint: disable=E1101
+            self.gearbox.snapshot.state.input_port = snap.state.input_port  # pylint: disable=E1101
+            gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_forward(snap=self.gearbox.snapshot)  # pylint: disable=E1101
+            self.gearbox.snapshot = gearbox_snap
+            self.gearbox.snapshot.state = gearbox_new_state
+            self.differential.snapshot.io.input_port = gearbox_snap.io.output_port  # pylint: disable=E1101
+            self.differential.snapshot.state.input_port = gearbox_snap.state.output_port    # pylint: disable=E1101
+        else:
+            self.differential.snapshot.io.input_port = snap.io.input_port  # pylint: disable=E1101
+            self.differential.snapshot.state.input_port = snap.state.input_port    # pylint: disable=E1101
         diff_snap, diff_new_state = self.differential.dynamic_response.compute_forward(snap=self.differential.snapshot)  # pylint: disable=E1101
         self.differential.snapshot = diff_snap
         self.differential.snapshot.state = diff_new_state
         new_snap = deepcopy(snap)
-        new_snap.io.input_port = gearbox_snap.io.input_port
+        if self.gearbox is not None:
+            new_snap.io.input_port = gearbox_snap.io.input_port # type: ignore
+            new_snap.state.input_port = gearbox_new_state.input_port # type: ignore
+        else:
+            new_snap.io.input_port = diff_snap.io.input_port
+            new_snap.state.input_port = diff_new_state.input_port
         new_snap.io.output_port = diff_snap.io.output_port
-        new_snap.state.input_port = gearbox_new_state.input_port
         new_snap.state.output_port = diff_new_state.output_port
         return new_snap, new_snap.state
 
@@ -365,7 +392,7 @@ def return_drive_train(front_axle: Axle,
                        rear_axle: Axle,
                        wheel_drive: WheelDrive,
                        differential: Differential,
-                       gearbox: GearBox) -> DriveTrain:
+                       gearbox: Optional[GearBox]=None) -> DriveTrain:
     """
     Returns a full `DriveTrain` object
     by combining each individual component.

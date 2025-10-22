@@ -5,7 +5,7 @@ for the simulation.
 
 from dataclasses import dataclass, field
 from typing import Optional
-#from components.body import Body
+from components.body import Body
 #from components.brake import Brake
 from components.converter import Converter
 from components.drive_train import DriveTrain
@@ -14,6 +14,8 @@ from components.energy_source import EnergySource
 from components.link import Link
 from components.message import MessageStack
 from components.port import PortType
+from components.vehicle_snapshot import VehicleSnapshot
+from helpers.functions import assert_type
 from simulation.constants import DRIVE_TRAIN_ID
 
 
@@ -24,14 +26,28 @@ class Vehicle():
     """
     energy_sources: list[EnergySource]
     converters: list[Converter]
-    #body: Body
+    body: Body
     #brake: Brake
     drive_train: DriveTrain
     links: list[Link]
     #ecu: Optional[ECU]=field(default=None)
     request_stack: MessageStack=field(init=False)
+    snapshot: VehicleSnapshot
 
     def __post_init__(self):
+        for energy_source in self.energy_sources:
+            assert_type(energy_source,
+                        expected_type=EnergySource)
+        for converter in self.converters:
+            assert_type(converter,
+                        expected_type=Converter)
+        assert_type(self.drive_train,
+                    expected_type=DriveTrain)
+        for link in self.links:
+            assert_type(link,
+                        expected_type=Link)
+        assert_type(self.snapshot,
+                    expected_type=VehicleSnapshot)
         self.request_stack = MessageStack()
 
     # def add_ecu(self, ecu: ECU) -> bool:
@@ -152,10 +168,31 @@ class Vehicle():
 
     def find_suppliers_input(self, requester: EnergySource|Converter|DriveTrain
                              ) -> Optional[list[tuple[EnergySource|Converter|DriveTrain, PortType]]]:
+        """
+        Returns suppliers for the `requester` on its input.
+        """
         return self.find_suppliers(requester=requester,
                                    which_port=PortType.INPUT_PORT)
 
     def find_suppliers_output(self, requester: EnergySource|Converter|DriveTrain
                               ) -> Optional[list[tuple[EnergySource|Converter|DriveTrain, PortType]]]:
+        """
+        Returns suppliers for the `requester` on its output.
+        """
         return self.find_suppliers(requester=requester,
                                    which_port=PortType.OUTPUT_PORT)
+
+    @property
+    def total_mass(self) -> float:
+        """
+        Returns the total mass of the vehicle,
+        including components and fuel.
+        """
+        mass: float = 0.0
+        for energy_source in self.energy_sources:
+            mass += energy_source.total_mass
+        for converter in self.converters:
+            mass += converter.mass
+        mass += self.body.mass
+        mass += self.drive_train.mass
+        return mass
