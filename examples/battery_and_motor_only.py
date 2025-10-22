@@ -4,12 +4,14 @@ representation consisting solely of a battery
 and an electric motor running free.
 """
 
+from components.body import return_body
 from components.vehicle import Vehicle
+from components.vehicle_snapshot import return_vehicle_snapshot
 from components.battery import LiPoBattery
 from components.consumption import return_electric_motor_consumption, \
     return_rechargeable_battery_consumption
 from components.drive_train import return_axle, return_differential, \
-    return_drive_train, return_gearbox, return_wheel, WheelDrive
+    return_drive_train, return_wheel, WheelDrive
 from components.dynamic_response import ElectricMotorDynamicResponse
 from components.dynamic_response_curves import ElectricToMechanical, \
     MechanicalToElectric
@@ -22,6 +24,15 @@ from components.motor_curves import \
 from helpers.functions import power_to_torque
 from helpers.types import ElectricSignalType
 from simulation.constants import BATTERY_EFFICIENCY_DEFAULT
+
+# Body configuration
+body_mass: float = 1_000.0
+occupants_mass: float = 2 * 80.0
+vehicle_height: float = 1.6
+vehicle_length: float = 3.0
+vehicle_front_area: float = 2.0
+vehicle_rear_area: float = 2.0
+axle_distance: float = 1.5
 
 # Battery configuration
 bat_nominal_energy: float = 50_000_000.0
@@ -140,7 +151,7 @@ diff_limits = return_mechanical_to_mechanical_limits(
     rel_max_torque_out=lambda s: diff_max_torque_out, rel_min_torque_out=lambda s: diff_min_torque_out,
     rel_max_rpm_out=lambda s: diff_max_rpm_out, rel_min_rpm_out=lambda s: diff_min_rpm_out
 )
-gearbox_limits = diff_limits
+#gearbox_limits = diff_limits
 wheel = return_wheel(radius=wheel_radius,
                      width=wheel_width,
                      mass=wheel_mass,
@@ -154,18 +165,29 @@ differential = return_differential(mass=diff_mass,
                                    gear_ratio=diff_gear_ratio,
                                    efficiency=diff_efficiency,
                                    inertia=diff_inertia)
-gearbox = return_gearbox(mass=gearbox_mass,
-                         limits=gearbox_limits,
-                         gear_ratio=gearbox_gear_ratio,
-                         efficiency=gearbox_efficiency,
-                         inertia=gearbox_inertia)
+# gearbox = return_gearbox(mass=gearbox_mass,
+#                          limits=gearbox_limits,
+#                          gear_ratio=gearbox_gear_ratio,
+#                          efficiency=gearbox_efficiency,
+#                          inertia=gearbox_inertia)
 drive_train = return_drive_train(front_axle=axle,
                                  rear_axle=axle,
                                  wheel_drive=wheel_drive,
                                  differential=differential,
-                                 gearbox=gearbox)
+                                 gearbox=None)
+snapshot = return_vehicle_snapshot(position=0.0,
+                                   velocity=0.0)
+body = return_body(mass=body_mass,
+                   occupants_mass=occupants_mass,
+                   height=vehicle_height,
+                   length=vehicle_length,
+                   front_area=vehicle_front_area,
+                   rear_area=vehicle_rear_area,
+                   axle_distance=axle_distance)
 
 minimalistic_em_vehicle = Vehicle(energy_sources=[battery],
                                   converters=[electric_motor],
+                                  body=body,
                                   drive_train=drive_train,
-                                  links=[bat_motor_link, drivetrain_link])
+                                  links=[bat_motor_link, drivetrain_link],
+                                  snapshot=snapshot)

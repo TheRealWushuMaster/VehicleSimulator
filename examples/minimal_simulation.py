@@ -8,19 +8,21 @@ from simulation.simulator import Simulator
 from examples.battery_and_motor_only import minimalistic_em_vehicle
 from examples.example_tracks import return_flat_track
 
-time_steps: int = 300
-control_signal: list[float] = [1.0] * time_steps
+time_steps: int = 200
+throttle: list[float] = [0.5] * time_steps
+brake: list[float] = [0.0] * time_steps
 
 flat_track = return_flat_track(length=100.0)
 
 simulation = Simulator(name="minimalistic_sim",
                        time_steps=time_steps,
                        delta_t=0.1,
-                       control_signal=control_signal,
+                       throttle_signal=throttle,
+                       brake_signal=brake,
                        vehicle=minimalistic_em_vehicle,
                        track=flat_track,
                        precision=8)
-simulation.simulate(load_torque=100.0)
+simulation.simulate(load_torque=800.0)
 
 results = ResultsManager(simulation=simulation)
 
