@@ -195,7 +195,7 @@ def test_create_electric_motor_response() -> None:
                                                      load_torque=load_torque,
                                                      downstream_inertia=inertia,
                                                      delta_t=delta_t,
-                                                     control_signal=control_signal,
+                                                     throttle_signal=control_signal,
                                                      efficiency=em_consumption,
                                                      limits=em_limits)
     assert fc_snap.io.output_port.torque == (rel_max_torque_out(initial_snap) - rel_min_torque_out(initial_snap)) * control_signal
@@ -251,7 +251,7 @@ def test_create_liquid_combustion_response() -> None:
                                                          load_torque=load_torque,
                                                          downstream_inertia=inertia,
                                                          delta_t=delta_t,
-                                                         control_signal=control_signal,
+                                                         throttle_signal=control_signal,
                                                          fuel_consumption=lc_consumption,
                                                          limits=lc_limits)
         result = fuel_liters_in * delta_t
@@ -277,7 +277,7 @@ def test_create_gaseous_combustion_response() -> None:
                                                          load_torque=load_torque,
                                                          downstream_inertia=inertia,
                                                          delta_t=delta_t,
-                                                         control_signal=control_signal,
+                                                         throttle_signal=control_signal,
                                                          fuel_consumption=gc_consumption,
                                                          limits=gc_limits)
         result = fuel_mass_in * delta_t
