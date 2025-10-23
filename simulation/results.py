@@ -3,19 +3,20 @@
 from collections import defaultdict
 import os
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import pandas as pd
 from simulation.simulator import Simulator
 
 NICE_LABELS: dict[str, tuple[str, str, str]] = {
-    "rpm_in": ("Speed (RPM)", "Input speed", "Input speed (RPM)"),
-    "rpm_out": ("Speed (RPM)", "Output speed", "Output speed (RPM)"),
-    "torque_in": ("Torque (N.m)", "Input torque", "Input torque (N.m)"),
-    "torque_out": ("Torque (N.m)", "Output torque", "Output torque (N.m)"),
-    "power_in": ("Power (W)", "Input power", "Input power (W)"),
-    "power_out": ("Power (W)", "Output power", "Output power (W)"),
+    "rpm_in": ("Speed (%sRPM)", "Input speed", "Input speed (RPM)"),
+    "rpm_out": ("Speed (%sRPM)", "Output speed", "Output speed (RPM)"),
+    "torque_in": ("Torque (%sN.m)", "Input torque", "Input torque (N.m)"),
+    "torque_out": ("Torque (%sN.m)", "Output torque", "Output torque (N.m)"),
+    "power_in": ("Power (%sW)", "Input power", "Input power (W)"),
+    "power_out": ("Power (%sW)", "Output power", "Output power (W)"),
     "temperature": ("Temperature (K)", "Temperature", "Temperature (K)"),
     "on": ("Status (On/Off)", "Status", "Status (On/Off)"),
-    "electric_energy_stored": ("Energy (J)", "Electric energy stored", "Electric energy stored (J)"),
+    "electric_energy_stored": ("Energy (%sJ)", "Electric energy stored", "Electric energy stored (J)"),
     "fuel_liters_in": ("Fuel flow (liters)", "Input fuel flow", "Input fuel flow (liters)"),
     "fuel_liters_out": ("Fuel flow (liters)", "Output fuel flow", "Output fuel flow (liters)"),
     "fuel_liters_stored": ("Fuel stored (liters)", "Fuel stored", "Fuel stored (liters)"),
@@ -26,6 +27,7 @@ NICE_LABELS: dict[str, tuple[str, str, str]] = {
     "sim_time": ("Time (s)", "Time", "Time (s)"),
     "comp_name": ("Component name", "Component name", "Component name"),
     "comp_id": ("Component Id", "Component Id", "Component Id")}
+eng_formatter = ticker.EngFormatter()
 
 
 class ResultsManager():
@@ -68,8 +70,9 @@ class ResultsManager():
         return self.dataframes.get(comp_type, pd.DataFrame())
 
     def plot_all(self, num_cols: int=1,
+                 adjust_scale: bool=True,
                  folder: str="examples/results",
-                 dpi: int=300):
+                 dpi: int=250):
         """
         Plots all DataFrames with subplots per variable.
         """
@@ -101,6 +104,18 @@ class ResultsManager():
                 for ax, col in zip(axes, df_temp.columns):
                     y_label = NICE_LABELS.get(col, col.replace("_", " "))[0]  # type: ignore
                     title = NICE_LABELS.get(col, col.replace("_", " "))[1]  # type: ignore
+                    if "%s" in y_label:
+                        if adjust_scale:
+                            def format_func(x, p):
+                                formatted = eng_formatter(x, p)
+                                return formatted.split()[0] if formatted else ""
+                            ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_func))
+                            max_val = max(abs(df[col].max()), abs(df[col].min()))
+                            sample_label = eng_formatter(max_val, None)
+                            scale = sample_label.split()[1] if len(sample_label.split()) > 1 else ""
+                            y_label = y_label % scale
+                        else:
+                            y_label = y_label % ""
                     ax.set_title(title)
                     ax.set_xlabel("Time (s)")
                     ax.set_ylabel(y_label)
