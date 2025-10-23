@@ -11,6 +11,7 @@ DEFAULT_TEMPERATURE: float = 300.0
 DEFAULT_PRECISION: int = 8
 DRIVE_TRAIN_ID: str = "DriveTrain"
 DRIVE_TRAIN_INPUT_ID: str = "DriveTrainInput"
+VEHICLE_ID: str = "Vehicle"
 GRAVITY: float = 9.81   # m/s²
 AIR_DENSITY_AT_SEA_LEVEL: float = 1.225  # kg/m³
 REFERENCE_ALTITUDE: float = 8_500.0      # For use in air density calculations

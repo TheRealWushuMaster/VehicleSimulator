@@ -127,6 +127,10 @@ def assert_numeric(*args: Any,
 
 # CONVERSIONS
 
+def rpm_to_velocity(rpm: float,
+                    radius: float) -> float:
+    return rpm_to_ang_vel(rpm=rpm) * radius
+
 def rpm_to_ang_vel(rpm: float) -> float:
     """
     Returns the angular velocity for a given rpm value.

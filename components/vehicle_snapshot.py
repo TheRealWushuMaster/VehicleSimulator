@@ -76,6 +76,16 @@ class VehicleSnapshot():
         assert_type(self.state,
                     expected_type=VehicleState)
 
+    @property
+    def to_dict(self) -> dict[str, float]:
+        return {"throttle": self.io.inputs.throttle,
+                "brake": self.io.inputs.brake,
+                "load_torque": self.io.inputs.load_torque,
+                "tractive_torque": self.io.outputs.tractive_torque,
+                "position": self.state.position,
+                "velocity": self.state.velocity,
+                "temperature": self.state.temperature}
+
 
 def return_vehicle_snapshot(throttle: float=0.0,
                             brake: float=0.0,

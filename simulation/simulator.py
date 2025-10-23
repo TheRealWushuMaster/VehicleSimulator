@@ -13,9 +13,10 @@ from components.energy_source import Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
-from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID
+from components.vehicle_snapshot import VehicleSnapshot
+from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, VEHICLE_ID
 from simulation.track import Track
-from helpers.functions import assert_type, assert_type_and_range
+from helpers.functions import assert_type, assert_type_and_range, rpm_to_velocity
 
 
 @dataclass
@@ -95,6 +96,12 @@ class Simulator():
             "comp_type": self.vehicle.drive_train.__class__.__name__,
             "snap_type": self.vehicle.drive_train.snapshot.__class__.__name__
         }
+        self.history[VEHICLE_ID] = {
+            "snapshots": [],
+            "comp_name": "Vehicle",
+            "comp_type": self.vehicle.__class__.__name__,
+            "snap_type": self.vehicle.snapshot.__class__.__name__
+        }
 
     @property
     def precision(self) -> int:
@@ -146,6 +153,11 @@ class Simulator():
             self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
             self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
             self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
+            new_vehicle_snap = self.process_vehicle(throttle=self.throttle_signal[n],
+                                                    brake=self.brake_signal[n],
+                                                    load_torque=load_torque)
+            self.history[self.vehicle.id]["snapshots"].append(new_vehicle_snap)
+            self.vehicle.snapshot = new_vehicle_snap
 
     def propagate_output(self, component: Converter) -> None:
         """
@@ -187,3 +199,22 @@ class Simulator():
             pass # If the request could not be fulfilled,
                  # must update the requester's snapshot
                  # accordingly by recalculating the output.
+
+    def process_vehicle(self, throttle: float,
+                        brake: float,
+                        load_torque: float) -> VehicleSnapshot:
+        """
+        Updates vehicle properties at the time step.
+        """
+        new_snap = deepcopy(self.vehicle.snapshot)
+        new_snap.io.inputs.throttle = throttle
+        new_snap.io.inputs.brake = brake
+        new_snap.io.inputs.load_torque = load_torque
+        new_snap.io.outputs.tractive_torque = self.vehicle.drive_train.snapshot.io.output_port.torque
+        new_snap.state.velocity = rpm_to_velocity(rpm=self.vehicle.drive_train.snapshot.state.output_port.rpm,
+                                                  radius=self.vehicle.drive_train.front_axle.wheel.radius)
+        new_position = self.track.advance_distance(d=self.vehicle.snapshot.state.position,
+                                                   distance=new_snap.state.velocity * self.delta_t)
+        if new_position is not None:
+            new_snap.state.position = new_position
+        return new_snap

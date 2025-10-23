@@ -16,7 +16,7 @@ from components.message import MessageStack
 from components.port import PortType
 from components.vehicle_snapshot import VehicleSnapshot
 from helpers.functions import assert_type
-from simulation.constants import DRIVE_TRAIN_ID
+from simulation.constants import DRIVE_TRAIN_ID, VEHICLE_ID
 
 
 @dataclass
@@ -24,6 +24,7 @@ class Vehicle():
     """
     Combines all vehicle components into a comprehensive model.
     """
+    id: str=field(init=False)
     energy_sources: list[EnergySource]
     converters: list[Converter]
     body: Body
@@ -49,6 +50,7 @@ class Vehicle():
         assert_type(self.snapshot,
                     expected_type=VehicleSnapshot)
         self.request_stack = MessageStack()
+        self.id = VEHICLE_ID
 
     # def add_ecu(self, ecu: ECU) -> bool:
     #     """

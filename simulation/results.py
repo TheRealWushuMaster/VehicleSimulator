@@ -26,7 +26,13 @@ NICE_LABELS: dict[str, tuple[str, str, str]] = {
     "time_step": ("Time step", "Time step", "Time step"),
     "sim_time": ("Time (s)", "Time", "Time (s)"),
     "comp_name": ("Component name", "Component name", "Component name"),
-    "comp_id": ("Component Id", "Component Id", "Component Id")}
+    "comp_id": ("Component Id", "Component Id", "Component Id"),
+    "throttle": ("Throttle", "Throttle", "Throttle"),
+    "brake": ("Brake", "Brake", "Brake"),
+    "load_torque": ("Torque (%sN.m)", "Load torque", "Load torque (N.m)"),
+    "tractive_torque": ("Torque (%sN.m)", "Tractive torque", "Tractive torque (N.m)"),
+    "position": ("Position (%sm)", "Position", "Position (m)"),
+    "velocity": ("Velocity (%sm/s)", "Velocity", "Velocity (m/s)")}
 eng_formatter = ticker.EngFormatter()
 
 
@@ -101,6 +107,8 @@ class ResultsManager():
                                     xlim=(t_min, t_max),
                                     title=f"Simulation data for '{name}'\nType = '{comp_type}'")
                 axes = axes.flatten()
+                fig = axes[0].get_figure()
+                fig.canvas.manager.set_window_title(f"{name} - Simulation results")
                 for ax, col in zip(axes, df_temp.columns):
                     y_label = NICE_LABELS.get(col, col.replace("_", " "))[0]  # type: ignore
                     title = NICE_LABELS.get(col, col.replace("_", " "))[1]  # type: ignore
