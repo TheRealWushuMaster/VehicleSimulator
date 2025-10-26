@@ -12,7 +12,7 @@ time_steps: int = 200
 throttle: list[float] = [0.5] * time_steps
 brake: list[float] = [0.0] * time_steps
 
-flat_track = return_flat_track(length=100.0)
+flat_track = return_flat_track(length=200.0)
 
 simulation = Simulator(name="minimalistic_sim",
                        time_steps=time_steps,

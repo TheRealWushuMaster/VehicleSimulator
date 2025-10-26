@@ -13,12 +13,13 @@ class VehicleInputs():
     throttle: float
     brake: float
     load_torque: float
+    angle: float
 
     def __post_init__(self):
         assert_type_and_range(self.throttle, self.brake,
                               more_than=0.0,
                               less_than=1.0)
-        assert_type_and_range(self.load_torque)
+        assert_type_and_range(self.load_torque, self.angle)
 
 
 @dataclass
@@ -78,9 +79,13 @@ class VehicleSnapshot():
 
     @property
     def to_dict(self) -> dict[str, float]:
+        """
+        Returns the snapshot elements in dictionary form.
+        """
         return {"throttle": self.io.inputs.throttle,
                 "brake": self.io.inputs.brake,
                 "load_torque": self.io.inputs.load_torque,
+                "angle": self.io.inputs.angle,
                 "tractive_torque": self.io.outputs.tractive_torque,
                 "position": self.state.position,
                 "velocity": self.state.velocity,
@@ -90,6 +95,7 @@ class VehicleSnapshot():
 def return_vehicle_snapshot(throttle: float=0.0,
                             brake: float=0.0,
                             load_torque: float=0.0,
+                            angle: float=0.0,
                             tractive_torque: float=0.0,
                             position: float=0.0,
                             temperature: float=DEFAULT_TEMPERATURE,
@@ -99,7 +105,8 @@ def return_vehicle_snapshot(throttle: float=0.0,
     """
     return VehicleSnapshot(io=VehicleIO(inputs=VehicleInputs(throttle=throttle,
                                                              brake=brake,
-                                                             load_torque=load_torque),
+                                                             load_torque=load_torque,
+                                                             angle=angle),
                                         outputs=VehicleOutputs(tractive_torque=tractive_torque)),
                            state=VehicleState(position=position,
                                               temperature=temperature,

@@ -9,11 +9,10 @@ from typing import Any
 from components.component_snapshot import ElectricMotorSnapshot, \
     RechargeableBatterySnapshot, NonRechargeableBatterySnapshot
 from components.converter import Converter
-from components.energy_source import Battery
+from components.energy_source import EnergySource, Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
-from components.vehicle_snapshot import VehicleSnapshot
 from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, VEHICLE_ID
 from simulation.track import Track
 from helpers.functions import assert_type, assert_type_and_range, rpm_to_velocity
@@ -117,49 +116,21 @@ class Simulator():
         """
         for n in range(self.time_steps):
             self.vehicle.request_stack.reset()
+            load_torque = self._track_load_torque()
             for converter in self.vehicle.converters:
-                if isinstance(converter, ElectricMotor):
-                    assert isinstance(converter.snapshot, ElectricMotorSnapshot)
-                    inertia = self.vehicle.downstream_inertia(component_id=converter.id)
-                    new_conv_snap, new_state = converter.dynamic_response.compute_forward(
-                        snap=converter.snapshot,
-                        load_torque=load_torque,
-                        downstream_inertia=inertia,
-                        delta_t=self.delta_t,
-                        throttle_signal=self.throttle_signal[n],
-                        efficiency=converter.consumption,
-                        limits=converter.limits)
-                    energy = converter.consumption.compute_in_to_out(snap=new_conv_snap,
-                                                                     delta_t=self.delta_t)
-                    power = energy / self.delta_t
-                    if power > 0.0:
-                        if self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
-                                                                                         from_port=converter.input,
-                                                                                         requested=power)):
-                            self.resolve_stack()
-                    self.history[converter.id]["snapshots"].append(new_conv_snap)
-                    converter.snapshot.io = new_conv_snap.io
-                    self.propagate_output(component=converter)
-                    converter.snapshot.state = new_state
+                self._process_converter(converter=converter,
+                                        load_torque=load_torque,
+                                        n=n)
             for energy_source in self.vehicle.energy_sources:
-                if isinstance(energy_source, Battery):
-                    assert isinstance(energy_source.snapshot, (RechargeableBatterySnapshot,
-                                                               NonRechargeableBatterySnapshot))
-                    energy_source.update_charge(delta_t=self.delta_t)
-                    new_source_snap = deepcopy(energy_source.snapshot)
-                    self.history[energy_source.id]["snapshots"].append(new_source_snap)
-                    energy_source.snapshot.io.output_port.electric_power = 0.0
-            new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot)
-            self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
-            self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
-            self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
-            new_vehicle_snap = self.process_vehicle(throttle=self.throttle_signal[n],
-                                                    brake=self.brake_signal[n],
-                                                    load_torque=load_torque)
-            self.history[self.vehicle.id]["snapshots"].append(new_vehicle_snap)
-            self.vehicle.snapshot = new_vehicle_snap
+                self._process_energy_source(energy_source=energy_source)
+            self._process_drive_train()
+            self._process_vehicle(n=n,
+                                  load_torque=load_torque)
 
-    def propagate_output(self, component: Converter) -> None:
+    def _track_load_torque(self) -> float:
+        raise NotImplementedError
+
+    def _propagate_output(self, component: Converter) -> None:
         """
         Propagates an output of a converter to the inputs
         of all components connected to it via its output.
@@ -173,7 +144,7 @@ class Simulator():
             comp.snapshot.io.input_port = out_io   # type: ignore
             comp.snapshot.state.input_port = out_st # type: ignore
 
-    def resolve_stack(self) -> None:
+    def _resolve_stack(self) -> None:
         """
         Attempts to resolve any pending resource requests.
         """
@@ -200,15 +171,56 @@ class Simulator():
                  # must update the requester's snapshot
                  # accordingly by recalculating the output.
 
-    def process_vehicle(self, throttle: float,
-                        brake: float,
-                        load_torque: float) -> VehicleSnapshot:
+    def _process_converter(self, converter: Converter,
+                           load_torque: float,
+                           n: int) -> None:
+        if isinstance(converter, ElectricMotor):
+            assert isinstance(converter.snapshot, ElectricMotorSnapshot)
+            inertia = self.vehicle.downstream_inertia(component_id=converter.id)
+            new_conv_snap, new_state = converter.dynamic_response.compute_forward(
+                snap=converter.snapshot,
+                load_torque=load_torque,
+                downstream_inertia=inertia,
+                delta_t=self.delta_t,
+                throttle_signal=self.throttle_signal[n],
+                efficiency=converter.consumption,
+                limits=converter.limits)
+            energy = converter.consumption.compute_in_to_out(snap=new_conv_snap,
+                                                                delta_t=self.delta_t)
+            power = energy / self.delta_t
+            if power > 0.0:
+                if self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
+                                                                                    from_port=converter.input,
+                                                                                    requested=power)):
+                    self._resolve_stack()
+            self.history[converter.id]["snapshots"].append(new_conv_snap)
+            converter.snapshot.io = new_conv_snap.io
+            self._propagate_output(component=converter)
+            converter.snapshot.state = new_state
+
+    def _process_energy_source(self, energy_source: EnergySource) -> None:
+        if isinstance(energy_source, Battery):
+            assert isinstance(energy_source.snapshot, (RechargeableBatterySnapshot,
+                                                        NonRechargeableBatterySnapshot))
+            energy_source.update_charge(delta_t=self.delta_t)
+            new_source_snap = deepcopy(energy_source.snapshot)
+            self.history[energy_source.id]["snapshots"].append(new_source_snap)
+            energy_source.snapshot.io.output_port.electric_power = 0.0
+
+    def _process_drive_train(self) -> None:
+        new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot)
+        self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
+        self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
+        self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
+
+    def _process_vehicle(self, n: int,
+                         load_torque: float) -> None:
         """
         Updates vehicle properties at the time step.
         """
         new_snap = deepcopy(self.vehicle.snapshot)
-        new_snap.io.inputs.throttle = throttle
-        new_snap.io.inputs.brake = brake
+        new_snap.io.inputs.throttle = self.throttle_signal[n]
+        new_snap.io.inputs.brake = self.brake_signal[n]
         new_snap.io.inputs.load_torque = load_torque
         new_snap.io.outputs.tractive_torque = self.vehicle.drive_train.snapshot.io.output_port.torque
         new_snap.state.velocity = rpm_to_velocity(rpm=self.vehicle.drive_train.snapshot.state.output_port.rpm,
@@ -217,4 +229,8 @@ class Simulator():
                                                    distance=new_snap.state.velocity * self.delta_t)
         if new_position is not None:
             new_snap.state.position = new_position
-        return new_snap
+        self.history[self.vehicle.id]["snapshots"].append(new_snap)
+        self.vehicle.snapshot = new_snap
+
+    def vehicle_angle(self) -> float:
+        raise NotImplementedError
