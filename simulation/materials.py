@@ -2,7 +2,7 @@
 
 from enum import Enum
 from simulation.constants import  STATIC_FRICTION_COEFFICIENTS, \
-    KINETIC_FRICTION_COEFFICIENTS
+    KINETIC_FRICTION_COEFFICIENTS, ROLLING_RESISTANCE_COEFFICIENTS
 
 
 class TrackMaterial(Enum):
@@ -11,31 +11,41 @@ class TrackMaterial(Enum):
     """
     DRY_ASPHALT = ("Dry asphalt",
                    STATIC_FRICTION_COEFFICIENTS["Dry asphalt"],
-                   KINETIC_FRICTION_COEFFICIENTS["Dry asphalt"])
+                   KINETIC_FRICTION_COEFFICIENTS["Dry asphalt"],
+                   ROLLING_RESISTANCE_COEFFICIENTS["Dry asphalt"])
     WET_ASPHALT = ("Wet asphalt",
                    STATIC_FRICTION_COEFFICIENTS["Wet asphalt"],
-                   KINETIC_FRICTION_COEFFICIENTS["Wet asphalt"])
+                   KINETIC_FRICTION_COEFFICIENTS["Wet asphalt"],
+                   ROLLING_RESISTANCE_COEFFICIENTS["Wet asphalt"])
     ICY_ASPHALT = ("Icy asphalt",
                    STATIC_FRICTION_COEFFICIENTS["Icy asphalt"],
-                   KINETIC_FRICTION_COEFFICIENTS["Icy asphalt"])
+                   KINETIC_FRICTION_COEFFICIENTS["Icy asphalt"],
+                   ROLLING_RESISTANCE_COEFFICIENTS["Icy asphalt"])
     DRY_CONCRETE = ("Dry concrete",
                     STATIC_FRICTION_COEFFICIENTS["Dry concrete"],
-                    KINETIC_FRICTION_COEFFICIENTS["Dry concrete"])
+                    KINETIC_FRICTION_COEFFICIENTS["Dry concrete"],
+                    ROLLING_RESISTANCE_COEFFICIENTS["Dry concrete"])
     WET_CONCRETE = ("Wet concrete",
                     STATIC_FRICTION_COEFFICIENTS["Wet concrete"],
-                    KINETIC_FRICTION_COEFFICIENTS["Wet concrete"])
+                    KINETIC_FRICTION_COEFFICIENTS["Wet concrete"],
+                    ROLLING_RESISTANCE_COEFFICIENTS["Wet concrete"])
     LOOSE_GRAVEL = ("Loose gravel",
                     STATIC_FRICTION_COEFFICIENTS["Loose gravel"],
-                    KINETIC_FRICTION_COEFFICIENTS["Loose gravel"])
+                    KINETIC_FRICTION_COEFFICIENTS["Loose gravel"],
+                    ROLLING_RESISTANCE_COEFFICIENTS["Loose gravel"])
     COMPACTED_GRAVEL = ("Compacted gravel",
                         STATIC_FRICTION_COEFFICIENTS["Compacted gravel"],
-                        KINETIC_FRICTION_COEFFICIENTS["Compacted gravel"])
+                        KINETIC_FRICTION_COEFFICIENTS["Compacted gravel"],
+                        ROLLING_RESISTANCE_COEFFICIENTS["Compacted gravel"])
     DRY_DIRT = ("Dry dirt",
                 STATIC_FRICTION_COEFFICIENTS["Dry dirt"],
-                KINETIC_FRICTION_COEFFICIENTS["Dry dirt"])
+                KINETIC_FRICTION_COEFFICIENTS["Dry dirt"],
+                ROLLING_RESISTANCE_COEFFICIENTS["Dry dirt"])
     WET_DIRT = ("Wet dirt",
                 STATIC_FRICTION_COEFFICIENTS["Wet dirt"],
-                KINETIC_FRICTION_COEFFICIENTS["Wet dirt"])
+                KINETIC_FRICTION_COEFFICIENTS["Wet dirt"],
+                ROLLING_RESISTANCE_COEFFICIENTS["Wet dirt"])
     HARD_PACKED_DIRT = ("Hard-packed dirt",
                         STATIC_FRICTION_COEFFICIENTS["Hard-packed dirt"],
-                        KINETIC_FRICTION_COEFFICIENTS["Hard-packed dirt"])
+                        KINETIC_FRICTION_COEFFICIENTS["Hard-packed dirt"],
+                        ROLLING_RESISTANCE_COEFFICIENTS["Hard-packed dirt"])

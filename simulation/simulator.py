@@ -34,6 +34,7 @@ class Simulator():
     track: Track
     history: dict[str, dict[str, Any]]
     _precision: int=DEFAULT_PRECISION
+    can_slip: bool=False
 
     def __init__(self, name: str,
                  time_steps: int,
@@ -42,7 +43,8 @@ class Simulator():
                  brake_signal: list[float],
                  vehicle: Vehicle,
                  track: Track,
-                 precision: int=DEFAULT_PRECISION) -> None:
+                 precision: int=DEFAULT_PRECISION,
+                 can_slip: bool=False) -> None:
         assert len(name) > 0
         assert_type(time_steps,
                     expected_type=int)
@@ -59,6 +61,8 @@ class Simulator():
                                   less_than=1.0)
         assert_type(vehicle,
                     expected_type=Vehicle)
+        assert_type(can_slip,
+                    expected_type=bool)
         assert isinstance(precision, int)
         precision = max(precision, -1)
         self.name = name
@@ -70,6 +74,7 @@ class Simulator():
         self.track = track
         self.history = {}
         self._precision = precision
+        self.can_slip = can_slip
         self._create_history_structure()
 
     def _create_history_structure(self) -> None:
@@ -104,13 +109,6 @@ class Simulator():
             "snap_type": self.vehicle.snapshot.__class__.__name__
         }
 
-    @property
-    def precision(self) -> int:
-        """
-        Returns the default precision.
-        """
-        return self._precision
-
     def simulate(self, load_torque: float) -> None:
         """
         Simulates all time steps and stores state
@@ -118,7 +116,7 @@ class Simulator():
         """
         for n in range(self.time_steps):
             self.vehicle.request_stack.reset()
-            load_torque = self._track_load_torque()
+            #load_torque = self._track_load_torque()
             for converter in self.vehicle.converters:
                 self._process_converter(converter=converter,
                                         load_torque=load_torque,
@@ -138,26 +136,37 @@ class Simulator():
                                                axle_distance=self.vehicle.body.axle_distance,
                                                front_wheel=self.vehicle.drive_train.front_axle.wheel,
                                                rear_wheel=self.vehicle.drive_train.rear_axle.wheel)
+        front_static_friction_coefficient = self.track.static_friction_coefficient(d=front_contact)
+        front_kinetic_friction_coefficient = self.track.kinetic_friction_coefficient(d=front_contact)
+        front_rolling_resistance_coefficient = self.track.rolling_resistance_coefficient(d=front_contact)
         if rear_d is None:
             return 0.0
         rear_contact = self.track.wheel_contact_point(d=rear_d,
                                                       wheel=self.vehicle.drive_train.rear_axle.wheel)
-        assert rear_contact is not None
+        rear_static_friction_coefficient = self.track.static_friction_coefficient(d=rear_contact)
+        rear_kinetic_friction_coefficient = self.track.kinetic_friction_coefficient(d=rear_contact)
+        rear_rolling_resistance_coefficient = self.track.rolling_resistance_coefficient(d=rear_contact)
         vehicle_weight = self.vehicle.total_mass * GRAVITY
         rear_weight = vehicle_weight * self.vehicle.body.cg_location
+        rear_weight_per_wheel = rear_weight / self.vehicle.drive_train.rear_axle.num_wheels
         front_weight = vehicle_weight - rear_weight
+        front_weight_per_wheel = front_weight / self.vehicle.drive_train.front_axle.num_wheels
         drag_force = self.drag_force()
         front_angle = self.track.angle_degrees(d=front_contact)
         assert front_angle is not None
         rear_angle = self.track.angle_degrees(d=rear_contact)
         assert rear_angle is not None
-        front_normal = front_weight * cos(front_angle)
-        front_longitudinal = - front_weight * sin(front_angle)
-        rear_normal = rear_weight * cos(rear_angle)
-        rear_longitudinal = - rear_weight * sin(rear_angle)
+        front_normal_per_wheel = front_weight_per_wheel * cos(front_angle)
+        front_longitudinal_per_wheel = - front_weight_per_wheel * sin(front_angle)
+        rear_normal_per_wheel = rear_weight_per_wheel * cos(rear_angle)
+        rear_longitudinal_per_wheel = - rear_weight_per_wheel * sin(rear_angle)
         
+        front_torque_rolling_per_wheel = front_rolling_resistance_coefficient * front_normal_per_wheel
+        rear_torque_rolling_per_wheel = rear_rolling_resistance_coefficient * rear_normal_per_wheel
+
+        front_torque_gradient = front_longitudinal_per_wheel
+        rear_torque_gradient = 0.0
         return 0.0
-        
 
     def _propagate_output(self, component: Converter) -> None:
         """
@@ -336,3 +345,10 @@ class Simulator():
             for load_comp in downstream_components:
                 pass
         return 0.0
+
+    @property
+    def precision(self) -> int:
+        """
+        Returns the default precision.
+        """
+        return self._precision

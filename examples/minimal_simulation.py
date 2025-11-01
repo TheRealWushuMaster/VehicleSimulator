@@ -21,7 +21,8 @@ simulation = Simulator(name="minimalistic_sim",
                        brake_signal=brake,
                        vehicle=minimalistic_em_vehicle,
                        track=flat_track,
-                       precision=8)
+                       precision=8,
+                       can_slip=False)
 simulation.simulate(load_torque=800.0)
 
 results = ResultsManager(simulation=simulation)

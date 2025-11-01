@@ -78,6 +78,13 @@ class TrackSection():
         """
         return self.material.value[2]
 
+    @property
+    def rolling_resistance_coefficient(self) -> float:
+        """
+            Returns the rolling resistance coefficient value.
+            """
+        return self.material.value[3]
+
 
 @dataclass
 class SectionResult():
@@ -179,6 +186,14 @@ class Track():
         """
         section_result = self.find_section(d=d)
         return section_result.section.kinetic_friction_coefficient
+
+    def rolling_resistance_coefficient(self, d: float) -> float:
+        """
+        Returns the rolling resistance
+        coefficient at the specified distance.
+        """
+        section_result = self.find_section(d=d)
+        return section_result.section.rolling_resistance_coefficient
 
     def _which_section(self, section: TrackSection,
                        next_one: bool) -> Optional[TrackSection]:

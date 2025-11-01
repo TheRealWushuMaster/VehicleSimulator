@@ -88,6 +88,12 @@ class Axle():
         """
         return self._mass + self.wheel.mass * self._num_wheels
 
+    @property
+    def num_wheels(self) -> int:
+        """
+        Returns the number of wheels on the axle.
+        """
+        return self._num_wheels
 
 
 @dataclass

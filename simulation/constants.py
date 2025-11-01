@@ -31,6 +31,16 @@ STATIC_FRICTION_COEFFICIENTS: dict[str, float] = {"Dry asphalt": 0.80,
 KINETIC_FRICTION_COEFFICIENTS: dict[str, float] = {}
 for key, value in STATIC_FRICTION_COEFFICIENTS.items():
     KINETIC_FRICTION_COEFFICIENTS[key] = round(KINETIC_PERCENTAGE * value, DEFAULT_PRECISION)
+ROLLING_RESISTANCE_COEFFICIENTS: dict[str, float] = {"Dry asphalt": 0.015,
+                                                     "Wet asphalt": 0.015,
+                                                     "Icy asphalt": 0.015,
+                                                     "Dry concrete": 0.015,
+                                                     "Wet concrete": 0.015,
+                                                     "Loose gravel": 0.015,
+                                                     "Compacted gravel": 0.015,
+                                                     "Dry dirt": 0.015,
+                                                     "Wet dirt": 0.015,
+                                                     "Hard-packed dirt": 0.015}
 
 # Energy conversion
 KWH_TO_JOULES: float = 3.6e6
