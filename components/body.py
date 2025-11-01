@@ -2,7 +2,7 @@
 properties of the body of the vehicle."""
 
 from dataclasses import dataclass
-from helpers.functions import assert_range
+from helpers.functions import assert_range, assert_type_and_range
 
 @dataclass
 class Body():
@@ -26,12 +26,18 @@ class Body():
     front_area: float
     rear_area: float
     axle_distance: float
+    cg_location: float  # Percentage of axle distance, zero = front axle
+    drag_coefficient: float
 
     def __post_init__(self):
         assert_range(self.mass, self.occupants_mass, self.height, self.length,
                      self.front_area, self.rear_area, self.axle_distance,
+                     self.drag_coefficient,
                      more_than=0.0,
                      include_more=False)
+        assert_type_and_range(self.cg_location,
+                              more_than=0.0,
+                              less_than=1.0)
 
     @property
     def total_body_mass(self):
@@ -47,7 +53,9 @@ def return_body(mass: float,
                 length: float,
                 front_area: float,
                 rear_area: float,
-                axle_distance: float) -> Body:
+                axle_distance: float,
+                cg_location: float,
+                drag_coefficient: float) -> Body:
     """
     Returns an instance of `Body`.
     """
@@ -57,4 +65,6 @@ def return_body(mass: float,
                 length=length,
                 front_area=front_area,
                 rear_area=rear_area,
-                axle_distance=axle_distance)
+                axle_distance=axle_distance,
+                cg_location=cg_location,
+                drag_coefficient=drag_coefficient)

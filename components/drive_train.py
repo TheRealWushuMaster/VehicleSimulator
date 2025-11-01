@@ -327,6 +327,13 @@ class DriveTrain():
             return PortType.OUTPUT_PORT
         return None
 
+    @property
+    def reversible(self) -> bool:
+        """
+        Returns the `DriveTrain` as reversible.
+        """
+        return True
+
 
 # =====================
 # CONVENIENCE FUNCTIONS

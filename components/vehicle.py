@@ -198,3 +198,31 @@ class Vehicle():
         mass += self.body.mass
         mass += self.drive_train.mass
         return mass
+
+    def get_input_load_torque(self, component: EnergySource|Converter|DriveTrain
+                              ) -> Optional[float]:
+        """
+        Returns the load torque as seen
+        upstream from the component's input.
+        """
+        if not component.reversible:
+            return None
+        if isinstance(component, DriveTrain):
+            pass
+        downstream_components = self.find_suppliers_output(requester=component)
+        if downstream_components is not None:
+            for load_comp in downstream_components:
+                pass
+        return 0.0
+
+    def get_output_load_torque(self, component: EnergySource|Converter|DriveTrain
+                               ) -> float:
+        """
+        Returns the load torque as seen 
+        downstream from the component's output.
+        """
+        downstream_components = self.find_suppliers_output(requester=component)
+        if downstream_components is not None:
+            for load_comp in downstream_components:
+                pass
+        return 0.0

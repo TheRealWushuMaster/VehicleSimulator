@@ -94,6 +94,13 @@ class EnergySource(ABC):
         raise NotImplementedError
 
     @property
+    def reversible(self) -> bool:
+        """
+        Returns whether the energy source is reversible.
+        """
+        raise NotImplementedError
+
+    @property
     def total_mass(self) -> float:
         """
         Returns the total mass of the power source.
@@ -282,6 +289,13 @@ class BatteryRechargeable(Battery["RechargeableBatteryConsumption",
             min_val=0.0,
             max_val=self.max_energy)
 
+    @property
+    def reversible(self) -> bool:
+        """
+        Returns whether the energy source is reversible.
+        """
+        return True
+
 
 @dataclass
 class BatteryNonRechargeable(Battery["NonRechargeableBatteryConsumption",
@@ -320,6 +334,13 @@ class BatteryNonRechargeable(Battery["NonRechargeableBatteryConsumption",
         deliverable: float = self.max_power - self.snapshot.io.output_port.electric_power
         self.snapshot.io.output_port.electric_power += min(deliverable, amount)
         return self.snapshot.io.output_port.electric_power
+
+    @property
+    def reversible(self) -> bool:
+        """
+        Returns whether the energy source is reversible.
+        """
+        return False
 
 
 @dataclass
@@ -373,6 +394,13 @@ class FuelTank(EnergySource):
         Returns the total mass of the fuel tank.
         """
         return self.system_mass + self.fuel_mass
+
+    @property
+    def reversible(self) -> bool:
+        """
+        Returns whether the energy source is reversible.
+        """
+        return False
 
 
 @dataclass

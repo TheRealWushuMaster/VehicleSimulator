@@ -33,6 +33,8 @@ vehicle_length: float = 3.0
 vehicle_front_area: float = 2.0
 vehicle_rear_area: float = 2.0
 axle_distance: float = 1.5
+cg_location: float = 0.5
+drag_coefficient: float = 0.5
 
 # Battery configuration
 bat_nominal_energy: float = 50_000_000.0
@@ -183,7 +185,9 @@ body = return_body(mass=body_mass,
                    length=vehicle_length,
                    front_area=vehicle_front_area,
                    rear_area=vehicle_rear_area,
-                   axle_distance=axle_distance)
+                   axle_distance=axle_distance,
+                   cg_location=cg_location,
+                   drag_coefficient=drag_coefficient)
 
 minimalistic_em_vehicle = Vehicle(energy_sources=[battery],
                                   converters=[electric_motor],

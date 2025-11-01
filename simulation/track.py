@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import tan, cos, sin
 from typing import Optional
 from components.drive_train import Wheel
-from helpers.functions import degrees_to_radians, estimate_air_density
+from helpers.functions import degrees_to_radians, estimate_air_density, clamp
 from simulation.materials import TrackMaterial
 
 
@@ -18,32 +18,44 @@ class TrackSection():
     material: TrackMaterial
     _base_altitude: float=0.0
 
-    def altitude_value(self, d: float) -> Optional[float]:
+    def altitude_value(self, d: float) -> float:
         """
         Returns the altitude at the specified distance.
         """
         raise NotImplementedError
 
-    def altitude_derivate(self, d: float) -> Optional[float]:
+    def altitude_derivate(self, d: float) -> float:
         """
         Returns the altitude derivate at the specified distance.
         """
         raise NotImplementedError
 
-    def angle_degrees(self, d: float) -> Optional[float]:
+    def angle_degrees(self, d: float) -> float:
         """
         Returns the angle (in degrees) at the specified point.
         """
         raise NotImplementedError
 
-    def air_density(self, d: float) -> Optional[float]:
+    def air_density(self, d: float) -> float:
         """
         Returns the air density at the specified altitude.
         """
         altitude = self.altitude_value(d=d)
-        if altitude is not None:
-            return estimate_air_density(altitude=altitude)
-        return None
+        return estimate_air_density(altitude=altitude)
+
+    def advance_distance(self, d: float,
+                         distance: float) -> Optional[SectionResult]:
+        """
+        Returns the new horizontal coordinate after
+        advancing a certain distance over the track.
+        """
+        raise NotImplementedError
+
+    def set_base_altitude(self, base_altitude: float) -> None:
+        """
+        Sets a new base altitude for the track section.
+        """
+        self._base_altitude = base_altitude
 
     @property
     def base_altitude(self) -> float:
@@ -51,12 +63,6 @@ class TrackSection():
         Returns the base altitude of the track section.
         """
         return self._base_altitude
-
-    def set_base_altitude(self, base_altitude: float) -> None:
-        """
-        Sets a new base altitude for the track section.
-        """
-        self._base_altitude = base_altitude
 
     @property
     def static_friction_coefficient(self) -> float:
@@ -71,14 +77,6 @@ class TrackSection():
         Returns the kinetic friction coefficient value.
         """
         return self.material.value[2]
-
-    def advance_distance(self, d: float,
-                         distance: float) -> Optional[SectionResult]:
-        """
-        Returns the new horizontal coordinate after
-        advancing a certain distance over the track.
-        """
-        raise NotImplementedError
 
 
 @dataclass
@@ -109,87 +107,78 @@ class Track():
     def _adjust_base_altitudes(self, base_altitude: float) -> None:
         self.sections[0].set_base_altitude(base_altitude=base_altitude)
         for i in range(1, len(self.sections)):
-            base_alt = self.sections[i-1].altitude_value(d=self.sections[i-1].horizontal_length) - self.sections[i].altitude_value(d=0)  # type: ignore
+            base_alt = self.sections[i-1].altitude_value(d=self.sections[i-1].horizontal_length) - self.sections[i].altitude_value(d=0)
             self.sections[i].set_base_altitude(base_altitude=base_alt)
 
-    def find_section(self, d: float) -> Optional[SectionResult]:
+    def find_section(self, d: float) -> SectionResult:
         """
         Returns the section of the track corresponding
         to the distance passed as argument.
         """
-        if not 0 <= d <= self.total_length:
-            return None
+        if d < 0.0:
+            return SectionResult(section=self.sections[0],
+                                 in_section_d=d,
+                                 total_d=d)
+        if d > self.total_length:
+            d_temp: float = sum(section.horizontal_length
+                                for section in self.sections[:-1])
+            return SectionResult(section=self.sections[-1],
+                                 in_section_d=d - d_temp,
+                                 total_d=d)
         dist: float = 0.0
         for section in self.sections:
             if d <= dist + section.horizontal_length:
                 return SectionResult(section=section,
-                                     in_section_d=d-dist,
+                                     in_section_d=d - dist,
                                      total_d=d)
             dist += section.horizontal_length
-        return None
+        return SectionResult(section=self.sections[-1],
+                             in_section_d=d,
+                             total_d=d)
 
-    def altitude_value(self, d: float) -> Optional[float]:
+    def altitude_value(self, d: float) -> float:
         """
         Returns the altitude at the specified distance.
         """
         section_result = self.find_section(d=d)
-        if section_result is not None:
-            return section_result.section.altitude_value(d=section_result.in_section_d)
-        return None
+        return section_result.section.altitude_value(d=section_result.in_section_d)
 
-    def altitude_derivate(self, d: float) -> Optional[float]:
+    def altitude_derivate(self, d: float) -> float:
         """
         Returns the altitude derivate at the specified distance.
         """
         section_result = self.find_section(d=d)
-        if section_result is not None:
-            return section_result.section.altitude_derivate(d=section_result.in_section_d)
-        return None
+        return section_result.section.altitude_derivate(d=section_result.in_section_d)
 
-    def angle_degrees(self, d: float) -> Optional[float]:
+    def angle_degrees(self, d: float) -> float:
         """
         Returns the angle (in degrees) at the specified point.
         """
         section_result = self.find_section(d=d)
-        if section_result is not None:
-            return section_result.section.angle_degrees(d=section_result.in_section_d)
-        return None
+        return section_result.section.angle_degrees(d=section_result.in_section_d)
 
-    def air_density(self, d: float) -> Optional[float]:
+    def air_density(self, d: float) -> float:
         """
         Returns the air density at the specified distance.
         """
         section_result = self.find_section(d=d)
-        if section_result is not None:
-            return section_result.section.air_density(d=section_result.in_section_d)
-        return None
+        return section_result.section.air_density(d=section_result.in_section_d)
 
-    @property
-    def total_length(self) -> float:
-        """
-        Returns the total length of the track.
-        """
-        return sum(section.horizontal_length for section in self.sections)
-
-    def static_friction_coefficient(self, d: float) -> Optional[float]:
+    def static_friction_coefficient(self, d: float) -> float:
         """
         Returns the static friction coefficient
         at the specified distance.
         """
         section_result = self.find_section(d=d)
-        if section_result is not None:
-            return section_result.section.static_friction_coefficient
-        return None
+        return section_result.section.static_friction_coefficient
 
-    def kinetic_friction_coefficient(self, d: float) -> Optional[float]:
+    def kinetic_friction_coefficient(self, d: float) -> float:
         """
         Returns the kinetic friction coefficient
         at the specified distance.
         """
         section_result = self.find_section(d=d)
-        if section_result is not None:
-            return section_result.section.kinetic_friction_coefficient
-        return None
+        return section_result.section.kinetic_friction_coefficient
 
     def _which_section(self, section: TrackSection,
                        next_one: bool) -> Optional[TrackSection]:
@@ -201,10 +190,10 @@ class Track():
             if next_one:
                 if index < len(self.sections) - 1:
                     return self.sections[index + 1]
-                return None
+                return self.sections[-1]
             if index > 0:
                 return self.sections[index - 1]
-            return None
+            return self.sections[0]
         except ValueError:
             return None
 
@@ -255,19 +244,15 @@ class Track():
         return new_section_result.in_section_d + base_distance
 
     def wheel_contact_point(self, d: float,
-                            wheel: Wheel) -> Optional[float]:
+                            wheel: Wheel) -> float:
         """
         Returns the location of the contact point
         for a wheel whose center is located in `d`.
         """
         section_result = self.find_section(d=d)
-        if section_result is None:
-            return None
-        alpha = section_result.section.angle_degrees(d=d)
-        assert alpha is not None
+        alpha = section_result.section.angle_degrees(d=section_result.in_section_d)
         next_section = self.next_section(section=section_result.section)
-        if next_section is None:
-            return None # When section_result is the last section
+        assert next_section is not None
         beta = next_section.angle_degrees(d=0.0)
         assert beta is not None
         if beta >= alpha:
@@ -278,7 +263,70 @@ class Track():
         # If next section slope is less than the previous',
         # must define if the wheels stay in contact at all
         # times or if there is any jumping involved.
-        return None
+        return 0.0
+
+    def wheel_center_height(self, d: float,
+                            wheel: Wheel) -> Optional[float]:
+        """
+        Returns the height of the wheel's center when it's
+        located at the horizontal coordinate `d`.
+        """
+        section_result = self.find_section(d=d)
+        alt_alpha = section_result.section.altitude_value(d=d)
+        alpha = section_result.section.angle_degrees(d=section_result.in_section_d)
+        contact_point_d = section_result.in_section_d + wheel.radius * sin(alpha)
+        if contact_point_d <= section_result.section.horizontal_length:
+            # Contact point on same section
+            alt = section_result.section.altitude_value(d=section_result.in_section_d)
+            return alt + wheel.radius / cos(alpha)
+        # Contact point on the next section
+        next_section = self.next_section(section=section_result.section)
+        if next_section is None:
+            return None
+        d_alpha = section_result.section.horizontal_length - d
+        d_beta = section_result.section.horizontal_length - contact_point_d
+        beta = next_section.angle_degrees(d=d_beta)
+        return alt_alpha + d_alpha * tan(alpha) + d_beta * tan(beta) + wheel.radius * cos(beta)
+
+    def in_same_section(self, d1: float,
+                        d2: float) -> bool:
+        """
+        Returns if both distances are
+        within the same track section.
+        """
+        if (not 0 <= d1 <= self.total_length) or (not 0 <= d2 <= self.total_length):
+            raise ValueError("Distances must both be within the total range of the track.")
+        if self.find_section(d=d1) == self.find_section(d=d2):
+            return True
+        return False
+
+    def rear_axle_location(self, front_axle_d: float,
+                           axle_distance: float,
+                           front_wheel: Wheel,
+                           rear_wheel: Wheel) -> float:
+        """
+        Returns the horizontal coordinate of the rear axle
+        as a function of the location of the front axle.
+        """
+        front_contact = self.wheel_contact_point(d=front_axle_d,
+                                                 wheel=front_wheel)
+        front_section = self.find_section(d=front_axle_d)
+        angle = front_section.section.angle_degrees(d=front_section.in_section_d)
+        rear_axle_d = front_section.in_section_d - axle_distance * cos(angle)
+        rear_contact = self.wheel_contact_point(d=rear_axle_d,
+                                                wheel=rear_wheel)
+        if self.in_same_section(d1=front_contact,
+                                d2=rear_contact):
+            return front_axle_d - axle_distance * cos(angle)
+        # Must add calculation when axles are in different sections
+        return 0.0
+
+    @property
+    def total_length(self) -> float:
+        """
+        Returns the total length of the track.
+        """
+        return sum(section.horizontal_length for section in self.sections)
 
 
 @dataclass
@@ -297,13 +345,20 @@ class SlopeSection(TrackSection):
         self._slope_degrees = slope_degrees
 
     def altitude_value(self, d: float) -> float:
+        d = clamp(val=d,
+                  min_val=0.0,
+                  max_val=self.horizontal_length)
         return d * self.altitude_derivate(d=d) + self.base_altitude
 
     def altitude_derivate(self, d: float) -> float:
-        return tan(degrees_to_radians(self._slope_degrees))
+        if 0.0 <= d <= self.horizontal_length:
+            return tan(degrees_to_radians(self._slope_degrees))
+        return 0.0
 
-    def angle_degrees(self, d: float) -> Optional[float]:
-        return self._slope_degrees
+    def angle_degrees(self, d: float) -> float:
+        if 0.0 <= d <= self.horizontal_length:
+            return self._slope_degrees
+        return 0.0
 
     def advance_distance(self, d: float,
                          distance: float) -> Optional[SectionResult]:

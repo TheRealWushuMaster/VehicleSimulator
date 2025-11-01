@@ -1,6 +1,7 @@
 """This module contains test routines for the Track class."""
 
 from math import tan, cos
+from components.drive_train import Wheel
 from helpers.functions import degrees_to_radians, estimate_air_density
 from simulation.materials import TrackMaterial
 from simulation.track import Track, TrackSection, \
@@ -8,6 +9,11 @@ from simulation.track import Track, TrackSection, \
 
 length: float = 5.0
 slope_degrees: float = 30.0
+
+wheel: Wheel = Wheel(radius=0.3,
+                     width=0.15,
+                     mass=30.0,
+                     air_pressure=1.0)
 
 def create_flat_section(material: TrackMaterial,
                         section_length: float=length) -> FlatSection:
@@ -92,3 +98,17 @@ def test_advance_distance() -> None:
             new_d = test_track.advance_distance(d=d,
                                                 distance=3.0)
             assert new_d == c
+
+def test_contact_point() -> None:
+    section_1 = create_slope_section(material=TrackMaterial.DRY_ASPHALT,
+                                     section_slope_degrees=10.0,
+                                     section_length=10)
+    section_2 = create_slope_section(material=TrackMaterial.DRY_ASPHALT,
+                                     section_slope_degrees=30.0,
+                                     section_length=10)
+    track = Track(sections=[section_1, section_2])
+    for d in range(200):
+        d_c = d / 10.0
+        contact_point = track.wheel_contact_point(d=d_c,
+                                                  wheel=wheel)
+        

@@ -5,15 +5,17 @@ component of a vehicle at each time step.
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any
+from math import sin, cos
+from typing import Any, Optional
 from components.component_snapshot import ElectricMotorSnapshot, \
     RechargeableBatterySnapshot, NonRechargeableBatterySnapshot
 from components.converter import Converter
+from components.drive_train import DriveTrain
 from components.energy_source import EnergySource, Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
-from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, VEHICLE_ID
+from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, VEHICLE_ID, GRAVITY
 from simulation.track import Track
 from helpers.functions import assert_type, assert_type_and_range, rpm_to_velocity
 
@@ -127,8 +129,35 @@ class Simulator():
             self._process_vehicle(n=n,
                                   load_torque=load_torque)
 
-    def _track_load_torque(self) -> float:
-        raise NotImplementedError
+    def _track_load_torque(self, d: Optional[float]=None) -> float:
+        if d is None:
+            d = self.vehicle.snapshot.state.position
+        front_contact = self.track.wheel_contact_point(d=d,
+                                                       wheel=self.vehicle.drive_train.front_axle.wheel)
+        rear_d = self.track.rear_axle_location(front_axle_d=d,
+                                               axle_distance=self.vehicle.body.axle_distance,
+                                               front_wheel=self.vehicle.drive_train.front_axle.wheel,
+                                               rear_wheel=self.vehicle.drive_train.rear_axle.wheel)
+        if rear_d is None:
+            return 0.0
+        rear_contact = self.track.wheel_contact_point(d=rear_d,
+                                                      wheel=self.vehicle.drive_train.rear_axle.wheel)
+        assert rear_contact is not None
+        vehicle_weight = self.vehicle.total_mass * GRAVITY
+        rear_weight = vehicle_weight * self.vehicle.body.cg_location
+        front_weight = vehicle_weight - rear_weight
+        drag_force = self.drag_force()
+        front_angle = self.track.angle_degrees(d=front_contact)
+        assert front_angle is not None
+        rear_angle = self.track.angle_degrees(d=rear_contact)
+        assert rear_angle is not None
+        front_normal = front_weight * cos(front_angle)
+        front_longitudinal = - front_weight * sin(front_angle)
+        rear_normal = rear_weight * cos(rear_angle)
+        rear_longitudinal = - rear_weight * sin(rear_angle)
+        
+        return 0.0
+        
 
     def _propagate_output(self, component: Converter) -> None:
         """
@@ -232,5 +261,78 @@ class Simulator():
         self.history[self.vehicle.id]["snapshots"].append(new_snap)
         self.vehicle.snapshot = new_snap
 
+    def wheels_in_same_section(self) -> Optional[bool]:
+        """
+        Returns if both axles lie within the same track section.
+        """
+        section_result = self.track.find_section(d=self.vehicle.snapshot.state.position)
+        if section_result is None:
+            return None
+        beta = section_result.section.angle_degrees(d=section_result.in_section_d)
+        if beta is None:
+            return None
+        front_contact = self.track.wheel_contact_point(d=section_result.in_section_d,
+                                                       wheel=self.vehicle.drive_train.front_axle.wheel)
+        if front_contact is None:
+            return None
+        if front_contact - self.vehicle.body.axle_distance * cos(beta) >= 0.0:
+            return True
+        return False
+
+    def drag_force(self, d: Optional[float]=None) -> float:
+        """
+        Returns the value of aerodynamic drag force.
+        """
+        if d is None:
+            d = self.vehicle.snapshot.state.position
+        front_area = self.vehicle.body.front_area
+        density = self.track.air_density(d=d)
+        velocity = self.vehicle.snapshot.state.velocity
+        drag_coefficient = self.vehicle.body.drag_coefficient
+        if density is not None:
+            return 0.5 * drag_coefficient * front_area * density * velocity**2
+        return 0.0
+
     def vehicle_angle(self) -> float:
-        raise NotImplementedError
+        """
+        Returns the angle of the vehicle as the angle between
+        the horizontal and the line between both axles.
+        """
+        if self.wheels_in_same_section():
+            section_result = self.track.find_section(d=self.vehicle.snapshot.state.position)
+            assert section_result is not None
+            front_contact = self.track.wheel_contact_point(d=section_result.in_section_d,
+                                                           wheel=self.vehicle.drive_train.front_axle.wheel)
+            assert front_contact is not None
+            angle = section_result.section.angle_degrees(d=front_contact) 
+            assert angle is not None
+            return angle
+        return 0.0
+
+    def get_input_load_torque(self, component: EnergySource|Converter|DriveTrain
+                              ) -> Optional[float]:
+        """
+        Returns the load torque as seen
+        upstream from the component's input.
+        """
+        if not component.reversible:
+            return None
+        downstream_components = self.vehicle.find_suppliers_output(requester=component)
+        if downstream_components is not None:
+            for load_comp in downstream_components:
+                pass
+        return 0.0
+
+    def get_output_load_torque(self, component: EnergySource|Converter|DriveTrain
+                               ) -> float:
+        """
+        Returns the load torque as seen 
+        downstream from the component's output.
+        """
+        if isinstance(component, DriveTrain):
+            pass
+        downstream_components = self.vehicle.find_suppliers_output(requester=component)
+        if downstream_components is not None:
+            for load_comp in downstream_components:
+                pass
+        return 0.0
