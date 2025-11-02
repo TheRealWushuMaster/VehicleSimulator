@@ -41,6 +41,7 @@ ROLLING_RESISTANCE_COEFFICIENTS: dict[str, float] = {"Dry asphalt": 0.015,
                                                      "Dry dirt": 0.015,
                                                      "Wet dirt": 0.015,
                                                      "Hard-packed dirt": 0.015}
+MINIMUM_V_STATIC_FRICTION: float = 0.01 # m/s
 
 # Energy conversion
 KWH_TO_JOULES: float = 3.6e6

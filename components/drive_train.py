@@ -238,32 +238,6 @@ class DriveTrain():
         self.output = PortBidirectional(exchange=PowerType.MECHANICAL)
         self.id = DRIVE_TRAIN_ID
 
-    @property
-    def inertia(self) -> float:
-        """
-        Returns the inertia of the full drive train.
-        """
-        if self.wheel_drive==WheelDrive.FRONT_DRIVE:
-            inertia = self.front_axle.inertia * self.differential.gear_ratio**2
-        elif self.wheel_drive==WheelDrive.REAR_DRIVE:
-            inertia = self.rear_axle.inertia * self.differential.gear_ratio**2
-        else:
-            inertia = (self.front_axle.inertia + self.rear_axle.inertia) \
-                * self.differential.gear_ratio**2
-        if self.gearbox is not None:
-            return inertia * self.gearbox.gear_ratio**2
-        return inertia
-
-    @property
-    def mass(self) -> float:
-        """
-        Returns the mass of the drive train.
-        """
-        mass = self.front_axle.mass + self.rear_axle.mass + self.differential.mass
-        if self.gearbox is None:
-            return mass
-        return mass + self.gearbox.mass
-
     def process_drive(self, snap: DriveTrainSnapshot) -> tuple[DriveTrainSnapshot,
                                                                PureMechanicalState]:
         """
@@ -339,6 +313,32 @@ class DriveTrain():
         Returns the `DriveTrain` as reversible.
         """
         return True
+
+    @property
+    def inertia(self) -> float:
+        """
+        Returns the inertia of the full drive train.
+        """
+        if self.wheel_drive == WheelDrive.FRONT_DRIVE:
+            inertia = self.front_axle.inertia * self.differential.gear_ratio**2
+        elif self.wheel_drive == WheelDrive.REAR_DRIVE:
+            inertia = self.rear_axle.inertia * self.differential.gear_ratio**2
+        else:
+            inertia = (self.front_axle.inertia + self.rear_axle.inertia) \
+                * self.differential.gear_ratio**2
+        if self.gearbox is not None:
+            return inertia * self.gearbox.gear_ratio**2
+        return inertia
+
+    @property
+    def mass(self) -> float:
+        """
+        Returns the mass of the drive train.
+        """
+        mass = self.front_axle.mass + self.rear_axle.mass + self.differential.mass
+        if self.gearbox is None:
+            return mass
+        return mass + self.gearbox.mass
 
 
 # =====================

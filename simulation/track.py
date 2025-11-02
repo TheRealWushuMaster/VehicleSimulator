@@ -309,8 +309,12 @@ class Track():
         Returns if both distances are
         within the same track section.
         """
-        if (not 0 <= d1 <= self.total_length) or (not 0 <= d2 <= self.total_length):
-            raise ValueError("Distances must both be within the total range of the track.")
+        
+        if d1 < 0.0 and d2 < 0.0 or \
+            d1 > self.total_length and d2 > self.total_length:
+            return True
+        # if (not 0.0 <= d1 <= self.total_length) or (not 0.0 <= d2 <= self.total_length):
+        #     raise ValueError("Distances must both be within the total range of the track.")
         if self.find_section(d=d1) == self.find_section(d=d2):
             return True
         return False

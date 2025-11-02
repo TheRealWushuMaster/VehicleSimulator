@@ -23,7 +23,7 @@ simulation = Simulator(name="minimalistic_sim",
                        track=flat_track,
                        precision=8,
                        can_slip=False)
-simulation.simulate(load_torque=800.0)
+simulation.simulate()
 
 results = ResultsManager(simulation=simulation)
 

@@ -15,7 +15,8 @@ from components.energy_source import EnergySource, Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
 from components.vehicle import Vehicle
-from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, VEHICLE_ID, GRAVITY
+from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, \
+    VEHICLE_ID, GRAVITY, MINIMUM_V_STATIC_FRICTION
 from simulation.track import Track
 from helpers.functions import assert_type, assert_type_and_range, rpm_to_velocity
 
@@ -109,25 +110,27 @@ class Simulator():
             "snap_type": self.vehicle.snapshot.__class__.__name__
         }
 
-    def simulate(self, load_torque: float) -> None:
+    def simulate(self) -> None:
         """
         Simulates all time steps and stores state
         variables in the simulation history list.
         """
         for n in range(self.time_steps):
             self.vehicle.request_stack.reset()
-            #load_torque = self._track_load_torque()
             for converter in self.vehicle.converters:
                 self._process_converter(converter=converter,
-                                        load_torque=load_torque,
                                         n=n)
             for energy_source in self.vehicle.energy_sources:
                 self._process_energy_source(energy_source=energy_source)
             self._process_drive_train()
-            self._process_vehicle(n=n,
-                                  load_torque=load_torque)
+            self._process_vehicle(n=n)
 
-    def _track_load_torque(self, d: Optional[float]=None) -> float:
+    def _get_wheel_contact_points(self, d: Optional[float]=None
+                                  ) -> tuple[float, float]:
+        """
+        Returns the horizontal coordinates of front and rear
+        axle contact points from the location of the front axle.
+        """
         if d is None:
             d = self.vehicle.snapshot.state.position
         front_contact = self.track.wheel_contact_point(d=d,
@@ -136,37 +139,50 @@ class Simulator():
                                                axle_distance=self.vehicle.body.axle_distance,
                                                front_wheel=self.vehicle.drive_train.front_axle.wheel,
                                                rear_wheel=self.vehicle.drive_train.rear_axle.wheel)
-        front_static_friction_coefficient = self.track.static_friction_coefficient(d=front_contact)
-        front_kinetic_friction_coefficient = self.track.kinetic_friction_coefficient(d=front_contact)
-        front_rolling_resistance_coefficient = self.track.rolling_resistance_coefficient(d=front_contact)
-        if rear_d is None:
-            return 0.0
         rear_contact = self.track.wheel_contact_point(d=rear_d,
                                                       wheel=self.vehicle.drive_train.rear_axle.wheel)
-        rear_static_friction_coefficient = self.track.static_friction_coefficient(d=rear_contact)
-        rear_kinetic_friction_coefficient = self.track.kinetic_friction_coefficient(d=rear_contact)
+        return front_contact, rear_contact
+
+    def _track_load_torque(self, d: Optional[float]=None) -> tuple[float, float]:
+        if d is None:
+            d = self.vehicle.snapshot.state.position
+        front_contact, rear_contact = self._get_wheel_contact_points(d=d)
+        front_rolling_resistance_coefficient = self.track.rolling_resistance_coefficient(d=front_contact)
         rear_rolling_resistance_coefficient = self.track.rolling_resistance_coefficient(d=rear_contact)
         vehicle_weight = self.vehicle.total_mass * GRAVITY
         rear_weight = vehicle_weight * self.vehicle.body.cg_location
         rear_weight_per_wheel = rear_weight / self.vehicle.drive_train.rear_axle.num_wheels
         front_weight = vehicle_weight - rear_weight
         front_weight_per_wheel = front_weight / self.vehicle.drive_train.front_axle.num_wheels
-        drag_force = self.drag_force()
         front_angle = self.track.angle_degrees(d=front_contact)
-        assert front_angle is not None
         rear_angle = self.track.angle_degrees(d=rear_contact)
-        assert rear_angle is not None
         front_normal_per_wheel = front_weight_per_wheel * cos(front_angle)
-        front_longitudinal_per_wheel = - front_weight_per_wheel * sin(front_angle)
+        front_force_gradient_per_wheel = - front_weight_per_wheel * sin(front_angle)
         rear_normal_per_wheel = rear_weight_per_wheel * cos(rear_angle)
-        rear_longitudinal_per_wheel = - rear_weight_per_wheel * sin(rear_angle)
-        
-        front_torque_rolling_per_wheel = front_rolling_resistance_coefficient * front_normal_per_wheel
-        rear_torque_rolling_per_wheel = rear_rolling_resistance_coefficient * rear_normal_per_wheel
+        rear_force_gradient_per_wheel = - rear_weight_per_wheel * sin(rear_angle)
+        front_force_rolling_per_wheel = front_rolling_resistance_coefficient * front_normal_per_wheel
+        rear_force_rolling_per_wheel = rear_rolling_resistance_coefficient * rear_normal_per_wheel
+        if abs(self.vehicle.snapshot.state.velocity) <= MINIMUM_V_STATIC_FRICTION:
+            # Assume vehicle is stopped
+            mu_front = self.track.static_friction_coefficient(d=front_contact)
+            mu_rear = self.track.static_friction_coefficient(d=rear_contact)
+        else:
+            # Assume vehicle is in motion
+            mu_front = self.track.kinetic_friction_coefficient(d=front_contact)
+            mu_rear = self.track.kinetic_friction_coefficient(d=rear_contact)
+        front_max_traction_torque = mu_front * front_normal_per_wheel * self.vehicle.drive_train.front_axle.wheel.radius
+        rear_max_traction_torque = mu_rear * rear_normal_per_wheel * self.vehicle.drive_train.rear_axle.wheel.radius
 
-        front_torque_gradient = front_longitudinal_per_wheel
-        rear_torque_gradient = 0.0
-        return 0.0
+        if not self.can_slip:
+            front_load_force_per_wheel = front_force_rolling_per_wheel + front_force_gradient_per_wheel
+            front_load_torque_per_wheel = front_load_force_per_wheel * self.vehicle.drive_train.front_axle.wheel.radius
+            rear_load_force_per_wheel = rear_force_rolling_per_wheel + rear_force_gradient_per_wheel
+            rear_load_torque_per_wheel = rear_load_force_per_wheel * self.vehicle.drive_train.rear_axle.wheel.radius
+            return (front_load_torque_per_wheel * self.vehicle.drive_train.front_axle.num_wheels,
+                    rear_load_torque_per_wheel * self.vehicle.drive_train.rear_axle.num_wheels)
+        # When wheels can slip, must verify tractive torque
+        # in relation to the maximum value set by the track.
+        return 1.0, 1.0
 
     def _propagate_output(self, component: Converter) -> None:
         """
@@ -210,11 +226,11 @@ class Simulator():
                  # accordingly by recalculating the output.
 
     def _process_converter(self, converter: Converter,
-                           load_torque: float,
                            n: int) -> None:
         if isinstance(converter, ElectricMotor):
             assert isinstance(converter.snapshot, ElectricMotorSnapshot)
             inertia = self.vehicle.downstream_inertia(component_id=converter.id)
+            load_torque = self._get_output_load_torque(component=converter)
             new_conv_snap, new_state = converter.dynamic_response.compute_forward(
                 snap=converter.snapshot,
                 load_torque=load_torque,
@@ -251,15 +267,15 @@ class Simulator():
         self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
         self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
 
-    def _process_vehicle(self, n: int,
-                         load_torque: float) -> None:
+    def _process_vehicle(self, n: int) -> None:
         """
         Updates vehicle properties at the time step.
         """
         new_snap = deepcopy(self.vehicle.snapshot)
         new_snap.io.inputs.throttle = self.throttle_signal[n]
         new_snap.io.inputs.brake = self.brake_signal[n]
-        new_snap.io.inputs.load_torque = load_torque
+        front_load, rear_load = self._track_load_torque()
+        new_snap.io.inputs.load_torque = front_load + rear_load
         new_snap.io.outputs.tractive_torque = self.vehicle.drive_train.snapshot.io.output_port.torque
         new_snap.state.velocity = rpm_to_velocity(rpm=self.vehicle.drive_train.snapshot.state.output_port.rpm,
                                                   radius=self.vehicle.drive_train.front_axle.wheel.radius)
@@ -318,22 +334,16 @@ class Simulator():
             return angle
         return 0.0
 
-    def get_input_load_torque(self, component: EnergySource|Converter|DriveTrain
-                              ) -> Optional[float]:
+    def _get_input_load_torque(self, component: EnergySource|Converter|DriveTrain
+                               ) -> Optional[float]:
         """
         Returns the load torque as seen
         upstream from the component's input.
         """
-        if not component.reversible:
-            return None
-        downstream_components = self.vehicle.find_suppliers_output(requester=component)
-        if downstream_components is not None:
-            for load_comp in downstream_components:
-                pass
-        return 0.0
+        raise NotImplementedError
 
-    def get_output_load_torque(self, component: EnergySource|Converter|DriveTrain
-                               ) -> float:
+    def _get_output_load_torque(self, component: EnergySource|Converter|DriveTrain
+                                ) -> float:
         """
         Returns the load torque as seen 
         downstream from the component's output.
@@ -343,7 +353,10 @@ class Simulator():
         downstream_components = self.vehicle.find_suppliers_output(requester=component)
         if downstream_components is not None:
             for load_comp in downstream_components:
-                pass
+                if isinstance(load_comp[0], DriveTrain):
+                    front_load_torque, rear_load_torque = self._track_load_torque()
+                    return front_load_torque + rear_load_torque
+                return self._get_output_load_torque(component=load_comp[0])
         return 0.0
 
     @property
