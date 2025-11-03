@@ -1,9 +1,10 @@
 """This module contains classes for handling simulation results."""
 
 from collections import defaultdict
+from typing import Optional
 import os
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+from matplotlib import ticker
 import pandas as pd
 from simulation.simulator import Simulator
 
@@ -77,13 +78,14 @@ class ResultsManager():
 
     def plot_all(self, num_cols: int=1,
                  adjust_scale: bool=True,
-                 folder: str="examples/results",
-                 dpi: int=250):
+                 dpi: int=250,
+                 folder: Optional[str]="examples/results"):
         """
         Plots all DataFrames with subplots per variable.
         """
-        folder = f"{folder}/{self.simulation.name}"
-        os.makedirs(folder, exist_ok=True)
+        if folder is not None:
+            folder = f"{folder}/{self.simulation.name}"
+            os.makedirs(folder, exist_ok=True)
         num_cols = max(num_cols, 1)
         for comp_type, df in self.dataframes.items():
             if df.empty:
@@ -129,8 +131,9 @@ class ResultsManager():
                     ax.set_ylabel(y_label)
                     ax.grid(True)
                 plt.tight_layout()
-                plt.savefig(f"{folder}/{self.simulation.name}-{comp_type}-{name.replace(" ", "_")}.png",
-                            dpi=dpi)
+                if folder is not None:
+                    plt.savefig(f"{folder}/{self.simulation.name}-{comp_type}-{name.replace(" ", "_")}.png",
+                                dpi=dpi)
         plt.show()
 
     def save_csv(self, folder: str="examples/results"):
