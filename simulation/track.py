@@ -38,6 +38,12 @@ class TrackSection():
         """
         raise NotImplementedError
 
+    def angle_radians(self, d: float) -> float:
+        """
+        Returns the angle (in radians) at the specified point.
+        """
+        raise NotImplementedError
+
     def air_density(self, d: float) -> float:
         """
         Returns the air density at the specified altitude.
@@ -166,6 +172,13 @@ class Track():
         section_result = self.find_section(d=d)
         return section_result.section.angle_degrees(d=section_result.in_section_d)
 
+    def angle_radians(self, d: float) -> float:
+        """
+        Returns the angle (in radians) at the specified point.
+        """
+        section_result = self.find_section(d=d)
+        return section_result.section.angle_radians(d=section_result.in_section_d)
+
     def air_density(self, d: float) -> float:
         """
         Returns the air density at the specified distance.
@@ -267,20 +280,18 @@ class Track():
         for a wheel whose center is located in `d`.
         """
         section_result = self.find_section(d=d)
-        alpha_degrees = section_result.section.angle_degrees(d=section_result.in_section_d)
-        alpha_radians = degrees_to_radians(angle_degrees=alpha_degrees)
+        alpha = section_result.section.angle_radians(d=section_result.in_section_d)
         next_section = self.next_section(section=section_result.section)
         assert next_section is not None
-        beta_degrees = next_section.angle_degrees(d=0.0)
-        assert beta_degrees is not None
-        beta_radians = degrees_to_radians(angle_degrees=beta_degrees)
-        if beta_radians >= alpha_radians:
-            d_alpha = wheel.radius * tan((beta_radians-alpha_radians)/2) * cos(alpha_radians)
-            if section_result.in_section_d + wheel.radius * sin(alpha_radians) + d_alpha <= \
+        beta = next_section.angle_radians(d=0.0)
+        assert beta is not None
+        if beta >= alpha:
+            d_alpha = wheel.radius * tan((beta-alpha)/2) * cos(alpha)
+            if section_result.in_section_d + wheel.radius * sin(alpha) + d_alpha <= \
                 section_result.section.horizontal_length:
-                return section_result.total_d + wheel.radius * sin(alpha_radians)
+                return section_result.total_d + wheel.radius * sin(alpha)
             #return section_result.total_d + critical_d + wheel.radius * tan((beta-alpha)/2) * cos(beta)
-            return section_result.total_d + wheel.radius * sin(beta_radians)
+            return section_result.total_d + wheel.radius * sin(beta)
         # If next section slope is less than the previous',
         # must define if the wheels stay in contact at all
         # times or if there is any jumping involved.
@@ -294,7 +305,7 @@ class Track():
         """
         section_result = self.find_section(d=d)
         alt_alpha = section_result.section.altitude_value(d=d)
-        alpha = section_result.section.angle_degrees(d=section_result.in_section_d)
+        alpha = section_result.section.angle_radians(d=section_result.in_section_d)
         contact_point_d = section_result.in_section_d + wheel.radius * sin(alpha)
         if contact_point_d <= section_result.section.horizontal_length:
             # Contact point on same section
@@ -306,7 +317,7 @@ class Track():
             return None
         d_alpha = section_result.section.horizontal_length - d
         d_beta = section_result.section.horizontal_length - contact_point_d
-        beta = next_section.angle_degrees(d=d_beta)
+        beta = next_section.angle_radians(d=d_beta)
         return alt_alpha + d_alpha * tan(alpha) + d_beta * tan(beta) + wheel.radius * cos(beta)
 
     def in_same_section(self, d1: float,
@@ -315,12 +326,6 @@ class Track():
         Returns if both distances are
         within the same track section.
         """
-        
-        if d1 < 0.0 and d2 < 0.0 or \
-            d1 > self.total_length and d2 > self.total_length:
-            return True
-        # if (not 0.0 <= d1 <= self.total_length) or (not 0.0 <= d2 <= self.total_length):
-        #     raise ValueError("Distances must both be within the total range of the track.")
         if self.find_section(d=d1).section == self.find_section(d=d2).section:
             return True
         return False
@@ -336,33 +341,29 @@ class Track():
         front_contact = self.wheel_contact_point(d=front_axle_d,
                                                  wheel=front_wheel)
         front_section = self.find_section(d=front_axle_d)
-        alpha_degrees = front_section.section.angle_degrees(d=front_section.in_section_d)
-        alpha_radians = degrees_to_radians(angle_degrees=alpha_degrees)
+        alpha = front_section.section.angle_radians(d=front_section.in_section_d)
         gamma = asin((front_wheel.radius - rear_wheel.radius) / axle_distance)
-        rear_contact = front_contact - axle_distance * cos(alpha_radians + gamma) + \
-            sin(alpha_radians) * (front_wheel.radius - rear_wheel.radius)
+        rear_contact = front_contact - axle_distance * cos(alpha + gamma) + \
+            sin(alpha) * (front_wheel.radius - rear_wheel.radius)
         if self.in_same_section(d1=front_contact,
                                 d2=rear_contact):
-            return front_axle_d - axle_distance * cos(alpha_radians + gamma)
+            return front_axle_d - axle_distance * cos(alpha + gamma)
         front_section = self.find_section(d=front_contact)
         d_beta = front_section.in_section_d
-        beta_degrees = front_section.section.angle_degrees(d=d_beta)
-        beta_radians = degrees_to_radians(angle_degrees=beta_degrees)
+        beta = front_section.section.angle_radians(d=d_beta)
         rear_section = self.previous_section(section=front_section.section)
         assert rear_section is not None
-        alpha_degrees = rear_section.angle_degrees(d=0.0)
-        alpha_radians = degrees_to_radians(angle_degrees=alpha_degrees)
+        alpha = rear_section.angle_radians(d=0.0)
         delta_h_beta = front_section.section.altitude_value(d=d_beta) - \
             front_section.section.altitude_value(d=0.0)
-        k1 = d_beta + rear_wheel.radius * sin(alpha_radians) - front_wheel.radius * sin(beta_radians)
-        k2 = delta_h_beta + front_wheel.radius * cos(beta_radians) - rear_wheel.radius * cos(alpha_radians)
-        a = 1 + tan(alpha_radians)**2
-        b = 2 * (k1 + k2 * tan(alpha_radians))
+        k1 = d_beta + rear_wheel.radius * sin(alpha) - front_wheel.radius * sin(beta)
+        k2 = delta_h_beta + front_wheel.radius * cos(beta) - rear_wheel.radius * cos(alpha)
+        a = 1 + tan(alpha)**2
+        b = 2 * (k1 + k2 * tan(alpha))
         c = k1**2 + k2**2 - axle_distance**2
         determinant = sqrt(b**2 - 4 * a * c)
-        d_alpha1 = (-b - determinant)/2/a
-        d_alpha2 = (-b + determinant)/2/a
-        return front_section.total_d - d_beta - d_alpha2 - rear_wheel.radius * sin(alpha_radians)
+        d_alpha = (-b + determinant)/2/a
+        return front_section.total_d - d_beta - d_alpha - rear_wheel.radius * sin(alpha)
 
     def get_wheel_contact_points(self, vehicle: Vehicle,
                                  front_axle_d: Optional[float]=None
@@ -530,6 +531,9 @@ class SlopeSection(TrackSection):
         if 0.0 <= d <= self.horizontal_length:
             return self._slope_degrees
         return 0.0
+
+    def angle_radians(self, d: float) -> float:
+        return degrees_to_radians(angle_degrees=self.angle_degrees(d=d))
 
     def advance_distance(self, d: float,
                          distance: float) -> Optional[SectionResult]:

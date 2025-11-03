@@ -1,6 +1,6 @@
 """This module contains test routines for the Track class."""
 
-from math import tan, cos
+from math import tan, cos, sqrt
 import matplotlib.pyplot as plt
 from components.drive_train import Wheel
 from examples.battery_and_motor_only import minimalistic_em_vehicle
@@ -102,11 +102,11 @@ def test_advance_distance() -> None:
             assert new_d == c
 
 def test_contact_point() -> None:
-    # section_1 = create_slope_section(material=TrackMaterial.DRY_ASPHALT,
-    #                                  section_slope_degrees=10.0,
-    #                                  section_length=10)
-    section_1 = create_flat_section(material=TrackMaterial.DRY_ASPHALT,
-                                    section_length=10)
+    section_1 = create_slope_section(material=TrackMaterial.DRY_ASPHALT,
+                                     section_slope_degrees=10.0,
+                                     section_length=10)
+    # section_1 = create_flat_section(material=TrackMaterial.DRY_ASPHALT,
+    #                                 section_length=10)
     section_2 = create_slope_section(material=TrackMaterial.DRY_ASPHALT,
                                      section_slope_degrees=30.0,
                                      section_length=10)
@@ -115,6 +115,9 @@ def test_contact_point() -> None:
     rear_axle_ds: list[float] = []
     front_contacts: list[float] = []
     rear_contacts: list[float] = []
+    front_axle_hs: list[float] = []
+    rear_axle_hs: list[float] = []
+    axle_ds: list[float] = []
     for d in range(int(track.total_length*10)):
         front_axle_d = d / 10.0
         front_contact = track.wheel_contact_point(d=front_axle_d,
@@ -125,14 +128,27 @@ def test_contact_point() -> None:
                                                rear_wheel=minimalistic_em_vehicle.drive_train.rear_axle.wheel)
         rear_contact = track.wheel_contact_point(d=rear_axle_d,
                                                  wheel=minimalistic_em_vehicle.drive_train.rear_axle.wheel)
+        front_axle_h = track.wheel_center_height(d=front_axle_d,
+                                                 wheel=minimalistic_em_vehicle.drive_train.front_axle.wheel)
+        rear_axle_h = track.wheel_center_height(d=rear_axle_d,
+                                                 wheel=minimalistic_em_vehicle.drive_train.rear_axle.wheel)
+        assert front_axle_h is not None
+        assert rear_axle_h is not None
+        axle_d = sqrt((front_axle_h - rear_axle_h)**2 + (front_axle_d - rear_axle_d)**2)
         front_axle_ds.append(front_axle_d)
         rear_axle_ds.append(rear_axle_d)
         front_contacts.append(front_contact)
         rear_contacts.append(rear_contact)
+        front_axle_hs.append(front_axle_h)
+        rear_axle_hs.append(rear_axle_h)
+        axle_ds.append(axle_d)
     plt.plot(front_axle_ds, label="Front axle")
     plt.plot(rear_axle_ds, label="Rear axle")
-    plt.plot(front_contacts, label="Front contacts")
-    plt.plot(rear_contacts, label="Rear contacts")
+    plt.plot(front_contacts, label="Front contact")
+    plt.plot(rear_contacts, label="Rear contact")
+    plt.plot(front_axle_hs, label="Front h")
+    plt.plot(rear_axle_hs, label="Rear h")
+    plt.plot(axle_ds, label=f"Axle d = {minimalistic_em_vehicle.body.axle_distance}")
     plt.grid(linestyle=":")
     plt.legend()
     plt.show()
