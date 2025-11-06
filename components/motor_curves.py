@@ -170,15 +170,15 @@ class MechanicalPowerEfficiencyCurves():
         def efficiency_func(snap: MotorSnapshot,
                             limit: bool=True) -> float:
             if limit:
-                snap.io.output_port.torque = clamp(val=snap.io.output_port.torque,
-                                                   min_val=0.0,
-                                                   max_val=max_torque_vs_rpm(snap))
+                snap.io.output_port.applied_torque = clamp(val=snap.io.output_port.applied_torque,
+                                                           min_val=0.0,
+                                                           max_val=max_torque_vs_rpm(snap))
                 snap.state.output_port.rpm = clamp(val=snap.state.output_port.rpm,
                                                    min_val=min_rpm,
                                                    max_val=max_rpm)
             if not min_rpm <= snap.state.output_port.rpm <= max_rpm:
                 return 0.0
-            if 0.0 <= snap.io.output_port.torque <= max_torque_vs_rpm(snap):
+            if 0.0 <= snap.io.output_port.applied_torque <= max_torque_vs_rpm(snap):
                 return efficiency
             return 0.0
         return efficiency_func

@@ -118,6 +118,7 @@ def test_contact_point() -> None:
     front_axle_hs: list[float] = []
     rear_axle_hs: list[float] = []
     axle_ds: list[float] = []
+    vehicle_angles: list[float] = []
     for d in range(int(track.total_length*10)):
         front_axle_d = d / 10.0
         front_contact = track.wheel_contact_point(d=front_axle_d,
@@ -135,6 +136,9 @@ def test_contact_point() -> None:
         assert front_axle_h is not None
         assert rear_axle_h is not None
         axle_d = sqrt((front_axle_h - rear_axle_h)**2 + (front_axle_d - rear_axle_d)**2)
+        vehicle_angle = track.vehicle_angle(vehicle=minimalistic_em_vehicle,
+                                            front_axle_d=front_axle_d,
+                                            in_radians=False)
         front_axle_ds.append(front_axle_d)
         rear_axle_ds.append(rear_axle_d)
         front_contacts.append(front_contact)
@@ -142,13 +146,15 @@ def test_contact_point() -> None:
         front_axle_hs.append(front_axle_h)
         rear_axle_hs.append(rear_axle_h)
         axle_ds.append(axle_d)
+        vehicle_angles.append(vehicle_angle)
     plt.plot(front_axle_ds, label="Front axle")
     plt.plot(rear_axle_ds, label="Rear axle")
     plt.plot(front_contacts, label="Front contact")
     plt.plot(rear_contacts, label="Rear contact")
     plt.plot(front_axle_hs, label="Front h")
     plt.plot(rear_axle_hs, label="Rear h")
-    plt.plot(axle_ds, label=f"Axle d = {minimalistic_em_vehicle.body.axle_distance}")
+    plt.plot(axle_ds, label=f"Axle d={minimalistic_em_vehicle.body.axle_distance}")
+    plt.plot(vehicle_angles, label="Vehicle angle")
     plt.grid(linestyle=":")
     plt.legend()
     plt.show()

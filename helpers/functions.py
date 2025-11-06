@@ -1,6 +1,4 @@
-"""
-Helper functions for use in the project.
-"""
+"""Helper functions for use in the project."""
 
 from math import degrees, radians, exp
 from typing import Any
@@ -129,6 +127,9 @@ def assert_numeric(*args: Any,
 
 def rpm_to_velocity(rpm: float,
                     radius: float) -> float:
+    """
+    Converts rpm to linear velocity.
+    """
     return rpm_to_ang_vel(rpm=rpm) * radius
 
 def rpm_to_ang_vel(rpm: float) -> float:
@@ -149,18 +150,14 @@ def power_to_torque(power: float, rpm: float) -> float:
     """
     Converts power to torque.
     """
-    assert_type_and_range(power, rpm,
-                          more_than=0.0,
-                          include_more=True)
+    assert_type_and_range(power, rpm)
     return power / rpm_to_ang_vel(rpm=rpm) if rpm > 0.0 else 0.0
 
 def torque_to_power(torque: float, rpm: float) -> float:
     """
     Converts torque to power.
     """
-    assert_type_and_range(torque, rpm,
-                          more_than=0.0,
-                          include_more=True)
+    assert_type_and_range(torque, rpm)
     return torque * rpm_to_ang_vel(rpm=rpm) if rpm > 0.0 else 0.0
 
 def kelvin_to_celsius(t_kelvin: float) -> float:

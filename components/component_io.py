@@ -21,7 +21,15 @@ class MechanicalIO():
     """
     Describes a mechanical input or output.
     """
-    torque: float=0.0
+    applied_torque: float=0.0
+    load_torque: float=0.0
+
+    @property
+    def net_torque(self) -> float:
+        """
+        Returns the net torque.
+        """
+        return self.applied_torque - self.load_torque
 
 
 @dataclass
@@ -200,38 +208,50 @@ class GaseousFuelTankIO(FuelTankIO):
     output_port: GaseousFuelIO
 
 
+# =====================
+# CONVENIENCE FUNCTIONS
+# =====================
+
 def return_electric_motor_io(electric_power: float=0.0,
-                             torque: float=0.0) -> ElectricMotorIO:
+                             applied_torque: float=0.0,
+                             load_torque: float=0.0) -> ElectricMotorIO:
     """
     Returns an instance of `ElectricMotorIO`.
     """
     return ElectricMotorIO(input_port=ElectricIO(electric_power=electric_power),
-                           output_port=MechanicalIO(torque=torque))
+                           output_port=MechanicalIO(applied_torque=applied_torque,
+                                                    load_torque=load_torque))
 
 def return_liquid_ice_io(fuel: LiquidFuel,
                          liters_flow: float=0.0,
-                         torque: float=0.0) -> LiquidInternalCombustionEngineIO:
+                         applied_torque: float=0.0,
+                         load_torque: float=0.0) -> LiquidInternalCombustionEngineIO:
     """
     Returns an instance of `LiquidInternalCombustionEngineIO`.
     """
     return LiquidInternalCombustionEngineIO(input_port=LiquidFuelIO(_fuel=fuel,
                                                                     liters_flow=liters_flow),
-                                            output_port=MechanicalIO(torque=torque))
+                                            output_port=MechanicalIO(applied_torque=applied_torque,
+                                                                     load_torque=load_torque))
 
 def return_gaseous_ice_io(fuel: GaseousFuel,
-                          mass_flow: float = 0.0,
-                          torque: float = 0.0) -> GaseousInternalCombustionEngineIO:
+                          mass_flow: float=0.0,
+                          applied_torque: float=0.0,
+                          load_torque: float=0.0) -> GaseousInternalCombustionEngineIO:
     """
     Returns an instance of `LiquidInternalCombustionEngineIO`.
     """
     return GaseousInternalCombustionEngineIO(input_port=GaseousFuelIO(_fuel=fuel,
                                                                       mass_flow=mass_flow),
-                                             output_port=MechanicalIO(torque=torque))
+                                             output_port=MechanicalIO(applied_torque=applied_torque,
+                                                                      load_torque=load_torque))
 
-def return_electric_generator_io(torque: float=0.0,
+def return_electric_generator_io(applied_torque: float=0.0,
+                                 load_torque: float=0.0,
                                  electric_power: float=0.0) -> ElectricGeneratorIO:
     """
     Returns an instance of `ElectricGeneratorIO`.
     """
-    return ElectricGeneratorIO(input_port=MechanicalIO(torque=torque),
+    return ElectricGeneratorIO(input_port=MechanicalIO(applied_torque=applied_torque,
+                                                       load_torque=load_torque),
                                output_port=ElectricIO(electric_power=electric_power))

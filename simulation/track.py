@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from math import tan, cos, sin, asin, sqrt
+from math import tan, atan, cos, sin, asin, sqrt
 from typing import Optional
 from components.drive_train import Wheel
 from components.vehicle import Vehicle
-from helpers.functions import degrees_to_radians, estimate_air_density, clamp
+from helpers.functions import degrees_to_radians, radians_to_degrees, \
+    estimate_air_density, clamp
 from simulation.constants import GRAVITY, MINIMUM_V_STATIC_FRICTION
 from simulation.materials import TrackMaterial
 
@@ -103,6 +104,57 @@ class SectionResult():
     in_section_d: float
     total_d: float
     remainder: float=0.0
+
+
+@dataclass
+class AxleLoad():
+    """
+    Contains loads on each axle.
+    """
+    rolling_resistance_per_wheel: float=0.0
+    gradient_force_per_wheel: float=0.0
+    max_friction_force_per_wheel: float=0.0
+    _num_wheels: int=0
+    _wheel_radius: float=0.0
+
+    @property
+    def num_wheels(self) -> int:
+        """
+        Returns the number of wheels.
+        """
+        return self._num_wheels
+
+    @property
+    def wheel_radius(self) -> float:
+        """
+        Returns the number of wheels.
+        """
+        return self._wheel_radius
+
+    @property
+    def total_torque(self) -> float:
+        """
+        Returns the sum of all loads on the axle.
+        """
+        return (self.rolling_resistance_per_wheel + self.gradient_force_per_wheel) * \
+            self._num_wheels * self._wheel_radius
+
+
+@dataclass
+class LoadResult():
+    """
+    Class used for storing load torque results.
+    """
+    front_axle: AxleLoad
+    rear_axle: AxleLoad
+    drag_force: float
+
+    @property
+    def total_load_torque(self) -> float:
+        """
+        Returns the sum of all load torques on the vehicle.
+        """
+        return self.front_axle.total_torque + self.rear_axle.total_torque
 
 
 @dataclass
@@ -361,8 +413,9 @@ class Track():
         a = 1 + tan(alpha)**2
         b = 2 * (k1 + k2 * tan(alpha))
         c = k1**2 + k2**2 - axle_distance**2
-        determinant = sqrt(b**2 - 4 * a * c)
-        d_alpha = (-b + determinant)/2/a
+        determinant = b**2 - 4 * a * c
+        assert determinant >= 0.0
+        d_alpha = (-b + sqrt(determinant))/2/a
         return front_section.total_d - d_beta - d_alpha - rear_wheel.radius * sin(alpha)
 
     def get_wheel_contact_points(self, vehicle: Vehicle,
@@ -384,9 +437,9 @@ class Track():
                                                 wheel=vehicle.drive_train.rear_axle.wheel)
         return front_contact, rear_contact
 
-    def load_torques(self, vehicle: Vehicle,
-                     can_slip: bool,
-                     front_axle_d: Optional[float]=None) -> tuple[float, float]:
+    def load_on_vehicle(self, vehicle: Vehicle,
+                        can_slip: bool,
+                        front_axle_d: Optional[float]=None) -> LoadResult:
         """
         Returns front and rear load torques.
         """
@@ -421,24 +474,36 @@ class Track():
             vehicle.drive_train.front_axle.wheel.radius
         rear_max_traction_torque = mu_rear * rear_normal_per_wheel * \
             vehicle.drive_train.rear_axle.wheel.radius
-
+        drag_force = self.drag_force(vehicle=vehicle,
+                                     front_axle_d=front_axle_d)
         if not can_slip:
-            front_load_force_per_wheel = front_force_rolling_per_wheel + \
-                front_force_gradient_per_wheel
-            front_load_torque_per_wheel = front_load_force_per_wheel * \
-                vehicle.drive_train.front_axle.wheel.radius
-            rear_load_force_per_wheel = rear_force_rolling_per_wheel + \
-                rear_force_gradient_per_wheel
-            rear_load_torque_per_wheel = rear_load_force_per_wheel * \
-                vehicle.drive_train.rear_axle.wheel.radius
-            return (front_load_torque_per_wheel * vehicle.drive_train.front_axle.num_wheels,
-                    rear_load_torque_per_wheel * vehicle.drive_train.rear_axle.num_wheels)
+            # front_load_force_per_wheel = front_force_rolling_per_wheel + \
+            #     front_force_gradient_per_wheel
+            # front_load_torque_per_wheel = front_load_force_per_wheel * \
+            #     vehicle.drive_train.front_axle.wheel.radius
+            # rear_load_force_per_wheel = rear_force_rolling_per_wheel + \
+            #     rear_force_gradient_per_wheel
+            # rear_load_torque_per_wheel = rear_load_force_per_wheel * \
+            #     vehicle.drive_train.rear_axle.wheel.radius
+            return LoadResult(front_axle=AxleLoad(rolling_resistance_per_wheel=front_force_rolling_per_wheel,
+                                                  gradient_force_per_wheel=front_force_gradient_per_wheel,
+                                                  max_friction_force_per_wheel=front_max_traction_torque,
+                                                  _num_wheels=vehicle.drive_train.front_axle.num_wheels,
+                                                  _wheel_radius=vehicle.drive_train.front_axle.wheel.radius),
+                              rear_axle=AxleLoad(rolling_resistance_per_wheel=rear_force_rolling_per_wheel,
+                                                 gradient_force_per_wheel=rear_force_gradient_per_wheel,
+                                                 max_friction_force_per_wheel=rear_max_traction_torque,
+                                                 _num_wheels=vehicle.drive_train.rear_axle.num_wheels,
+                                                 _wheel_radius=vehicle.drive_train.rear_axle.wheel.radius),
+                              drag_force=drag_force)
         # When wheels can slip, must verify tractive torque
         # in relation to the maximum value set by the track.
-        return 1.0, 1.0
+        return LoadResult(front_axle=AxleLoad(),
+                          rear_axle=AxleLoad(),
+                          drag_force=0.0)
 
     def wheels_in_same_section(self, vehicle: Vehicle,
-                               front_axle_d: Optional[float] = None
+                               front_axle_d: Optional[float]=None,
                                ) -> Optional[bool]:
         """
         Returns if both axles lie within the same track section.
@@ -446,39 +511,45 @@ class Track():
         if front_axle_d is None:
             front_axle_d = vehicle.snapshot.state.position
         section_result = self.find_section(d=front_axle_d)
-        if section_result is None:
-            return None
-        beta = section_result.section.angle_degrees(
-            d=section_result.in_section_d)
-        if beta is None:
-            return None
+        section_d_start = section_result.total_d - section_result.in_section_d
+        beta = section_result.section.angle_degrees(d=section_result.in_section_d)
         front_contact = self.wheel_contact_point(d=section_result.in_section_d,
                                                  wheel=vehicle.drive_train.front_axle.wheel)
-        if front_contact is None:
-            return None
-        if front_contact - vehicle.body.axle_distance * cos(beta) >= 0.0:
+        if front_contact - section_d_start - vehicle.body.axle_distance * cos(beta) >= 0.0:
             return True
         return False
 
     def vehicle_angle(self, vehicle: Vehicle,
-                      front_axle_d: Optional[float]=None) -> float:
+                      front_axle_d: Optional[float]=None,
+                      in_radians: bool=True) -> float:
         """
         Returns the angle of the vehicle as the angle between
         the horizontal and the line between both axles.
         """
         if front_axle_d is None:
             front_axle_d = vehicle.snapshot.state.position
-        if self.wheels_in_same_section(vehicle=vehicle):
+        if self.wheels_in_same_section(vehicle=vehicle,
+                                       front_axle_d=front_axle_d):
             section_result = self.find_section(
                 d=vehicle.snapshot.state.position)
-            assert section_result is not None
             front_contact = self.wheel_contact_point(d=section_result.in_section_d,
                                                      wheel=vehicle.drive_train.front_axle.wheel)
-            assert front_contact is not None
-            angle = section_result.section.angle_degrees(d=front_contact)
-            assert angle is not None
-            return angle
-        return 0.0
+            rads = section_result.section.angle_radians(d=front_contact)
+        else:
+            rear_axle_d = self.rear_axle_location(front_axle_d=front_axle_d,
+                                                  axle_distance=vehicle.body.axle_distance,
+                                                  front_wheel=vehicle.drive_train.front_axle.wheel,
+                                                  rear_wheel=vehicle.drive_train.rear_axle.wheel)
+            front_h = self.wheel_center_height(d=front_axle_d,
+                                               wheel=vehicle.drive_train.front_axle.wheel)
+            rear_h = self.wheel_center_height(d=rear_axle_d,
+                                              wheel=vehicle.drive_train.rear_axle.wheel)
+            assert front_h is not None
+            assert rear_h is not None
+            rads = atan((front_h - rear_h)/(front_axle_d - rear_axle_d))
+        if in_radians:
+            return rads
+        return radians_to_degrees(angle_radians=rads)
 
     def drag_force(self, vehicle: Vehicle,
                    front_axle_d: Optional[float]=None) -> float:

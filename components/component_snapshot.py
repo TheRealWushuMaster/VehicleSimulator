@@ -47,14 +47,21 @@ class ConverterSnapshot(BaseSnapshot):
     @property
     def power_in(self) -> float:
         """
-        Calculates the power transferred through the input.
+        Calculates the net power transferred through the input.
         """
         raise NotImplementedError
 
     @property
     def power_out(self) -> float:
         """
-        Calculates the power transferred through the output.
+        Calculates the net power transferred through the output.
+        """
+        raise NotImplementedError
+
+    @property
+    def applied_power_out(self) -> float:
+        """
+        Calculates the applied power transferred through the output.
         """
         raise NotImplementedError
 
@@ -94,7 +101,12 @@ class ElectricMotorSnapshot(ConverterSnapshot):
 
     @property
     def power_out(self) -> float:
-        return torque_to_power(torque=self.io.output_port.torque,
+        return torque_to_power(torque=self.io.output_port.net_torque,
+                               rpm=self.state.output_port.rpm)
+
+    @property
+    def applied_power_out(self) -> float:
+        return torque_to_power(torque=self.io.output_port.applied_torque,
                                rpm=self.state.output_port.rpm)
 
     @property
@@ -105,7 +117,9 @@ class ElectricMotorSnapshot(ConverterSnapshot):
     def to_dict(self) -> dict[str, float]:
         return {"power_in": self.power_in,
                 "power_out": self.power_out,
-                "torque_out": self.io.output_port.torque,
+                "applied_torque_out": self.io.output_port.applied_torque,
+                "load_torque_out": self.io.output_port.load_torque,
+                "net_torque_out": self.io.output_port.net_torque,
                 "rpm_out": self.state.output_port.rpm,
                 "on": self.state.internal.on,
                 "temperature": self.state.internal.temperature}
@@ -125,7 +139,12 @@ class LiquidCombustionEngineSnapshot(ConverterSnapshot):
 
     @property
     def power_out(self) -> float:
-        return torque_to_power(torque=self.io.output_port.torque,
+        return torque_to_power(torque=self.io.output_port.net_torque,
+                               rpm=self.state.output_port.rpm)
+
+    @property
+    def applied_power_out(self) -> float:
+        return torque_to_power(torque=self.io.output_port.applied_torque,
                                rpm=self.state.output_port.rpm)
 
     @property
@@ -136,7 +155,9 @@ class LiquidCombustionEngineSnapshot(ConverterSnapshot):
     def to_dict(self) -> dict[str, float]:
         return {"fuel_liters_in": self.io.input_port.liters_flow,
                 "power_out": self.power_out,
-                "torque_out": self.io.output_port.torque,
+                "applied_torque_out": self.io.output_port.applied_torque,
+                "load_torque_out": self.io.output_port.load_torque,
+                "net_torque_out": self.io.output_port.net_torque,
                 "rpm_out": self.state.output_port.rpm,
                 "on": self.state.internal.on,
                 "temperature": self.state.internal.temperature}
@@ -156,7 +177,12 @@ class GaseousCombustionEngineSnapshot(ConverterSnapshot):
 
     @property
     def power_out(self) -> float:
-        return torque_to_power(torque=self.io.output_port.torque,
+        return torque_to_power(torque=self.io.output_port.net_torque,
+                               rpm=self.state.output_port.rpm)
+
+    @property
+    def applied_power_out(self) -> float:
+        return torque_to_power(torque=self.io.output_port.applied_torque,
                                rpm=self.state.output_port.rpm)
 
     @property
@@ -167,7 +193,9 @@ class GaseousCombustionEngineSnapshot(ConverterSnapshot):
     def to_dict(self) -> dict[str, float]:
         return {"fuel_mass_in": self.io.input_port.mass_flow,
                 "power_out": self.power_out,
-                "torque_out": self.io.output_port.torque,
+                "applied_torque_out": self.io.output_port.applied_torque,
+                "load_torque_out": self.io.output_port.load_torque,
+                "net_torque_out": self.io.output_port.net_torque,
                 "rpm_out": self.state.output_port.rpm,
                 "on": self.state.internal.on,
                 "temperature": self.state.internal.temperature}
@@ -183,12 +211,16 @@ class ElectricGeneratorSnapshot(ConverterSnapshot):
 
     @property
     def power_in(self) -> float:
-        return torque_to_power(torque=self.io.input_port.torque,
+        return torque_to_power(torque=self.io.input_port.net_torque,
                                rpm=self.state.input_port.rpm)
 
     @property
     def power_out(self) -> float:
         return self.io.output_port.electric_power
+
+    @property
+    def applied_power_out(self) -> float:
+        return 0.0
 
     @property
     def fuel_consumption_in(self) -> float:
@@ -198,7 +230,7 @@ class ElectricGeneratorSnapshot(ConverterSnapshot):
     def to_dict(self) -> dict[str, float]:
         return {"power_in": self.power_in,
                 "power_out": self.power_out,
-                "torque_in": self.io.input_port.torque,
+                "torque_in": self.io.input_port.net_torque,
                 "rpm_in": self.state.input_port.rpm,
                 "temperature": self.state.internal.temperature}
 
@@ -218,6 +250,10 @@ class FuelCellSnapshot(ConverterSnapshot):
     @property
     def power_out(self) -> float:
         return self.io.output_port.electric_power
+
+    @property
+    def applied_power_out(self) -> float:
+        return 0.0
 
     @property
     def fuel_consumption_in(self) -> float:
@@ -247,6 +283,10 @@ class ElectricInverterSnapshot(ConverterSnapshot):
         return self.io.output_port.electric_power
 
     @property
+    def applied_power_out(self) -> float:
+        return 0.0
+
+    @property
     def fuel_consumption_in(self) -> float:
         return 0.0
 
@@ -274,6 +314,10 @@ class ElectricRectifierSnapshot(ConverterSnapshot):
         return self.io.output_port.electric_power
 
     @property
+    def applied_power_out(self) -> float:
+        return 0.0
+
+    @property
     def fuel_consumption_in(self) -> float:
         return 0.0
 
@@ -294,13 +338,17 @@ class GearBoxSnapshot(ConverterSnapshot):
 
     @property
     def power_in(self) -> float:
-        return torque_to_power(torque=self.io.input_port.torque,
+        return torque_to_power(torque=self.io.input_port.net_torque,
                                rpm=self.state.input_port.rpm)
 
     @property
     def power_out(self) -> float:
-        return torque_to_power(torque=self.io.output_port.torque,
+        return torque_to_power(torque=self.io.output_port.net_torque,
                                rpm=self.state.output_port.rpm)
+
+    @property
+    def applied_power_out(self) -> float:
+        return 0.0
 
     @property
     def fuel_consumption_in(self) -> float:
@@ -310,9 +358,9 @@ class GearBoxSnapshot(ConverterSnapshot):
     def to_dict(self) -> dict[str, float]:
         return {"power_in": self.power_in,
                 "power_out": self.power_out,
-                "torque_in": self.io.input_port.torque,
+                "torque_in": self.io.input_port.net_torque,
                 "rpm_in": self.state.input_port.rpm,
-                "torque_out": self.io.output_port.torque,
+                "torque_out": self.io.output_port.net_torque,
                 "rpm_out": self.state.output_port.rpm,
                 "temperature": self.state.internal.temperature}
 
@@ -506,18 +554,20 @@ class DriveTrainSnapshot(GearBoxSnapshot):
     def to_dict(self) -> dict[str, float]:
         return {"power_in": self.power_in,
                 "power_out": self.power_out,
-                "torque_in": self.io.input_port.torque,
+                "torque_in": self.io.input_port.net_torque,
                 "rpm_in": self.state.input_port.rpm,
-                "torque_out": self.io.output_port.torque,
+                "torque_out": self.io.output_port.net_torque,
                 "rpm_out": self.state.output_port.rpm,
                 "temperature": self.state.internal.temperature}
-        #result = super().to_dict
-        #return result
-    
 
+
+# =====================
+# CONVENIENCE FUNCTIONS
+# =====================
 
 def return_electric_motor_snapshot(electric_power_in: float=0.0,
-                                   torque_out: float=0.0,
+                                   applied_torque_out: float=0.0,
+                                   load_torque_out: float=0.0,
                                    temperature: float=DEFAULT_TEMPERATURE,
                                    on: bool=True,
                                    rpm_out: float=0.0) -> ElectricMotorSnapshot:
@@ -525,14 +575,16 @@ def return_electric_motor_snapshot(electric_power_in: float=0.0,
     Returns an instance of `ElectricMotorSnapshot`.
     """
     return ElectricMotorSnapshot(io=ElectricMotorIO(input_port=ElectricIO(electric_power=electric_power_in),
-                                                    output_port=MechanicalIO(torque=torque_out)),
+                                                    output_port=MechanicalIO(applied_torque=applied_torque_out,
+                                                                             load_torque=load_torque_out)),
                                  state=ElectricMotorState(internal=MotorInternalState(temperature=temperature,
                                                                                       on=on),
                                                           output_port=RotatingState(rpm=rpm_out)))
 
 def return_liquid_ice_snapshot(fuel_in: LiquidFuel,
                                liters_flow_in: float=0.0,
-                               torque_out: float=0.0,
+                               applied_torque_out: float=0.0,
+                               load_torque_out: float=0.0,
                                temperature: float=DEFAULT_TEMPERATURE,
                                on: bool=True,
                                rpm_out: float=0.0) -> LiquidCombustionEngineSnapshot:
@@ -541,14 +593,16 @@ def return_liquid_ice_snapshot(fuel_in: LiquidFuel,
     """
     return LiquidCombustionEngineSnapshot(io=LiquidInternalCombustionEngineIO(input_port=LiquidFuelIO(_fuel=fuel_in,
                                                                                                       liters_flow=liters_flow_in),
-                                                                              output_port=MechanicalIO(torque=torque_out)),
+                                                                              output_port=MechanicalIO(applied_torque=applied_torque_out,
+                                                                                                       load_torque=load_torque_out)),
                                           state=InternalCombustionEngineState(internal=MotorInternalState(temperature=temperature,
                                                                                                           on=on),
                                                                               output_port=RotatingState(rpm=rpm_out)))
 
 def return_gaseous_ice_snapshot(fuel_in: GaseousFuel,
                                 mass_flow_in: float=0.0,
-                                torque_out: float=0.0,
+                                applied_torque_out: float=0.0,
+                                load_torque_out: float=0.0,
                                 temperature: float=DEFAULT_TEMPERATURE,
                                 on: bool=True,
                                 rpm_out: float=0.0) -> GaseousCombustionEngineSnapshot:
@@ -557,19 +611,22 @@ def return_gaseous_ice_snapshot(fuel_in: GaseousFuel,
     """
     return GaseousCombustionEngineSnapshot(io=GaseousInternalCombustionEngineIO(input_port=GaseousFuelIO(_fuel=fuel_in,
                                                                                                          mass_flow=mass_flow_in),
-                                                                                output_port=MechanicalIO(torque=torque_out)),
+                                                                                output_port=MechanicalIO(applied_torque=applied_torque_out,
+                                                                                                         load_torque=load_torque_out)),
                                            state=InternalCombustionEngineState(internal=MotorInternalState(temperature=temperature,
                                                                                                            on=on),
                                                                                output_port=RotatingState(rpm=rpm_out)))
 
-def return_electric_generator_snapshot(torque_in: float=0.0,
+def return_electric_generator_snapshot(applied_torque_in: float=0.0,
+                                       load_torque_in: float=0.0,
                                        electric_power_out: float=0.0,
                                        rpm_in: float=0.0,
                                        temperature: float=DEFAULT_TEMPERATURE) -> ElectricGeneratorSnapshot:
     """
     Returns an instance of `ElectricGeneratorSnapshot`.
     """
-    return ElectricGeneratorSnapshot(io=ElectricGeneratorIO(input_port=MechanicalIO(torque=torque_in),
+    return ElectricGeneratorSnapshot(io=ElectricGeneratorIO(input_port=MechanicalIO(applied_torque=applied_torque_in,
+                                                                                    load_torque=load_torque_in),
                                                             output_port=ElectricIO(electric_power=electric_power_out)),
                                      state=ElectricGeneratorState(input_port=RotatingState(rpm=rpm_in),
                                                                   internal=BaseInternalState(temperature=temperature)))
@@ -606,16 +663,18 @@ def return_electric_rectifier_snapshot(electric_power_in: float=0.0,
                                                             output_port=ElectricIO(electric_power=electric_power_out)),
                                     state=PureElectricState(internal=PureElectricInternalState(temperature=temperature)))
 
-def return_gearbox_snapshot(torque_in: float=0.0,
-                            torque_out: float=0.0,
+def return_gearbox_snapshot(load_torque_in: float=0.0,
+                            load_torque_out: float=0.0,
                             rpm_in: float=0.0,
                             rpm_out: float=0.0,
                             temperature: float=DEFAULT_TEMPERATURE) -> GearBoxSnapshot:
     """
     Returns an instance of `GearBoxSnapshot`.
     """
-    return GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
-                                        output_port=MechanicalIO(torque=torque_out)),
+    return GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(applied_torque=0.0,
+                                                                load_torque=load_torque_in),
+                                        output_port=MechanicalIO(applied_torque=0.0,
+                                                                 load_torque=load_torque_out)),
                            state=PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                                      internal=PureMechanicalInternalState(temperature=temperature),
                                                      output_port=RotatingState(rpm=rpm_out)))
@@ -666,18 +725,19 @@ def return_gaseous_fuel_tank_snapshot(fuel: GaseousFuel,
                                    state=GaseousFuelTankState(internal=GaseousFuelTankInternalState(temperature=temperature,
                                                                                                     mass_stored=mass_stored)))
 
-
-def return_drivetrain_snapshot(torque_in: float = 0.0,
-                               torque_out: float = 0.0,
-                               rpm_in: float = 0.0,
-                               rpm_out: float = 0.0,
-                               temperature: float = DEFAULT_TEMPERATURE
+def return_drivetrain_snapshot(load_torque_in: float=0.0,
+                               load_torque_out: float=0.0,
+                               rpm_in: float=0.0,
+                               rpm_out: float=0.0,
+                               temperature: float=DEFAULT_TEMPERATURE
                                ) -> DriveTrainSnapshot:
     """
     Returns an instance of `DriveTrainSnapshot`.
     """
-    return DriveTrainSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
-                                           output_port=MechanicalIO(torque=torque_out)),
+    return DriveTrainSnapshot(io=GearBoxIO(input_port=MechanicalIO(applied_torque=0.0,
+                                                                   load_torque=load_torque_in),
+                                           output_port=MechanicalIO(applied_torque=0.0,
+                                                                    load_torque=load_torque_out)),
                               state=PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                                         internal=PureMechanicalInternalState(temperature=temperature),
                                                         output_port=RotatingState(rpm=rpm_out)))

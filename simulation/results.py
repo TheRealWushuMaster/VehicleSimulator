@@ -1,11 +1,13 @@
 """This module contains classes for handling simulation results."""
 
 from collections import defaultdict
+from math import ceil
 from typing import Optional
 import os
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 import pandas as pd
+from simulation.constants import MAX_PLOTS_PER_COLUMN
 from simulation.simulator import Simulator
 
 NICE_LABELS: dict[str, tuple[str, str, str]] = {
@@ -13,6 +15,9 @@ NICE_LABELS: dict[str, tuple[str, str, str]] = {
     "rpm_out": ("Speed (%sRPM)", "Output speed", "Output speed (RPM)"),
     "torque_in": ("Torque (%sN.m)", "Input torque", "Input torque (N.m)"),
     "torque_out": ("Torque (%sN.m)", "Output torque", "Output torque (N.m)"),
+    "applied_torque_out": ("Output applied torque (%sN.m)", "Output applied torque", "Output applied torque (N.m)"),
+    "load_torque_out": ("Output load torque (%sN.m)", "Output load torque", "Output load torque (N.m)"),
+    "net_torque_out": ("Output torque (%sN.m)", "Output torque", "Output torque (N.m)"),
     "power_in": ("Power (%sW)", "Input power", "Input power (W)"),
     "power_out": ("Power (%sW)", "Output power", "Output power (W)"),
     "temperature": ("Temperature (K)", "Temperature", "Temperature (K)"),
@@ -33,7 +38,8 @@ NICE_LABELS: dict[str, tuple[str, str, str]] = {
     "load_torque": ("Torque (%sN.m)", "Load torque", "Load torque (N.m)"),
     "tractive_torque": ("Torque (%sN.m)", "Tractive torque", "Tractive torque (N.m)"),
     "position": ("Position (%sm)", "Position", "Position (m)"),
-    "velocity": ("Velocity (%sm/s)", "Velocity", "Velocity (m/s)")}
+    "velocity": ("Velocity (%sm/s)", "Velocity", "Velocity (m/s)"),
+    "angle": ("Angle (radians)", "Angle", "Angle (radians)")}
 eng_formatter = ticker.EngFormatter()
 
 
@@ -76,7 +82,8 @@ class ResultsManager():
         """
         return self.dataframes.get(comp_type, pd.DataFrame())
 
-    def plot_all(self, num_cols: int=1,
+    def plot_all(self, num_cols: int=0,
+                 max_plots_per_column: int=MAX_PLOTS_PER_COLUMN,
                  adjust_scale: bool=True,
                  dpi: int=250,
                  folder: Optional[str]="examples/results"):
@@ -86,7 +93,9 @@ class ResultsManager():
         if folder is not None:
             folder = f"{folder}/{self.simulation.name}"
             os.makedirs(folder, exist_ok=True)
-        num_cols = max(num_cols, 1)
+        if num_cols != 0:
+            num_cols = max(num_cols, 1)
+        max_plots_per_column = max(max_plots_per_column, 1)
         for comp_type, df in self.dataframes.items():
             if df.empty:
                 continue
@@ -101,8 +110,12 @@ class ResultsManager():
                 for col in df_temp.columns:
                     if df_temp[col].dtype==bool:
                         df_temp[col] = df_temp[col].astype(int)
+                if num_cols == 0:
+                    num_cols_eff = ceil(len(df_temp.columns) / MAX_PLOTS_PER_COLUMN)
+                else:
+                    num_cols_eff = num_cols
                 axes = df_temp.plot(subplots=True,
-                                    layout=(-1, num_cols),
+                                    layout=(-1, num_cols_eff),
                                     figsize=(6, 10),
                                     legend=False,
                                     sharex=True,

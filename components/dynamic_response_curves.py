@@ -22,7 +22,7 @@ from components.component_state import PureMechanicalState, \
     InternalCombustionEngineState, \
     RotatingState, FuelCellState
 from helpers.functions import assert_type, assert_type_and_range, \
-    ang_vel_to_rpm
+    ang_vel_to_rpm, clamp
 
 
 class MechanicalToMechanical():
@@ -48,14 +48,15 @@ class MechanicalToMechanical():
         def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
-            torque_out = snap.io.input_port.torque * gear_ratio * efficiency
+            torque_out = snap.io.input_port.net_torque * gear_ratio * efficiency
             rpm_in = snap.state.input_port.rpm
             rpm_out = rpm_in / gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=RotatingState(rpm=rpm_out))
             new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=snap.io.input_port,
-                                                    output_port=MechanicalIO(torque=torque_out)),
+                                                    output_port=MechanicalIO(applied_torque=0.0,
+                                                                             load_torque=torque_out)),
                                        state=new_state)
             return new_snap, new_state
         return response
@@ -79,15 +80,15 @@ class MechanicalToMechanical():
         def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
-            torque_in = snap.io.output_port.torque / gear_ratio * efficiency
+            torque_in = snap.io.output_port.net_torque / gear_ratio * efficiency
             rpm_in = snap.state.output_port.rpm * gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=snap.state.output_port)
-            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(torque=torque_in),
+            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(applied_torque=0.0,
+                                                                            load_torque=torque_in),
                                                     output_port=snap.io.output_port),
                                        state=new_state)
-            
             return new_snap, new_state
         return response
 
@@ -146,7 +147,7 @@ class ElectricToMechanical():
     Contains generator methods for electric motors.
     """
     @staticmethod
-    def forward_driven_first_order() -> Callable[[ElectricMotorSnapshot, float,
+    def forward_driven_first_order() -> Callable[[ElectricMotorSnapshot,
                                                   float, float, float,
                                                   ElectricMotorConsumption,
                                                   ElectricMotorLimits],
@@ -157,7 +158,6 @@ class ElectricToMechanical():
         with a first-order lag response.
         """
         def response(snap: ElectricMotorSnapshot,
-                     load_torque: float,
                      downstream_inertia: float,
                      delta_t: float,
                      control_signal: float,
@@ -170,7 +170,7 @@ class ElectricToMechanical():
                         expected_type=ElectricMotorConsumption)
             assert_type(limits,
                         expected_type=ElectricMotorLimits)
-            assert_type_and_range(load_torque, downstream_inertia,
+            assert_type_and_range(downstream_inertia,
                                   delta_t,
                                   more_than=0.0)
             assert_type_and_range(control_signal,
@@ -179,13 +179,17 @@ class ElectricToMechanical():
             min_torque = limits.relative_limits.output.torque.min(snap)
             max_torque = limits.relative_limits.output.torque.max(snap)
             torque = (max_torque - min_torque) * control_signal + min_torque
-            w_dot = (torque - load_torque) / downstream_inertia
+            w_dot = (torque - snap.io.output_port.load_torque) / downstream_inertia
             efficiency_value = efficiency.in_to_out_efficiency_value(snap=snap)
             new_snap = ElectricMotorSnapshot(io=ElectricMotorIO(input_port=ElectricIO(electric_power=0.0),
-                                                                output_port=MechanicalIO(torque=torque)),
+                                                                output_port=MechanicalIO(applied_torque=torque,
+                                                                                         load_torque=snap.io.output_port.load_torque)),
                                              state=snap.state)
             new_snap.io.input_port.electric_power = new_snap.power_out / efficiency_value
             new_rpm = snap.state.output_port.rpm + ang_vel_to_rpm(ang_vel=w_dot*delta_t)
+            new_rpm = clamp(val=new_rpm,
+                            min_val=limits.relative_limits.output.rpm.min(snap),
+                            max_val=limits.relative_limits.output.rpm.max(snap))
             new_state = ElectricMotorState(internal=snap.state.internal,
                                            output_port=RotatingState(rpm=new_rpm))
             return new_snap, new_state
@@ -299,7 +303,8 @@ class FuelToMechanical():
             w_dot = (torque - load_torque) / downstream_inertia
             new_rpm = snap.state.output_port.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
             new_snap = LiquidCombustionEngineSnapshot(io=LiquidInternalCombustionEngineIO(input_port=snap.io.input_port,
-                                                                                          output_port=MechanicalIO(torque=torque)),
+                                                                                          output_port=MechanicalIO(applied_torque=torque,
+                                                                                                                   load_torque=load_torque)),
                                                       state=snap.state)
             fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(snap=new_snap) * delta_t
             new_snap.io.input_port.liters_flow = fuel_consumption_value
@@ -345,7 +350,8 @@ class FuelToMechanical():
             w_dot = (torque - load_torque) / downstream_inertia
             new_rpm = snap.state.output_port.rpm + ang_vel_to_rpm(ang_vel=w_dot * delta_t)
             new_snap = GaseousCombustionEngineSnapshot(io=GaseousInternalCombustionEngineIO(input_port=snap.io.input_port,
-                                                                                            output_port=MechanicalIO(torque=torque)),
+                                                                                            output_port=MechanicalIO(applied_torque=torque,
+                                                                                                                     load_torque=load_torque)),
                                                        state=snap.state)
             fuel_consumption_value = fuel_consumption.in_to_out_fuel_consumption_value(snap=new_snap) * delta_t
             new_snap.io.input_port.mass_flow = fuel_consumption_value

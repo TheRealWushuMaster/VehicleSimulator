@@ -7,6 +7,7 @@ from math import pi
 
 # Miscellaneous
 EPSILON: float = 0.001
+MAX_PLOTS_PER_COLUMN: int = 4
 DEFAULT_TEMPERATURE: float = 300.0
 DEFAULT_PRECISION: int = 8
 DRIVE_TRAIN_ID: str = "DriveTrain"

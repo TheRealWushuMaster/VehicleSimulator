@@ -114,6 +114,7 @@ class Simulator():
         Simulates all time steps and stores state
         variables in the simulation history list.
         """
+        self._set_loads()
         for n in range(self.time_steps):
             self.vehicle.request_stack.reset()
             for converter in self.vehicle.converters:
@@ -121,8 +122,14 @@ class Simulator():
                                         n=n)
             for energy_source in self.vehicle.energy_sources:
                 self._process_energy_source(energy_source=energy_source)
-            self._process_drive_train()
+            self._process_drive_train_forward(save_snap=True)
             self._process_vehicle(n=n)
+
+    def _set_loads(self) -> None:
+        loads = self.track.load_on_vehicle(vehicle=self.vehicle,
+                                           can_slip=self.can_slip)
+        self.vehicle.drive_train.snapshot.io.output_port.load_torque = loads.total_load_torque
+        self._process_drive_train_reverse(save_snap=False)
 
     def _propagate_output(self, component: Converter) -> None:
         """
@@ -201,9 +208,17 @@ class Simulator():
             self.history[energy_source.id]["snapshots"].append(new_source_snap)
             energy_source.snapshot.io.output_port.electric_power = 0.0
 
-    def _process_drive_train(self) -> None:
+    def _process_drive_train_forward(self, save_snap: bool=False) -> None:
         new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot)
-        self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
+        if save_snap:
+            self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
+        self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
+        self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
+
+    def _process_drive_train_reverse(self, save_snap: bool=False) -> None:
+        new_dt_snap, new_dt_state = self.vehicle.drive_train.process_recover(snap=self.vehicle.drive_train.snapshot)
+        if save_snap:
+            self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
         self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
         self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
 
@@ -214,10 +229,10 @@ class Simulator():
         new_snap = deepcopy(self.vehicle.snapshot)
         new_snap.io.inputs.throttle = self.throttle_signal[n]
         new_snap.io.inputs.brake = self.brake_signal[n]
-        front_load, rear_load = self.track.load_torques(vehicle=self.vehicle,
-                                                        can_slip=self.can_slip)
-        new_snap.io.inputs.load_torque = front_load + rear_load
-        new_snap.io.outputs.tractive_torque = self.vehicle.drive_train.snapshot.io.output_port.torque
+        loads = self.track.load_on_vehicle(vehicle=self.vehicle,
+                                           can_slip=self.can_slip)
+        new_snap.io.inputs.load_torque = loads.front_axle.total_torque + loads.rear_axle.total_torque
+        new_snap.io.outputs.tractive_torque = self.vehicle.drive_train.snapshot.io.output_port.net_torque
         new_snap.state.velocity = rpm_to_velocity(rpm=self.vehicle.drive_train.snapshot.state.output_port.rpm,
                                                   radius=self.vehicle.drive_train.front_axle.wheel.radius)
         new_position = self.track.advance_distance(d=self.vehicle.snapshot.state.position,
@@ -247,9 +262,9 @@ class Simulator():
         if downstream_components is not None:
             for load_comp in downstream_components:
                 if isinstance(load_comp[0], DriveTrain):
-                    front_load_torque, rear_load_torque = self.track.load_torques(vehicle=self.vehicle,
-                                                                                  can_slip=self.can_slip)
-                    return front_load_torque + rear_load_torque
+                    loads = self.track.load_on_vehicle(vehicle=self.vehicle,
+                                                       can_slip=self.can_slip)
+                    return loads.front_axle.total_torque + loads.rear_axle.total_torque
                 return self._get_output_load_torque(component=load_comp[0])
         return 0.0
 
