@@ -30,7 +30,7 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
     Creates the dynamic response of
     a reversible electric motor.
     """
-    forward_response: Callable[[ElectricMotorSnapshot, float,
+    forward_response: Callable[[ElectricMotorSnapshot,
                                 float, float, float,
                                 ElectricMotorConsumption,
                                 ElectricMotorLimits],
@@ -47,7 +47,6 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
                         self.reverse_response)
 
     def compute_forward(self, snap: ElectricMotorSnapshot,
-                        load_torque: float,
                         downstream_inertia: float,
                         delta_t: float,
                         throttle_signal: float,
@@ -65,13 +64,12 @@ class ElectricMotorDynamicResponse(BaseDynamicResponse):
                     expected_type=ElectricMotorConsumption)
         assert_type(limits,
                     expected_type=ElectricMotorLimits)
-        assert_type_and_range(load_torque, throttle_signal,
+        assert_type_and_range(throttle_signal,
                               more_than=0.0)
         assert_type_and_range(downstream_inertia, delta_t,
                               more_than=0.0,
                               include_more=False)
         new_snap, new_state = self.forward_response(snap,
-                                                    load_torque,
                                                     downstream_inertia,
                                                     delta_t,
                                                     throttle_signal,

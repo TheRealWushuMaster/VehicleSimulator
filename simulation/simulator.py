@@ -114,7 +114,7 @@ class Simulator():
         Simulates all time steps and stores state
         variables in the simulation history list.
         """
-        self._set_loads()
+        #self._set_loads()
         for n in range(self.time_steps):
             self.vehicle.request_stack.reset()
             for converter in self.vehicle.converters:
@@ -177,7 +177,7 @@ class Simulator():
         if isinstance(converter, ElectricMotor):
             assert isinstance(converter.snapshot, ElectricMotorSnapshot)
             inertia = self.vehicle.downstream_inertia(component_id=converter.id)
-            load_torque = self._get_output_load_torque(component=converter)
+            load_torque = 800.0#self._get_output_load_torque(component=converter)
             new_conv_snap, new_state = converter.dynamic_response.compute_forward(
                 snap=converter.snapshot,
                 load_torque=load_torque,
@@ -209,7 +209,8 @@ class Simulator():
             energy_source.snapshot.io.output_port.electric_power = 0.0
 
     def _process_drive_train_forward(self, save_snap: bool=False) -> None:
-        new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot)
+        new_dt_snap, new_dt_state = self.vehicle.drive_train.process_drive(snap=self.vehicle.drive_train.snapshot,
+                                                                           update_snaps=True)
         if save_snap:
             self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
         self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)
