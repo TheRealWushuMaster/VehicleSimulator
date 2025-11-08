@@ -245,106 +245,80 @@ class DriveTrain():
         Processes the drive train from its input.
         """
         if update_snaps:
+            gb = self.gearbox
             diff = self.differential
         else:
+            gb = deepcopy(self.gearbox)
             diff = deepcopy(self.differential)
-        new_snap = deepcopy(snap)
         assert isinstance(diff.snapshot, GearBoxSnapshot)
-        assert isinstance(diff.dynamic_response, PureMechanicalDynamicResponse)
-        if self.gearbox is not None:
-            gearbox_snap, gearbox_new_state = self._process_gearbox(snap=snap,
-                                                                    forward=True,
-                                                                    update_snaps=update_snaps)
+        if gb is not None:
+            gearbox_snap, _ = self._process_part(part=gb,
+                                                 snap=snap,
+                                                 forward=True)
             diff.snapshot.io.input_port = gearbox_snap.io.output_port
             diff.snapshot.state.input_port = gearbox_snap.state.output_port
-            new_snap.io.input_port = gearbox_snap.io.input_port
-            new_snap.state.input_port = gearbox_new_state.input_port
         else:
             diff.snapshot.io.input_port = snap.io.input_port
             diff.snapshot.state.input_port = snap.state.input_port
-        diff_snap, diff_new_state = diff.dynamic_response.compute_forward(snap=diff.snapshot)
-        diff.snapshot = diff_snap
-        diff.snapshot.state = diff_new_state
-        if self.gearbox is None:
-            new_snap.io.input_port = diff_snap.io.input_port
-            new_snap.state.input_port = diff_new_state.input_port
+        diff_snap, diff_new_state = self._process_part(part=diff,
+                                                       forward=True)
+        new_snap = deepcopy(snap)
         new_snap.io.output_port = diff_snap.io.output_port
         new_snap.state.output_port = diff_new_state.output_port
         return new_snap, new_snap.state
 
-    def process_recover(self, snap: DriveTrainSnapshot) -> tuple[DriveTrainSnapshot,
-                                                                 PureMechanicalState]:
+    def process_recover(self, snap: DriveTrainSnapshot,
+                        update_snaps: bool) -> tuple[DriveTrainSnapshot,
+                                                     PureMechanicalState]:
         """
         Processes the drive train from its output.
         """
-        assert isinstance(self.differential.snapshot, GearBoxSnapshot)
-        assert isinstance(self.differential.dynamic_response, PureMechanicalDynamicResponse)
-        self.differential.snapshot.io.output_port = snap.io.output_port  # pylint: disable=E1101
-        diff_snap, diff_new_state = self.differential.dynamic_response.compute_reverse(snap=self.differential.snapshot)  # pylint: disable=E1101
-        self.differential.snapshot = diff_snap
-        new_snap = deepcopy(snap)
-        if self.gearbox is not None:
-            assert isinstance(self.gearbox, GearBox)
-            assert isinstance(self.gearbox.snapshot, GearBoxSnapshot)
-            assert isinstance(self.gearbox.dynamic_response, PureMechanicalDynamicResponse)
-            self.gearbox.snapshot.io.output_port = snap.io.output_port  # pylint: disable=E1101
-            gearbox_snap, gearbox_new_state = self.gearbox.dynamic_response.compute_reverse(snap=self.gearbox.snapshot)  # pylint: disable=E1101
-            self.gearbox.snapshot = gearbox_snap
-            new_snap.io.input_port = gearbox_snap.io.input_port
+        if update_snaps:
+            gb = self.gearbox
+            diff = self.differential
         else:
-            new_snap.io.input_port = diff_snap.io.input_port
-        new_snap.io.input_port = gearbox_snap.io.input_port
+            gb = deepcopy(self.gearbox)
+            diff = deepcopy(self.differential)
+        assert isinstance(diff.snapshot, GearBoxSnapshot)
+        diff_snap, diff_new_state = self._process_part(part=diff,
+                                                       snap=snap,
+                                                       forward=False)
+        if gb is not None:
+            assert isinstance(gb.snapshot, GearBoxSnapshot)
+            gb.snapshot.io.input_port = diff_snap.io.output_port
+            gb.snapshot.state.input_port = diff_snap.state.output_port
+            gearbox_snap, _ = self._process_part(part=gb,
+                                                 forward=False)
+        else:
+            diff.snapshot.io.input_port = snap.io.input_port
+            diff.snapshot.state.input_port = snap.state.input_port
+        new_snap = deepcopy(snap)
         new_snap.io.output_port = diff_snap.io.output_port
-        new_state = self.snapshot.state
-        new_state.input_port = gearbox_new_state.input_port
-        new_state.output_port = diff_new_state.output_port
-        return new_snap, new_state
+        new_snap.state.output_port = diff_new_state.output_port
+        return new_snap, new_snap.state
 
     def _process_part(self, part: GearBox|Differential,
-                      snap: GearBoxSnapshot,
                       forward: bool,
-                      update_snaps: bool) -> tuple[GearBoxSnapshot, PureMechanicalState]:
-        if update_snaps:
-            part_temp = part
-        else:
-            part_temp = deepcopy(part)
-        assert isinstance(part_temp, (GearBox, Differential))
-        assert isinstance(part_temp.snapshot, GearBoxSnapshot)
-        assert isinstance(part_temp.dynamic_response, PureMechanicalDynamicResponse)
+                      snap: Optional[GearBoxSnapshot]=None) -> tuple[GearBoxSnapshot,
+                                                                     PureMechanicalState]:
+        assert isinstance(part, (GearBox, Differential))
+        assert isinstance(part.snapshot, GearBoxSnapshot)
+        assert isinstance(part.dynamic_response, PureMechanicalDynamicResponse)
+        if snap is None:
+            snap = part.snapshot
         if forward:
-            part_temp.snapshot.io.input_port = snap.io.input_port
-            part_temp.snapshot.state.input_port = snap.state.input_port
-            part_snap, part_new_state = part_temp.dynamic_response.compute_forward(
-                snap=part_temp.snapshot)
-            part_temp.snapshot = part_snap
-            part_temp.snapshot.state = part_new_state
+            part.snapshot.io.input_port = snap.io.input_port
+            part.snapshot.state.input_port = snap.state.input_port
+            part_snap, part_new_state = part.dynamic_response.compute_forward(snap=part.snapshot)
+            part.snapshot = part_snap
+            part.snapshot.state = part_new_state
             return part_snap, part_new_state
-        part_temp.snapshot.io.output_port = snap.io.output_port
-        part_temp.snapshot.state.output_port = snap.state.output_port
-        part_snap, part_new_state = part_temp.dynamic_response.compute_reverse(
-            snap=part_temp.snapshot)
-        part_temp.snapshot = part_snap
-        part_temp.snapshot.state = part_new_state
+        part.snapshot.io.output_port = snap.io.output_port
+        part.snapshot.state.output_port = snap.state.output_port
+        part_snap, part_new_state = part.dynamic_response.compute_reverse(snap=part.snapshot)
+        part.snapshot = part_snap
+        part.snapshot.state = part_new_state
         return part_snap, part_new_state
-
-    def _process_gearbox(self, snap: GearBoxSnapshot,
-                         forward: bool,
-                         update_snaps: bool) -> tuple[GearBoxSnapshot,
-                                                      PureMechanicalState]:
-        assert self.gearbox is not None
-        return self._process_part(part=self.gearbox,
-                                  snap=snap,
-                                  forward=forward,
-                                  update_snaps=update_snaps)
-
-    def _process_differential(self, snap: GearBoxSnapshot,
-                              forward: bool,
-                              update_snaps: bool) -> tuple[GearBoxSnapshot,
-                                                           PureMechanicalState]:
-        return self._process_part(part=self.differential,
-                                  snap=snap,
-                                  forward=forward,
-                                  update_snaps=update_snaps)
 
     def return_which_port(self, port: PortInput|PortOutput|PortBidirectional) -> Optional[PortType]:
         """

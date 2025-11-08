@@ -177,10 +177,10 @@ class Simulator():
         if isinstance(converter, ElectricMotor):
             assert isinstance(converter.snapshot, ElectricMotorSnapshot)
             inertia = self.vehicle.downstream_inertia(component_id=converter.id)
-            load_torque = 800.0#self._get_output_load_torque(component=converter)
+            converter.snapshot.io.output_port.load_torque = 800.0
+            #load_torque = self._get_output_load_torque(component=converter)
             new_conv_snap, new_state = converter.dynamic_response.compute_forward(
                 snap=converter.snapshot,
-                load_torque=load_torque,
                 downstream_inertia=inertia,
                 delta_t=self.delta_t,
                 throttle_signal=self.throttle_signal[n],
