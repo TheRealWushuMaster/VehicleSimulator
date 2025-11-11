@@ -279,6 +279,7 @@ class DriveTrain():
         else:
             gb = deepcopy(self.gearbox)
             diff = deepcopy(self.differential)
+        new_snap = deepcopy(snap)
         assert isinstance(diff.snapshot, GearBoxSnapshot)
         diff_snap, diff_new_state = self._process_part(part=diff,
                                                        snap=snap,
@@ -287,14 +288,13 @@ class DriveTrain():
             assert isinstance(gb.snapshot, GearBoxSnapshot)
             gb.snapshot.io.input_port = diff_snap.io.output_port
             gb.snapshot.state.input_port = diff_snap.state.output_port
-            gearbox_snap, _ = self._process_part(part=gb,
-                                                 forward=False)
+            gearbox_snap, gearbox_new_state = self._process_part(part=gb,
+                                                                 forward=False)
+            new_snap.io.input_port = gearbox_snap.io.input_port
+            new_snap.state.input_port = gearbox_new_state.input_port
         else:
-            diff.snapshot.io.input_port = snap.io.input_port
-            diff.snapshot.state.input_port = snap.state.input_port
-        new_snap = deepcopy(snap)
-        new_snap.io.output_port = diff_snap.io.output_port
-        new_snap.state.output_port = diff_new_state.output_port
+            new_snap.io.input_port = diff_snap.io.input_port
+            new_snap.state.input_port = diff_new_state.input_port
         return new_snap, new_snap.state
 
     def _process_part(self, part: GearBox|Differential,

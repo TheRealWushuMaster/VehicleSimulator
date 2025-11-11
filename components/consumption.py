@@ -176,7 +176,11 @@ class InToOutEnergyConsumption(Generic[InOutSnapshot]):
                     expected_type=(ConverterSnapshot, EnergySourceSnapshot))
         assert_type_and_range(delta_t,
                               more_than=0.0)
-        return snap.power_out * delta_t / self.in_to_out_efficiency_value(snap=snap)
+        if isinstance(snap, ConverterSnapshot):
+            power = snap.applied_power_out
+        else:
+            power = snap.power_out
+        return power * delta_t / self.in_to_out_efficiency_value(snap=snap)
 
     def in_to_out_efficiency_value(self, snap: InOutSnapshot) -> float:
         """

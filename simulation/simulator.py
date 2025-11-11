@@ -187,12 +187,12 @@ class Simulator():
                 efficiency=converter.consumption,
                 limits=converter.limits)
             energy = converter.consumption.compute_in_to_out(snap=new_conv_snap,
-                                                                delta_t=self.delta_t)
+                                                             delta_t=self.delta_t)
             power = energy / self.delta_t
             if power > 0.0:
                 if self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
-                                                                                    from_port=converter.input,
-                                                                                    requested=power)):
+                                                                                 from_port=converter.input,
+                                                                                 requested=power)):
                     self._resolve_stack()
             self.history[converter.id]["snapshots"].append(new_conv_snap)
             converter.snapshot.io = new_conv_snap.io
@@ -217,7 +217,8 @@ class Simulator():
         self.vehicle.drive_train.snapshot.state = deepcopy(new_dt_state)
 
     def _process_drive_train_reverse(self, save_snap: bool=False) -> None:
-        new_dt_snap, new_dt_state = self.vehicle.drive_train.process_recover(snap=self.vehicle.drive_train.snapshot)
+        new_dt_snap, new_dt_state = self.vehicle.drive_train.process_recover(snap=self.vehicle.drive_train.snapshot,
+                                                                             update_snaps=True)
         if save_snap:
             self.history[self.vehicle.drive_train.id]["snapshots"].append(new_dt_snap)
         self.vehicle.drive_train.snapshot.io = deepcopy(new_dt_snap.io)

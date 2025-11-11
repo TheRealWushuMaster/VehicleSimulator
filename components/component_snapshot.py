@@ -390,6 +390,13 @@ class EnergySourceSnapshot(BaseSnapshot):
         raise NotImplementedError
 
     @property
+    def applied_power_out(self) -> float:
+        """
+        Calculates the power applied at the output.
+        """
+        raise NotImplementedError
+
+    @property
     def forward_efficiency(self) -> float:
         """
         Calculates the power efficiency for a forward transfer.
@@ -428,6 +435,10 @@ class NonRechargeableBatterySnapshot(EnergySourceSnapshot):
         return self.io.output_port.electric_power
 
     @property
+    def applied_power_out(self) -> float:
+        return self.power_out
+
+    @property
     def fuel_consumption_in(self) -> float:
         return 0.0
 
@@ -453,6 +464,10 @@ class RechargeableBatterySnapshot(EnergySourceSnapshot):
     @property
     def power_out(self) -> float:
         return self.io.output_port.electric_power
+
+    @property
+    def applied_power_out(self) -> float:
+        return self.power_out
 
     @property
     def fuel_consumption_in(self) -> float:
@@ -481,6 +496,10 @@ class LiquidFuelTankSnapshot(EnergySourceSnapshot):
     @property
     def power_out(self) -> float:
         return 0.0
+
+    @property
+    def applied_power_out(self) -> float:
+        return self.power_out
 
     @property
     def fuel_consumption_in(self) -> float:
@@ -515,6 +534,10 @@ class GaseousFuelTankSnapshot(EnergySourceSnapshot):
     @property
     def power_out(self) -> float:
         return 0.0
+
+    @property
+    def applied_power_out(self) -> float:
+        return self.power_out
 
     @property
     def fuel_consumption_in(self) -> float:
