@@ -48,15 +48,16 @@ class MechanicalToMechanical():
         def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
-            torque_out = snap.io.input_port.net_torque * gear_ratio * efficiency
+            applied_torque_out = snap.io.input_port.applied_torque * gear_ratio * efficiency
+            load_torque_out = snap.io.input_port.load_torque * gear_ratio * efficiency
             rpm_in = snap.state.input_port.rpm
             rpm_out = rpm_in / gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=RotatingState(rpm=rpm_out))
             new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=snap.io.input_port,
-                                                    output_port=MechanicalIO(applied_torque=0.0,
-                                                                             load_torque=torque_out)),
+                                                    output_port=MechanicalIO(applied_torque=applied_torque_out,
+                                                                             load_torque=load_torque_out)),
                                        state=new_state)
             return new_snap, new_state
         return response
@@ -80,13 +81,14 @@ class MechanicalToMechanical():
         def response(snap: GearBoxSnapshot) -> tuple[GearBoxSnapshot,
                                                      PureMechanicalState]:
             assert isinstance(snap, GearBoxSnapshot)
-            torque_in = snap.io.output_port.net_torque / gear_ratio * efficiency
+            applied_torque_in = snap.io.output_port.applied_torque / gear_ratio * efficiency
+            load_torque_in = snap.io.output_port.load_torque / gear_ratio * efficiency
             rpm_in = snap.state.output_port.rpm * gear_ratio
             new_state = PureMechanicalState(input_port=RotatingState(rpm=rpm_in),
                                             internal=snap.state.internal,
                                             output_port=snap.state.output_port)
-            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(applied_torque=0.0,
-                                                                            load_torque=torque_in),
+            new_snap = GearBoxSnapshot(io=GearBoxIO(input_port=MechanicalIO(applied_torque=applied_torque_in,
+                                                                            load_torque=load_torque_in),
                                                     output_port=snap.io.output_port),
                                        state=new_state)
             return new_snap, new_state

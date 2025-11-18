@@ -45,6 +45,14 @@ class ConverterSnapshot(BaseSnapshot):
     Base snapshot class for converters.
     """
     @property
+    def applied_power_in(self) -> float:
+        """
+        Calculates the input power required
+        for the applied power on its output.
+        """
+        raise NotImplementedError
+
+    @property
     def power_in(self) -> float:
         """
         Calculates the net power transferred through the input.
@@ -96,6 +104,10 @@ class ElectricMotorSnapshot(ConverterSnapshot):
     state: ElectricMotorState
 
     @property
+    def applied_power_in(self) -> float:
+        return self.applied_power_out * self.reverse_efficiency
+
+    @property
     def power_in(self) -> float:
         return self.io.input_port.electric_power
 
@@ -115,8 +127,8 @@ class ElectricMotorSnapshot(ConverterSnapshot):
 
     @property
     def to_dict(self) -> dict[str, float]:
-        return {"power_in": self.power_in,
-                "power_out": self.power_out,
+        return {"power_in": self.applied_power_in,
+                "power_out": self.applied_power_out,
                 "applied_torque_out": self.io.output_port.applied_torque,
                 "load_torque_out": self.io.output_port.load_torque,
                 "net_torque_out": self.io.output_port.net_torque,
@@ -132,6 +144,10 @@ class LiquidCombustionEngineSnapshot(ConverterSnapshot):
     """
     io: LiquidInternalCombustionEngineIO
     state: InternalCombustionEngineState
+
+    @property
+    def applied_power_in(self) -> float:
+        return 0.0
 
     @property
     def power_in(self) -> float:
@@ -154,7 +170,7 @@ class LiquidCombustionEngineSnapshot(ConverterSnapshot):
     @property
     def to_dict(self) -> dict[str, float]:
         return {"fuel_liters_in": self.io.input_port.liters_flow,
-                "power_out": self.power_out,
+                "power_out": self.applied_power_out,
                 "applied_torque_out": self.io.output_port.applied_torque,
                 "load_torque_out": self.io.output_port.load_torque,
                 "net_torque_out": self.io.output_port.net_torque,
@@ -170,6 +186,10 @@ class GaseousCombustionEngineSnapshot(ConverterSnapshot):
     """
     io: GaseousInternalCombustionEngineIO
     state: InternalCombustionEngineState
+
+    @property
+    def applied_power_in(self) -> float:
+        return 0.0
 
     @property
     def power_in(self) -> float:
@@ -192,7 +212,7 @@ class GaseousCombustionEngineSnapshot(ConverterSnapshot):
     @property
     def to_dict(self) -> dict[str, float]:
         return {"fuel_mass_in": self.io.input_port.mass_flow,
-                "power_out": self.power_out,
+                "power_out": self.applied_power_out,
                 "applied_torque_out": self.io.output_port.applied_torque,
                 "load_torque_out": self.io.output_port.load_torque,
                 "net_torque_out": self.io.output_port.net_torque,
@@ -208,6 +228,10 @@ class ElectricGeneratorSnapshot(ConverterSnapshot):
     """
     io: ElectricGeneratorIO
     state: ElectricGeneratorState
+
+    @property
+    def applied_power_in(self) -> float:
+        return 0.0
 
     @property
     def power_in(self) -> float:
@@ -244,6 +268,10 @@ class FuelCellSnapshot(ConverterSnapshot):
     state: FuelCellState
 
     @property
+    def applied_power_in(self) -> float:
+        return 0.0
+
+    @property
     def power_in(self) -> float:
         return 0.0
 
@@ -273,6 +301,10 @@ class ElectricInverterSnapshot(ConverterSnapshot):
     """
     io: ElectricInverterIO
     state: PureElectricState
+
+    @property
+    def applied_power_in(self) -> float:
+        return 0.0
 
     @property
     def power_in(self) -> float:
@@ -306,6 +338,10 @@ class ElectricRectifierSnapshot(ConverterSnapshot):
     state: PureElectricState
 
     @property
+    def applied_power_in(self) -> float:
+        return 0.0
+
+    @property
     def power_in(self) -> float:
         return self.io.input_port.electric_power
 
@@ -337,6 +373,11 @@ class GearBoxSnapshot(ConverterSnapshot):
     state: PureMechanicalState
 
     @property
+    def applied_power_in(self) -> float:
+        return torque_to_power(torque=self.io.input_port.applied_torque,
+                               rpm=self.state.input_port.rpm)
+
+    @property
     def power_in(self) -> float:
         return torque_to_power(torque=self.io.input_port.net_torque,
                                rpm=self.state.input_port.rpm)
@@ -348,7 +389,8 @@ class GearBoxSnapshot(ConverterSnapshot):
 
     @property
     def applied_power_out(self) -> float:
-        return 0.0
+        return torque_to_power(torque=self.io.output_port.applied_torque,
+                               rpm=self.state.output_port.rpm)
 
     @property
     def fuel_consumption_in(self) -> float:
@@ -575,8 +617,8 @@ class DriveTrainSnapshot(GearBoxSnapshot):
 
     @property
     def to_dict(self) -> dict[str, float]:
-        return {"power_in": self.power_in,
-                "power_out": self.power_out,
+        return {"power_in": self.applied_power_in,
+                "power_out": self.applied_power_out,
                 "torque_in": self.io.input_port.net_torque,
                 "rpm_in": self.state.input_port.rpm,
                 "torque_out": self.io.output_port.net_torque,

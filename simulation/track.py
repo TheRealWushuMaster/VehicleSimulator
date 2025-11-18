@@ -452,12 +452,12 @@ class Track():
         rear_weight_per_wheel = rear_weight / vehicle.drive_train.rear_axle.num_wheels
         front_weight = vehicle_weight - rear_weight
         front_weight_per_wheel = front_weight / vehicle.drive_train.front_axle.num_wheels
-        front_angle = self.angle_degrees(d=front_contact)
-        rear_angle = self.angle_degrees(d=rear_contact)
+        front_angle = self.angle_radians(d=front_contact)
+        rear_angle = self.angle_radians(d=rear_contact)
         front_normal_per_wheel = front_weight_per_wheel * cos(front_angle)
-        front_force_gradient_per_wheel = - front_weight_per_wheel * sin(front_angle)
+        front_force_gradient_per_wheel = front_weight_per_wheel * sin(front_angle) # Positive means load, negative means assist
         rear_normal_per_wheel = rear_weight_per_wheel * cos(rear_angle)
-        rear_force_gradient_per_wheel = - rear_weight_per_wheel * sin(rear_angle)
+        rear_force_gradient_per_wheel = rear_weight_per_wheel * sin(rear_angle) # Positive means load, negative means assist
         front_force_rolling_per_wheel = self.rolling_resistance_coefficient(
             d=front_contact) * front_normal_per_wheel
         rear_force_rolling_per_wheel = self.rolling_resistance_coefficient(

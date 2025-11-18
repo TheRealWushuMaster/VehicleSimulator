@@ -13,6 +13,7 @@ from components.drive_train import DriveTrain
 from components.energy_source import EnergySource, Battery
 from components.message import RequestMessage, DeliveryMessage
 from components.motor import ElectricMotor
+from components.port import PortType
 from components.vehicle import Vehicle
 from simulation.constants import DEFAULT_PRECISION, DRIVE_TRAIN_ID, \
     VEHICLE_ID
@@ -114,8 +115,8 @@ class Simulator():
         Simulates all time steps and stores state
         variables in the simulation history list.
         """
-        #self._set_loads()
         for n in range(self.time_steps):
+            self._set_loads()
             self.vehicle.request_stack.reset()
             for converter in self.vehicle.converters:
                 self._process_converter(converter=converter,
@@ -137,12 +138,12 @@ class Simulator():
         of all components connected to it via its output.
         """
         comp_list = self.vehicle.find_suppliers_output(requester=component)
-        out_io = deepcopy(component.snapshot.io.output_port) # type: ignore
+        out_io = deepcopy(component.snapshot.io.output_port)    # type: ignore
         out_st = deepcopy(component.snapshot.state.output_port) # type: ignore
         if comp_list is None:
             return
-        for comp, _ in comp_list:   # pylint: disable=E1133
-            comp.snapshot.io.input_port = out_io   # type: ignore
+        for comp, _ in comp_list:
+            comp.snapshot.io.input_port = out_io    # type: ignore
             comp.snapshot.state.input_port = out_st # type: ignore
 
     def _resolve_stack(self) -> None:
@@ -177,8 +178,7 @@ class Simulator():
         if isinstance(converter, ElectricMotor):
             assert isinstance(converter.snapshot, ElectricMotorSnapshot)
             inertia = self.vehicle.downstream_inertia(component_id=converter.id)
-            converter.snapshot.io.output_port.load_torque = 800.0
-            #load_torque = self._get_output_load_torque(component=converter)
+            converter.snapshot.io.output_port.load_torque = self._get_output_load_torque(component=converter)
             new_conv_snap, new_state = converter.dynamic_response.compute_forward(
                 snap=converter.snapshot,
                 downstream_inertia=inertia,
@@ -186,13 +186,10 @@ class Simulator():
                 throttle_signal=self.throttle_signal[n],
                 efficiency=converter.consumption,
                 limits=converter.limits)
-            energy = converter.consumption.compute_in_to_out(snap=new_conv_snap,
-                                                             delta_t=self.delta_t)
-            power = energy / self.delta_t
-            if power > 0.0:
+            if new_conv_snap.applied_power_in > 0.0:
                 if self.vehicle.request_stack.add_request(request=RequestMessage(sender_id=converter.id,
                                                                                  from_port=converter.input,
-                                                                                 requested=power)):
+                                                                                 requested=new_conv_snap.applied_power_in)):
                     self._resolve_stack()
             self.history[converter.id]["snapshots"].append(new_conv_snap)
             converter.snapshot.io = new_conv_snap.io
@@ -235,13 +232,15 @@ class Simulator():
                                            can_slip=self.can_slip)
         new_snap.io.inputs.load_torque = loads.front_axle.total_torque + loads.rear_axle.total_torque
         new_snap.io.outputs.tractive_torque = self.vehicle.drive_train.snapshot.io.output_port.net_torque
+        new_snap.io.inputs.angle = self.track.vehicle_angle(vehicle=self.vehicle,front_axle_d=new_snap.state.position,
+                                                            in_radians=False)
+        self.history[self.vehicle.id]["snapshots"].append(new_snap)
         new_snap.state.velocity = rpm_to_velocity(rpm=self.vehicle.drive_train.snapshot.state.output_port.rpm,
                                                   radius=self.vehicle.drive_train.front_axle.wheel.radius)
         new_position = self.track.advance_distance(d=self.vehicle.snapshot.state.position,
                                                    distance=new_snap.state.velocity * self.delta_t)
         if new_position is not None:
             new_snap.state.position = new_position
-        self.history[self.vehicle.id]["snapshots"].append(new_snap)
         self.vehicle.snapshot = new_snap
 
     def _get_input_load_torque(self, component: EnergySource|Converter|DriveTrain
@@ -261,14 +260,15 @@ class Simulator():
         if isinstance(component, DriveTrain):
             pass
         downstream_components = self.vehicle.find_suppliers_output(requester=component)
+        load = 0.0
         if downstream_components is not None:
             for load_comp in downstream_components:
-                if isinstance(load_comp[0], DriveTrain):
-                    loads = self.track.load_on_vehicle(vehicle=self.vehicle,
-                                                       can_slip=self.can_slip)
-                    return loads.front_axle.total_torque + loads.rear_axle.total_torque
-                return self._get_output_load_torque(component=load_comp[0])
-        return 0.0
+                if isinstance(load_comp[0], (Converter, DriveTrain)):
+                    if load_comp[1] == PortType.INPUT_PORT:
+                        load += load_comp[0].snapshot.io.input_port.load_torque  # type: ignore
+                    else:
+                        load += load_comp[0].snapshot.io.output_port.load_torque # type: ignore
+        return load
 
     @property
     def precision(self) -> int:

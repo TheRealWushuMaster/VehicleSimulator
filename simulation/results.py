@@ -18,6 +18,8 @@ NICE_LABELS: dict[str, tuple[str, str, str]] = {
     "applied_torque_out": ("Output applied torque (%sN.m)", "Output applied torque", "Output applied torque (N.m)"),
     "load_torque_out": ("Output load torque (%sN.m)", "Output load torque", "Output load torque (N.m)"),
     "net_torque_out": ("Output torque (%sN.m)", "Output torque", "Output torque (N.m)"),
+    "applied_power_in": ("Power (%sW)", "Applied input power", "Applied input power (W)"),
+    "applied_power_out": ("Power (%sW)", "Applied output power", "Applied output power (W)"),
     "power_in": ("Power (%sW)", "Input power", "Input power (W)"),
     "power_out": ("Power (%sW)", "Output power", "Output power (W)"),
     "temperature": ("Temperature (K)", "Temperature", "Temperature (K)"),
@@ -39,7 +41,7 @@ NICE_LABELS: dict[str, tuple[str, str, str]] = {
     "tractive_torque": ("Torque (%sN.m)", "Tractive torque", "Tractive torque (N.m)"),
     "position": ("Position (%sm)", "Position", "Position (m)"),
     "velocity": ("Velocity (%sm/s)", "Velocity", "Velocity (m/s)"),
-    "angle": ("Angle (radians)", "Angle", "Angle (radians)")}
+    "angle": ("Angle (degrees)", "Angle", "Angle (degrees)")}
 eng_formatter = ticker.EngFormatter()
 
 
